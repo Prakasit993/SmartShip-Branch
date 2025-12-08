@@ -21,24 +21,24 @@
 
 ## 1. Analysis & Documentation
 
-- [ ] เก็บข้อมูล AS-IS Process ของสาขา J&T (ทำเป็นข้อความ/แผนภาพ)
-- [ ] เขียน Problem Statement & Business Goals
-- [ ] ระบุ Actors หลัก:
-  - [ ] Customer
-  - [ ] Branch Staff
-  - [ ] Branch Owner
-  - [ ] SmartShip System
-  - [ ] J&T System
-  - [ ] AI Services
-- [ ] นิยาม Scope ของระบบ (In Scope / Out of Scope)
-- [ ] เขียน Use Case รายละเอียด:
-  - [ ] UC-01: Create Shipment Draft & QR (Part 1)
-  - [ ] UC-02: Scan QR & Confirm Shipment in J&T (Part 2)
+- [x] เก็บข้อมูล AS-IS Process ของสาขา J&T (ทำเป็นข้อความ/แผนภาพ)
+- [x] เขียน Problem Statement & Business Goals
+- [x] ระบุ Actors หลัก:
+  - [x] Customer
+  - [x] Branch Staff
+  - [x] Branch Owner
+  - [x] SmartShip System
+  - [x] J&T System
+  - [x] AI Services
+- [x] นิยาม Scope ของระบบ (In Scope / Out of Scope)
+- [x] เขียน Use Case รายละเอียด:
+  - [x] UC-01: Create Shipment Draft & QR (Part 1)
+  - [x] UC-02: Scan QR & Confirm Shipment in J&T (Part 2)
   - [ ] UC-03: Create Shipment at Counter (No LINE)
   - [ ] UC-04: Daily Shipment Summary Report
   - [ ] UC-05: Customer Management (VIP/Regular)
 - [ ] สรุป Use Case ทั้งหมดใน `docs/use-cases.md`
-- [ ] วาด/อธิบาย Context Diagram / Level 0 DFD (เป็นข้อความหรือภาพ)
+- [x] วาด/อธิบาย Context Diagram / Level 0 DFD (เป็นข้อความหรือภาพ)
 
 ---
 
@@ -46,36 +46,36 @@
 
 ### 2.1 Data Model
 
-- [ ] ออกแบบ Conceptual Data Model (Entities หลัก)
-- [ ] เติมรายละเอียดใน `docs/data-model.md` สำหรับ:
-  - [ ] `branches`
-  - [ ] `customers`
-  - [ ] `shipments`
-  - [ ] `branch_daily_report`
-  - [ ] `thai_locations` (reference table)
-- [ ] ระบุฟิลด์สำคัญ + key / index ที่จำเป็น
-- [ ] ระบุ flag สำหรับคุณภาพข้อมูล:
-  - [ ] `address_validated`
-  - [ ] `address_needs_staff_review`
-  - [ ] `status` (draft/confirmed/sent_to_jt/...)
+- [x] ออกแบบ Conceptual Data Model (Entities หลัก)
+- [x] เติมรายละเอียดใน `docs/data-model.md` สำหรับ:
+  - [x] `branches`
+  - [x] `customers`
+  - [x] `shipments`
+  - [x] `branch_daily_report`
+  - [x] `thai_locations` (reference table)
+- [x] ระบุฟิลด์สำคัญ + key / index ที่จำเป็น (PK + unique phone, etc.)
+- [x] ระบุ flag สำหรับคุณภาพข้อมูล:
+  - [x] `address_validated`
+  - [x] `address_needs_staff_review`
+  - [x] `status` (draft/confirmed/sent_to_jt/...)
 
 ### 2.2 Architecture
 
-- [ ] เติม `docs/architecture.md` (High-Level Architecture)
-- [ ] อธิบาย:
-  - [ ] Actors & External Systems
-  - [ ] Presentation Layer (Staff Portal / LINE/LIFF)
-  - [ ] Application & Integration Layer (n8n หรือเทียบเท่า)
-  - [ ] Data Layer (PostgreSQL / Supabase)
-  - [ ] External Services (J&T System, AI Services, LINE)
-- [ ] ระบุ Main Flows ระดับสถาปัตยกรรม:
-  - [ ] Flow A – UC-01: Create Shipment Draft & QR
-  - [ ] Flow B – UC-02: Scan QR & Confirm Shipment in J&T
+- [x] เติม `docs/architecture.md` (High-Level Architecture)
+- [x] อธิบาย:
+  - [x] Actors & External Systems
+  - [x] Presentation Layer (Staff Portal / LINE/LIFF)
+  - [x] Application & Integration Layer (n8n หรือเทียบเท่า)
+  - [x] Data Layer (PostgreSQL / Supabase)
+  - [x] External Services (J&T System, AI Services, LINE)
+- [x] ระบุ Main Flows ระดับสถาปัตยกรรม:
+  - [x] Flow A – UC-01: Create Shipment Draft & QR
+  - [x] Flow B – UC-02: Scan QR & Confirm Shipment in J&T
   - [ ] Flow C – Daily Summary (UC-04)
-- [ ] ใส่ Design Considerations:
-  - [ ] Tool-agnostic (เปลี่ยนจาก n8n ไปใช้ขององค์กรได้)
-  - [ ] Scalability (รองรับหลายสาขา)
-  - [ ] Security & Compliance (โยงไป `docs/security.md`)
+- [x] ใส่ Design Considerations:
+  - [x] Tool-agnostic (เปลี่ยนจาก n8n ไปใช้ขององค์กรได้)
+  - [x] Scalability (รองรับหลายสาขา)
+  - [x] Security & Compliance (โยงไป `docs/security.md`)
 
 ---
 
@@ -83,33 +83,33 @@
 
 ### 3.1 Backend & Database
 
-- [ ] สร้างฐานข้อมูล (เช่น Supabase / PostgreSQL)
-- [ ] สร้างตาราง:
-  - [ ] `branches`
-  - [ ] `customers`
-  - [ ] `shipments`
-  - [ ] `branch_daily_report`
-  - [ ] `thai_locations`
-- [ ] Seed ข้อมูล `branches` (ที่อยู่สาขาจริง)
+- [x] สร้างฐานข้อมูล (เช่น Supabase / PostgreSQL)
+- [x] สร้างตาราง:
+  - [x] `branches`
+  - [x] `customers`
+  - [x] `shipments`
+  - [x] `branch_daily_report`
+  - [x] `thai_locations`
+- [x] Seed ข้อมูล `branches` (ที่อยู่สาขาจริง)
 - [ ] เตรียม/อิมพอร์ตข้อมูล `thai_locations` (จังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์)
 
 ### 3.2 Staff Portal (Web App)
 
-- [ ] ตั้งโปรเจกต์ Web App (เช่น Next.js/React)
-- [ ] หน้าจอ:
+- [x] ตั้งโปรเจกต์ Web App (เช่น Next.js/React)
+- [x] หน้าจอ:
   - [ ] หน้า Login (Staff / Owner)
-  - [ ] ฟอร์มสร้าง Shipment (Part 1)
-  - [ ] หน้าแสดง QR Code และสรุปข้อมูลพัสดุ
-  - [ ] หน้า “รับเข้าระบบ J&T (Part 2)” + สแกน QR
+  - [x] ฟอร์มสร้าง Shipment (Part 1)
+  - [x] หน้าแสดง QR Code และสรุปข้อมูลพัสดุ (หลังสร้าง draft)
+  - [x] หน้า “รับเข้าระบบ J&T (Part 2)” + สแกน QR
   - [ ] หน้า Customer Management (ค้น/แก้ลูกค้าประจำ)
   - [ ] หน้าแสดงรายงานพื้นฐาน (ดึงจาก `branch_daily_report`)
-- [ ] เชื่อมต่อ Backend / DB ผ่าน API หรือ Supabase client
+- [x] เชื่อมต่อ Backend / DB ผ่าน API หรือ Supabase client (สำหรับ UC-01/UC-02)
 
 ---
 
 ## 4. Automation & AI (n8n / Workflow Layer)
 
-- [ ] ติดตั้ง/ตั้งค่า n8n (หรือเลือกเครื่องมือ Orchestrator อื่น)
+- [ ] ติดตั้ง/ตั้งค่า n8n (หรือเลือกเครื่องมือ Orchestrator อื่นสำหรับโปรเจกต์นี้)
 - [ ] สร้าง Credentials ที่จำเป็น:
   - [ ] DB (PostgreSQL/Supabase)
   - [ ] AI Service (เช่น DeepSeek / OpenAI)
@@ -138,15 +138,16 @@
 
 ## 5. Integration & Reporting
 
-- [ ] วิเคราะห์วิธีเชื่อมกับ J&T:
-  - [ ] ปัจจุบัน (กรอกมือจากข้อมูลบนหน้าจอ SmartShip)
-  - [ ] อนาคต (API / QR Payload)
-- [ ] ออกแบบฟอร์แมต QR Payload ให้ชัดเจน:
-  - [ ] ต้องมี: branch code, shipment_id, vip_code, sender/receiver summary
+- [x] วิเคราะห์วิธีเชื่อมกับ J&T:
+  - [x] ปัจจุบัน (กรอกมือจากข้อมูลบนหน้าจอ SmartShip)
+  - [x] อนาคต (API / QR Payload / automation)
+- [x] ออกแบบฟอร์แมต QR Payload ให้ชัดเจน (MVP):
+  - [x] ต้องมี: `branch_code`, `shipment_id`
+  - [ ] เพิ่ม: `vip_code`, sender/receiver summary (ถ้าต้องใช้ใน J&T API)
 - [ ] หน้า Dashboard / รายงาน:
   - [ ] รายงานยอดส่งรายวัน (ดึงจาก `branch_daily_report`)
   - [ ] filter ตามวันที่, สาขา, ประเภทบริการ
-- [ ] ระบุ Next Step สำหรับการเชื่อม JT API จริงในอนาคต
+- [ ] ระบุ Next Step สำหรับการเชื่อม JT API จริงในอนาคต (mock → real)
 
 ---
 
@@ -187,7 +188,7 @@
   - [ ] ใช้ `thai_locations` ตรวจ combination ตำบล/อำเภอ/จังหวัด/รหัสไปรษณีย์
   - [ ] Popup ให้เลือก “ยืนยันตามที่ระบบแนะนำ” หรือ “ให้พนักงานตรวจสอบ”
   - [ ] ตั้งค่า flag `address_validated`, `address_needs_staff_review`
-- [ ] ออกแบบ/สร้าง `audit_log` (Audit Trail):
+- [ ] ออกแบบ/สร้าง `audit_log` (Audit Trail) logic:
   - [ ] บันทึกการสร้าง/แก้ไข/เปลี่ยนสถานะ shipment
   - [ ] บันทึกการแก้ข้อมูลลูกค้า
 - [ ] ปรับ Logging ให้ไม่เก็บข้อมูลอ่อนไหวใน log:
@@ -213,3 +214,15 @@
 - [ ] เพิ่ม Unit Test / Integration Test ส่วนสำคัญ
 
 ---
+
+## 9. Testing & Quality (แนะนำเพิ่ม)
+
+- [ ] เขียน Unit Test พื้นฐาน:
+  - [ ] ฟังก์ชันสร้าง QR payload
+  - [ ] ฟังก์ชัน parse QR payload (validate รูปแบบ)
+- [ ] เขียน Integration Test สำหรับ UC-01 / UC-02:
+  - [ ] สร้าง shipment draft แล้วเช็กว่าขึ้นใน DB
+  - [ ] simulate scan payload → เปลี่ยน status เป็น `confirmed`
+- [ ] ทำ Test Data Script:
+  - [ ] สร้าง sample shipments หลายสถานะ เพื่อเดโมในหน้ารายงาน
+- [ ] จัดทำ “Demo Script” 1 หน้า (step-by-step) เวลาไปพรีเซนต์โปรเจกต์
