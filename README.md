@@ -204,6 +204,78 @@
 
 ---
 
+### 7.5 🔐 Admin Panel Setup & Security (การตั้งค่า Admin และความปลอดภัย)
+
+#### Environment Variables ที่จำเป็น
+
+สร้างไฟล์ `.env.local` และตั้งค่าดังนี้:
+
+```bash
+# ===== ADMIN ACCESS CONTROL =====
+# รหัสผ่านสำหรับ login หน้า admin (ต้องเป็นรหัสที่คาดเดายาก!)
+ADMIN_PASSWORD=your-super-secure-password-here
+
+# Email ของ Admin หลัก (จะเห็นเมนูทุกอย่าง: Products, Settings, Bundles, Stock)
+ADMIN_EMAIL=admin@yourcompany.com
+
+# Email ของ Staff (คั่นด้วย comma) - เห็นเฉพาะ Dashboard และ Orders
+STAFF_EMAILS=staff1@company.com,staff2@company.com
+
+# ===== SUPABASE =====
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbG...  # ใช้เฉพาะฝั่ง server
+```
+
+#### วิธีเพิ่ม Admin/Staff
+
+| Role | วิธีตั้งค่า | สิทธิ์ |
+|------|------------|--------|
+| **Admin** | ใส่ email ใน `ADMIN_EMAIL` | เห็นทุกเมนู: Dashboard, Orders, Products, Bundles, Stock, Settings |
+| **Staff** | ใส่ email ใน `STAFF_EMAILS` | เห็นเฉพาะ: Dashboard, Orders |
+| **Password Login** | ใช้ `ADMIN_PASSWORD` ใน login หน้า admin | Full Admin Access |
+
+#### Security Protections
+
+**🛡️ สำหรับ Admin Panel**
+
+| Protection | Status | รายละเอียด |
+|------------|--------|------------|
+| Middleware Protection | ✅ | ทุก route `/admin/*` ถูกตรวจสอบ session |
+| HttpOnly Cookie | ✅ | ป้องกัน XSS ขโมย session |
+| Email Allowlist | ✅ | OAuth login ต้องมี email ใน `ADMIN_EMAIL` หรือ `STAFF_EMAILS` |
+| RBAC | ✅ | Staff ไม่สามารถเข้าหน้า Products/Settings/Bundles/Stock |
+| Secure Auth | ✅ | ใช้ `supabase.auth.getUser()` (server-side validation) |
+| Security Logging | ✅ | บันทึกการ login สำเร็จ/ล้มเหลว |
+
+**🛡️ สำหรับ Customer (User ธรรมดา)**
+
+| Protection | Status | รายละเอียด |
+|------------|--------|------------|
+| Route Protection | ✅ | `/profile/*` ต้องมี auth cookie |
+| Row Level Security (RLS) | ✅ | Users เห็นเฉพาะ orders ของตัวเอง |
+| OAuth only | ✅ | Login ผ่าน Google/Facebook (Supabase Auth) |
+| Session Validation | ✅ | ตรวจสอบ Supabase auth token |
+
+#### Best Practices
+
+```bash
+# ❌ อย่าทำ (รหัสผ่านอ่อนแอ)
+ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=password
+
+# ✅ ควรทำ (รหัสผ่านแข็งแรง)
+ADMIN_PASSWORD=Ks8#mP2$vQ9@nL4!
+```
+
+**ข้อปฏิบัติ:**
+1. **รหัสผ่าน** - ใช้อย่างน้อย 12 ตัวอักษร มีตัวพิมพ์ใหญ่/เล็ก ตัวเลข และสัญลักษณ์
+2. **HTTPS** - ใช้ HTTPS เสมอใน production
+3. **Rotate Password** - เปลี่ยนรหัสผ่าน admin ทุก 3-6 เดือน
+4. **Review Staff List** - ตรวจสอบรายชื่อ staff emails เป็นระยะ
+
+---
+
 ## 8. Optional / Future Enhancements
 
 - [ ] รองรับ Multi-Branch (หลายสาขาในระบบเดียว)

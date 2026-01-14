@@ -1,166 +1,152 @@
--- db/schema.sql
--- Initial database schema for SmartShip Branch Assistant (PostgreSQL / Supabase)
+-- Enable UUID extension
+create extension if not exists "uuid-ossp";
 
--- ใช้ฟังก์ชัน gen_random_uuid() (Supabase เปิดให้แล้ว แต่ใส่กันเหนียว)
-create extension if not exists "pgcrypto";
-
-------------------------------------------------------------
--- 1) branches – ข้อมูลสาขา (ใช้ล็อกที่อยู่ผู้ส่ง)
-------------------------------------------------------------
-create table if not exists public.branches (
-  id            uuid primary key default gen_random_uuid(),
-  code          text not null unique,          -- รหัสสาขา เช่น BR001
-  name          text not null,                 -- ชื่อสาขา
-  address_line  text,                          -- บ้านเลขที่ / ถนน / หมู่บ้าน ฯลฯ
-  district      text,
-  province      text,
-  postal_code   text,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+-- 1. Settings (Site Config)
+create table public.settings (
+  id bigint generated always as identity primary key,
+  key text unique not null,
+  value jsonb not null,
+  updated_at timestamptz default now()
 );
 
-------------------------------------------------------------
--- 2) customers – ลูกค้าผู้ส่ง / ลูกค้าประจำ
-------------------------------------------------------------
-create table if not exists public.customers (
-  id                    uuid primary key default gen_random_uuid(),
-  name                  text not null,
-  phone                 text not null,           -- แนะนำให้ unique
-  vip_code              text,                    -- VIP code จาก J&T (ถ้ามี)
-  line_user_id          text,                    -- สำหรับเชื่อม LINE (อนาคต)
-  default_address_line  text,
-  default_district      text,
-  default_province      text,
-  default_postal_code   text,
-  created_at            timestamptz not null default now(),
-  updated_at            timestamptz not null default now(),
-  constraint customers_phone_unique unique (phone)
+-- 2. Categories
+create table public.categories (
+  id bigint generated always as identity primary key,
+  name text not null,
+  slug text unique not null,
+  image_url text,
+  sort_order int default 0,
+  is_active boolean default true,
+  created_at timestamptz default now()
 );
 
-------------------------------------------------------------
--- 3) shipments – รายการพัสดุ 1 ชิ้น
-------------------------------------------------------------
-create table if not exists public.shipments (
-  id                           uuid primary key default gen_random_uuid(),
-
-  -- ความสัมพันธ์
-  branch_id                    uuid not null references public.branches (id) on delete restrict,
-  customer_id                  uuid references public.customers (id) on delete set null,
-
-  -- ข้อมูลผู้ส่ง (ปกติ = ที่อยู่สาขา)
-  sender_name                  text not null,
-  sender_phone                 text not null,
-  sender_address_line          text not null,
-  sender_district              text not null,
-  sender_province              text not null,
-  sender_postal_code           text not null,
-
-  -- ข้อมูลผู้รับ
-  receiver_name                text not null,
-  receiver_phone               text not null,
-  receiver_address_line        text not null,
-  receiver_subdistrict         text not null,
-  receiver_district            text not null,
-  receiver_province            text not null,
-  receiver_postal_code         text not null,
-
-  -- ข้อมูลเสริม
-  vip_code                     text,             -- duplicate จาก customer เพื่อ embed ลง QR ง่าย
-  service_type                 text,             -- ธรรมดา / ด่วน ฯลฯ
-  cod_amount                   numeric(12,2),
-  weight_kg                    numeric(8,3),
-
-  -- สถานะ และคุณภาพข้อมูล
-  status                       text not null default 'draft',
-  address_validated            boolean not null default false,
-  address_needs_staff_review   boolean not null default false,
-
-  -- เชื่อมกับ J&T
-  jt_consignment_no            text,            -- เลข Tracking จาก J&T (ถ้ามี)
-
-  -- เวลา/ผู้รับผิดชอบ
-  created_at                   timestamptz not null default now(),
-  confirmed_at                 timestamptz,
-  confirmed_by                 text,
-
-  constraint shipments_status_check
-    check (status in ('draft', 'pending_staff_review', 'confirmed', 'sent_to_jt', 'cancelled'))
+-- 3. Products (Inventory Items)
+create table public.products (
+  id bigint generated always as identity primary key,
+  name text not null,
+  description text,
+  price decimal(10,2) not null default 0,
+  sku text unique,
+  image_url text,
+  stock_quantity int default 0,
+  is_active boolean default true,
+  created_at timestamptz default now()
 );
 
-create index if not exists idx_shipments_branch_created
-  on public.shipments (branch_id, created_at);
-
-create index if not exists idx_shipments_status
-  on public.shipments (status);
-
-------------------------------------------------------------
--- 4) branch_daily_report – สรุปยอดรายวันของแต่ละสาขา
-------------------------------------------------------------
-create table if not exists public.branch_daily_report (
-  id                     uuid primary key default gen_random_uuid(),
-  branch_id              uuid not null references public.branches (id) on delete cascade,
-  report_date            date not null,
-  total_shipments        integer not null default 0,
-  total_revenue          numeric(14,2),
-  total_cod_amount       numeric(14,2),
-  top_destination_province text,
-  raw_stats_json         jsonb,            -- เก็บ breakdown รายละเอียด
-  summary_text           text,             -- ข้อความสรุปจาก AI
-  created_at             timestamptz not null default now(),
-
-  constraint branch_daily_report_unique_per_day
-    unique (branch_id, report_date)
+-- 4. Bundles (Sellable Units)
+create table public.bundles (
+  id bigint generated always as identity primary key,
+  name text not null,
+  slug text unique not null,
+  description text,
+  price decimal(10,2) not null,
+  image_urls text[], -- Array of images
+  type text check (type in ('fixed', 'configurable')) not null default 'fixed',
+  is_active boolean default true,
+  category_id bigint references public.categories(id),
+  created_at timestamptz default now()
 );
 
-create index if not exists idx_branch_daily_report_branch_date
-  on public.branch_daily_report (branch_id, report_date desc);
-
-------------------------------------------------------------
--- 5) thai_locations – reference table จังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์
-------------------------------------------------------------
-create table if not exists public.thai_locations (
-  id                uuid primary key default gen_random_uuid(),
-  province_code     text,
-  province_name     text not null,
-  district_code     text,
-  district_name     text not null,
-  subdistrict_code  text,
-  subdistrict_name  text not null,
-  postal_code       text not null,
-  active            boolean not null default true,
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now()
+-- 5. Bundle Items (For Fixed Sets)
+create table public.bundle_items (
+  id bigint generated always as identity primary key,
+  bundle_id bigint references public.bundles(id) on delete cascade,
+  product_id bigint references public.products(id),
+  quantity int not null default 1
 );
 
-create index if not exists idx_thai_locations_postal_code
-  on public.thai_locations (postal_code);
-
-create index if not exists idx_thai_locations_pd
-  on public.thai_locations (province_name, district_name, subdistrict_name);
-
-------------------------------------------------------------
--- 6) audit_log – เก็บ audit trail ว่าใครทำอะไรกับ entity ไหน
-------------------------------------------------------------
-create table if not exists public.audit_log (
-  id             uuid primary key default gen_random_uuid(),
-  entity_type    text not null,              -- 'shipment', 'customer', etc.
-  entity_id      uuid not null,
-  action         text not null,              -- 'create', 'update', 'delete', 'status_change'
-  branch_id      uuid references public.branches (id) on delete set null,
-  performed_by   text,                       -- ชื่อ/รหัส staff หรือ system
-  performed_at   timestamptz not null default now(),
-  changes        jsonb                       -- เก็บ diff หรือรายละเอียดการเปลี่ยนแปลง (ถ้าใช้)
+-- 5b. Bundle Configurable Options (New)
+create table public.bundle_option_groups (
+  id bigint generated always as identity primary key,
+  bundle_id bigint references public.bundles(id) on delete cascade,
+  name text not null, -- e.g. "Choose Box Size"
+  sort_order int default 0
 );
 
-create index if not exists idx_audit_log_entity
-  on public.audit_log (entity_type, entity_id);
+create table public.bundle_options (
+  id bigint generated always as identity primary key,
+  group_id bigint references public.bundle_option_groups(id) on delete cascade,
+  product_id bigint references public.products(id), -- The underlying item
+  name text, -- Optional override name, otherwise use product name
+  price_modifier decimal(10,2) default 0, -- Extra cost
+  sort_order int default 0
+);
 
-create index if not exists idx_audit_log_branch_time
-  on public.audit_log (branch_id, performed_at desc);
+-- 6. Customers
+create table public.customers (
+  id uuid default uuid_generate_v4() primary key,
+  line_user_id text unique, -- Linked to LINE
+  name text,
+  phone text,
+  address text,
+  created_at timestamptz default now()
+);
 
-------------------------------------------------------------
--- 7) ตัวอย่าง seed ข้อมูลสาขา (ปรับตามของจริง)
-------------------------------------------------------------
--- ตัวอย่าง: สาขาธัญบุรี
--- insert into public.branches (code, name, address_line, district, province, postal_code)
--- values ('BR001', 'สาขาธัญบุรี', '123/4 หมู่ 5 ถนนตัวอย่าง ตำบลลำผักกูด', 'ธัญบุรี', 'ปทุมธานี', '12110');
+-- 7. Orders
+create table public.orders (
+  id bigint generated always as identity primary key,
+  order_no text unique not null, -- e.g. OD-20240109-001
+  customer_id uuid references public.customers(id),
+  customer_name text not null,
+  customer_phone text not null,
+  customer_address text,
+  customer_location_url text, -- Map link
+  total_amount decimal(10,2) not null,
+  status text check (status in ('new', 'confirmed', 'preparing', 'ready', 'completed', 'canceled')) default 'new',
+  payment_method text check (payment_method in ('shop', 'transfer', 'promptpay')),
+  payment_slip_url text,
+  payment_status text check (payment_status in ('pending', 'paid', 'rejected')) default 'pending',
+  notes text,
+  line_user_id text, -- Snapshot if customer isn't registered
+  stock_reserved_until timestamptz, -- Reservation
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- 8. Order Items
+create table public.order_items (
+  id bigint generated always as identity primary key,
+  order_id bigint references public.orders(id) on delete cascade,
+  bundle_id bigint references public.bundles(id),
+  bundle_name text not null, -- Snapshot
+  price decimal(10,2) not null, -- Snapshot
+  quantity int not null,
+  chosen_options jsonb -- For configurable bundles: [{ group_name: "Box", option_name: "Large", product_id: 123 }]
+);
+
+-- RLS Policies (Simple for now)
+alter table public.settings enable row level security;
+alter table public.categories enable row level security;
+alter table public.products enable row level security;
+alter table public.bundles enable row level security;
+alter table public.bundle_items enable row level security;
+alter table public.bundle_option_groups enable row level security;
+alter table public.bundle_options enable row level security;
+alter table public.customers enable row level security;
+alter table public.orders enable row level security;
+alter table public.order_items enable row level security;
+
+-- Public Read
+create policy "Public read settings" on public.settings for select using (true);
+create policy "Public read categories" on public.categories for select using (true);
+create policy "Public read products" on public.products for select using (true);
+create policy "Public read bundles" on public.bundles for select using (true);
+create policy "Public read bundle_items" on public.bundle_items for select using (true);
+create policy "Public read bundle_option_groups" on public.bundle_option_groups for select using (true);
+create policy "Public read bundle_options" on public.bundle_options for select using (true);
+
+-- Allow insert orders
+create policy "Allow insert orders" on public.orders for insert with check (true);
+create policy "Allow insert order_items" on public.order_items for insert with check (true);
+
+-- Functions
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+    new.updated_at = now();
+    return new;
+end;
+$$ language 'plpgsql';
+
+create trigger update_orders_updated_at before update on public.orders
+for each row execute procedure update_updated_at_column();
