@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { notifyAdminNewOrder } from '@app/lib/line';
+import { triggerN8nOrderEmail } from '@app/lib/n8n';
 
 
 export async function createOrder(prevState: any, formData: FormData) {
@@ -12,6 +13,7 @@ export async function createOrder(prevState: any, formData: FormData) {
 
     const customerName = formData.get('name') as string;
     const customerPhone = formData.get('phone') as string;
+    const customerEmail = formData.get('email') as string || '';
     const customerAddress = formData.get('address') as string;
     const paymentMethod = formData.get('payment_method') as string;
     const notes = formData.get('notes') as string;
@@ -92,11 +94,33 @@ export async function createOrder(prevState: any, formData: FormData) {
     // but easier: pass user_id from client? NO, insecure.
     // Better: Use `cookies` to get session.
 
-    // We'll trust the caller? No.
-    // Let's use `supabase` (auth helper) to get the user.
-    const { createServerActionClient } = await import('@supabase/auth-helpers-nextjs');
+    // 2.5 Get User ID (if logged in)
+    const { createServerClient } = await import('@supabase/ssr');
     const { cookies } = await import('next/headers');
-    const supabase = createServerActionClient({ cookies });
+    const cookieStore = await cookies();
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll()
+                },
+                setAll(cookiesToSet) {
+                    try {
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            cookieStore.set(name, value, options)
+                        )
+                    } catch {
+                        // The `setAll` method was called from a Server Component.
+                        // This can be ignored if you have middleware refreshing
+                        // user sessions.
+                    }
+                },
+            },
+        }
+    );
     const { data: { user } } = await supabase.auth.getUser();
 
     // 3. Create Order
@@ -107,6 +131,7 @@ export async function createOrder(prevState: any, formData: FormData) {
             user_id: user?.id || null, // Link to user
             customer_name: customerName,
             customer_phone: customerPhone,
+            customer_email: customerEmail || null,
             customer_address: customerAddress,
             total_amount: totalAmount,
             status: 'new',
@@ -149,8 +174,27 @@ export async function createOrder(prevState: any, formData: FormData) {
     // LINE Notification
     await notifyAdminNewOrder(order);
 
-    // LINE Notification
-    await notifyAdminNewOrder(order);
+    // n8n Email Trigger (if email provided)
+    if (customerEmail) {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://smartship.vercel.app';
+        await triggerN8nOrderEmail({
+            order_no: orderNo,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            customer_phone: customerPhone,
+            customer_address: customerAddress,
+            total_amount: totalAmount,
+            payment_method: paymentMethod,
+            items: verifiedOrderItems.map(item => ({
+                name: item.bundle_name,
+                quantity: item.quantity,
+                price: item.price,
+                line_total: item.price * item.quantity
+            })),
+            pay_link: `${baseUrl}/pay/${orderNo}`,
+            created_at: new Date().toISOString()
+        });
+    }
 
     return { success: true, orderNo: orderNo };
 }

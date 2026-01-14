@@ -94,6 +94,8 @@ const translations: Record<string, Record<Language, string>> = {
     'form.fullname_placeholder': { en: 'Enter your name', th: 'กรอกชื่อ-นามสกุล' },
     'form.phone': { en: 'Phone Number', th: 'เบอร์โทรศัพท์' },
     'form.phone_placeholder': { en: 'e.g. 0812345678', th: 'เช่น 0812345678' },
+    'form.email': { en: 'Email (for receipt)', th: 'อีเมล (สำหรับรับใบเสร็จ)' },
+    'form.email_placeholder': { en: 'example@email.com', th: 'example@email.com' },
     'form.address': { en: 'Shipping Address', th: 'ที่อยู่จัดส่ง' },
     'form.address_placeholder': { en: 'Enter full address details...', th: 'กรอกที่อยู่จัดส่งให้ครบถ้วน...' },
     'form.payment_method': { en: 'Payment Method', th: 'ช่องทางชำระเงิน' },

@@ -7,7 +7,7 @@ export async function updateOrderStatus(orderId: number, status: string) {
     // Validate status
     const validStatuses = ['new', 'confirmed', 'preparing', 'ready', 'completed', 'canceled'];
     if (!validStatuses.includes(status)) {
-        return { error: 'Invalid status' };
+        throw new Error('Invalid status');
     }
 
     // 1. Fetch current status to check if we are transitioning TO 'confirmed'
@@ -23,7 +23,7 @@ export async function updateOrderStatus(orderId: number, status: string) {
         .update({ status })
         .eq('id', orderId);
 
-    if (error) return { error: error.message };
+    if (error) throw new Error(error.message);
 
     // 3. MVP STOCK LOGIC: Deduct on FIRST confirmation
     if (status === 'confirmed' && currentOrder?.status !== 'confirmed') {
@@ -61,7 +61,7 @@ export async function updateOrderStatus(orderId: number, status: string) {
 export async function updatePaymentStatus(orderId: number, paymentStatus: string) {
     const validStatuses = ['pending', 'paid', 'rejected'];
     if (!validStatuses.includes(paymentStatus)) {
-        return { error: 'Invalid payment status' };
+        throw new Error('Invalid payment status');
     }
 
     const { error } = await supabaseAdmin
@@ -69,7 +69,7 @@ export async function updatePaymentStatus(orderId: number, paymentStatus: string
         .update({ payment_status: paymentStatus })
         .eq('id', orderId);
 
-    if (error) return { error: error.message };
+    if (error) throw new Error(error.message);
 
     revalidatePath(`/admin/orders/${orderId}`);
 }

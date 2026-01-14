@@ -49,7 +49,7 @@ export async function createBundle(data: BundleInput) {
         .single();
 
     if (bundleError || !bundle) {
-        return { error: 'Failed to create bundle: ' + bundleError?.message };
+        throw new Error('Failed to create bundle: ' + bundleError?.message);
     }
 
     const bundleId = bundle.id;
@@ -107,7 +107,7 @@ export async function createBundle(data: BundleInput) {
 }
 
 export async function updateBundle(data: BundleInput) {
-    if (!data.id) return { error: 'Bundle ID is required' };
+    if (!data.id) throw new Error('Bundle ID is required');
 
     // 1. Update Bundle Basics
     const { error: bundleError } = await supabaseAdmin
@@ -124,7 +124,7 @@ export async function updateBundle(data: BundleInput) {
         })
         .eq('id', data.id);
 
-    if (bundleError) return { error: bundleError.message };
+    if (bundleError) throw new Error(bundleError.message);
 
     // 2. Clear existing relations and re-insert (Simplest strategy for MVP update)
     // NOTE: This destroys IDs, which might be bad if we tracked history, but for now it's robust.

@@ -34,18 +34,26 @@ export default function BundleForm({ initialData, categories, products }: Bundle
 
     const handleCreate = async () => {
         setLoading(true);
-        const res = await createBundle(formData);
-        if (res?.error) alert(res.error);
-        else router.push('/admin/bundles');
-        setLoading(false);
+        try {
+            await createBundle(formData);
+            router.push('/admin/bundles');
+        } catch (err: any) {
+            alert(err.message || 'Failed to create bundle');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleUpdate = async () => {
         setLoading(true);
-        const res = await updateBundle(formData);
-        if (res?.error) alert(res.error);
-        else router.push('/admin/bundles');
-        setLoading(false);
+        try {
+            await updateBundle(formData);
+            router.push('/admin/bundles');
+        } catch (err: any) {
+            alert(err.message || 'Failed to update bundle');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Fixed Items Handlers

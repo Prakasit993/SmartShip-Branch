@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
-import BundleForm from '@app/admin/bundles/BundleForm';
+import BundleForm from '../BundleForm';
 
 export const dynamic = 'force-dynamic';
 

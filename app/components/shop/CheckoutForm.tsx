@@ -2,7 +2,7 @@
 
 import { useCart } from '@app/context/CartContext';
 import { createOrder } from '@app/actions/order';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@app/context/LanguageContext';
 
@@ -104,6 +104,15 @@ export default function CheckoutForm() {
                                     placeholder={t('form.phone_placeholder')}
                                 />
                             </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">{t('form.email')}</label>
+                            <input
+                                name="email"
+                                type="email"
+                                className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-blue-500 transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                                placeholder={t('form.email_placeholder')}
+                            />
                         </div>
                         <div className="space-y-1.5">
                             <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">{t('form.address')}</label>

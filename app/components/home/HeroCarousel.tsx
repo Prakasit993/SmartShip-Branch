@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 
 interface HeroCarouselProps {
     images: string[];
@@ -27,12 +28,16 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
     // If no images, show placeholder
     if (!images || images.length === 0) {
         return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-                src="/smartship-storefront.png"
-                alt="SmartShip Storefront"
-                className="w-full h-auto object-cover aspect-[4/3] rounded-3xl"
-            />
+            <div className="relative w-full h-auto aspect-[4/3] rounded-3xl overflow-hidden">
+                <Image
+                    src="/smartship-storefront.png"
+                    alt="SmartShip Storefront"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority
+                />
+            </div>
         );
     }
 
@@ -64,19 +69,22 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
                 <div
                     key={index}
                     className={`absolute inset-0 transition-all duration-700 ease-out ${index === currentIndex
-                            ? 'opacity-100 z-10 scale-100'
-                            : index === (currentIndex - 1 + images.length) % images.length
-                                ? 'opacity-0 z-0 -translate-x-full'
-                                : 'opacity-0 z-0 translate-x-full'
+                        ? 'opacity-100 z-10 scale-100'
+                        : index === (currentIndex - 1 + images.length) % images.length
+                            ? 'opacity-0 z-0 -translate-x-full'
+                            : 'opacity-0 z-0 translate-x-full'
                         }`}
                 >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={src}
-                        alt={`Slide ${index + 1}`}
-                        className={`w-full h-full object-cover transition-transform duration-[8000ms] ease-linear ${index === currentIndex ? 'scale-110' : 'scale-100'
-                            }`}
-                    />
+                    <div className={`relative w-full h-full transition-transform duration-[8000ms] ease-linear ${index === currentIndex ? 'scale-110' : 'scale-100'}`}>
+                        <Image
+                            src={src}
+                            alt={`Slide ${index + 1}`}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                            priority={index === 0}
+                        />
+                    </div>
                 </div>
             ))}
 
@@ -128,8 +136,8 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
                                 setProgress(0);
                             }}
                             className={`h-2 rounded-full transition-all duration-300 ${index === currentIndex
-                                    ? 'bg-white w-8 shadow-lg'
-                                    : 'bg-white/50 w-2 hover:bg-white/80'
+                                ? 'bg-white w-8 shadow-lg'
+                                : 'bg-white/50 w-2 hover:bg-white/80'
                                 }`}
                             aria-label={`Go to slide ${index + 1}`}
                         />

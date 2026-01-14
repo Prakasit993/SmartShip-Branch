@@ -4,14 +4,14 @@ import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-export async function createCategory(formData: FormData) {
+export async function createCategory(formData: FormData): Promise<void> {
     const name = formData.get('name') as string;
     const slug = formData.get('slug') as string;
     const sort_order = parseInt(formData.get('sort_order') as string) || 0;
 
     // Basic validation
     if (!name || !slug) {
-        return { error: 'Name and Slug are required' };
+        throw new Error('Name and Slug are required');
     }
 
     const { error } = await supabaseAdmin
@@ -20,7 +20,7 @@ export async function createCategory(formData: FormData) {
 
     if (error) {
         console.error('Error creating category:', error);
-        return { error: error.message };
+        throw new Error(error.message);
     }
 
     revalidatePath('/admin/categories');
@@ -47,12 +47,12 @@ export async function updateCategory(id: number, formData: FormData) {
     redirect('/admin/categories');
 }
 
-export async function deleteCategory(id: number) {
+export async function deleteCategory(id: number): Promise<void> {
     const { error } = await supabaseAdmin
         .from('categories')
         .delete()
         .eq('id', id);
 
-    if (error) return { error: error.message };
+    if (error) throw new Error(error.message);
     revalidatePath('/admin/categories');
 }

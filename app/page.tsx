@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 import HeroCarousel from '@app/components/home/HeroCarousel';
 import Footer from '@app/components/ui/Footer';
 
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic'; // Removed for optimization
 
 export default async function Home() {
   // Check if admin is logged in

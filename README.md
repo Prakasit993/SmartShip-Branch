@@ -416,4 +416,469 @@ flowchart LR
 
       Scan: @yudiel/react-qr-scanner
 
+---
 
+## 9. 📧 n8n Email & Automation Integration
+
+ระบบ SmartShip ใช้ **n8n** เป็น automation layer สำหรับส่ง email ใบเสร็จและการแจ้งเตือนต่างๆ
+
+### 9.1 Architecture Overview
+
+```mermaid
+flowchart LR
+    A[Customer สั่งซื้อ] --> B[SmartShip สร้าง Order]
+    B --> C[Trigger Webhook → n8n]
+    C --> D[n8n สร้าง Email Template]
+    D --> E[ส่ง Email ถึงลูกค้า]
+    C --> F[แจ้ง LINE Admin]
+    C --> G[บันทึก Log]
+```
+
+### 9.2 Environment Variables ที่จำเป็น
+
+เพิ่มใน `.env.local`:
+
+```bash
+# ===== n8n WEBHOOKS =====
+# Webhook URL สำหรับ trigger email ใบเสร็จเมื่อมี order ใหม่
+N8N_ORDER_WEBHOOK_URL=https://your-n8n.com/webhook/order-confirmation
+
+# Webhook URL สำหรับแจ้งเตือนเมื่ออัปโหลดสลิป (optional)
+N8N_SLIP_WEBHOOK_URL=https://your-n8n.com/webhook/slip-uploaded
+
+# Base URL ของ site (ใช้สร้าง link ชำระเงิน)
+NEXT_PUBLIC_SITE_URL=https://smartship.vercel.app
+```
+
+### 9.3 Database Migration
+
+เพิ่ม column สำหรับ email ลูกค้า:
+
+```sql
+-- เพิ่ม column customer_email ใน orders table
+ALTER TABLE orders ADD COLUMN customer_email TEXT;
+
+-- (Optional) เพิ่ม index สำหรับ query ตาม email
+CREATE INDEX idx_orders_customer_email ON orders(customer_email);
+```
+
+### 9.4 Webhook Payload ที่ส่งไป n8n
+
+เมื่อมี order ใหม่ ระบบจะส่ง JSON ดังนี้ไปยัง n8n:
+
+```json
+{
+  "order_no": "ORD-1705234567890",
+  "customer_name": "สมชาย ใจดี",
+  "customer_email": "somchai@email.com",
+  "customer_phone": "0812345678",
+  "customer_address": "123/45 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110",
+  "total_amount": 1500,
+  "payment_method": "promptpay",
+  "items": [
+    {
+      "name": "ชุดแพ็คกิ้ง A",
+      "quantity": 2,
+      "price": 500,
+      "line_total": 1000
+    },
+    {
+      "name": "กล่องพัสดุ B",
+      "quantity": 1,
+      "price": 500,
+      "line_total": 500
+    }
+  ],
+  "pay_link": "https://smartship.vercel.app/pay/ORD-1705234567890",
+  "created_at": "2026-01-14T20:30:00.000Z",
+  "triggered_at": "2026-01-14T20:30:01.000Z",
+  "source": "smartship-order"
+}
+```
+
+### 9.5 Use Cases ที่รองรับ
+
+| Use Case | Trigger | การทำงาน |
+|----------|---------|----------|
+| **UC-Email-01**: ส่ง Email ใบเสร็จ | Order สร้างสำเร็จ + มี email | n8n สร้าง HTML email พร้อมลิงก์ชำระเงิน |
+| **UC-Email-02**: เตือนชำระเงิน | n8n Delay 1-24 ชม. | ถ้ายังไม่ชำระ ส่ง reminder email |
+| **UC-Email-03**: ยืนยันชำระเงิน | Admin อนุมัติสลิป | ส่ง email ขอบคุณพร้อมสถานะ |
+| **UC-Email-04**: Multi-channel | Order ใหม่ | ส่ง Email + LINE + Slack พร้อมกัน |
+
+### 9.6 วิธี Setup n8n Workflow
+
+#### Step 1: สร้าง Webhook Node
+
+1. ใน n8n สร้าง New Workflow
+2. เพิ่ม **Webhook** node
+3. ตั้งค่า:
+   - HTTP Method: `POST`
+   - Path: `order-confirmation` (หรือชื่อที่ต้องการ)
+4. Copy Production URL เอาไปใส่ใน `N8N_ORDER_WEBHOOK_URL`
+
+#### Step 2: เพิ่ม Set Node (Format Data)
+
+1. เพิ่ม **Set** node หลัง Webhook
+2. สร้าง fields ใหม่:
+
+```javascript
+// ตัวอย่าง expressions
+{{$json.customer_name}}
+{{$json.order_no}}
+{{$json.total_amount.toLocaleString('th-TH')}}
+```
+
+#### Step 3: ใส่ Email Node
+
+1. เพิ่ม **Send Email** node (Gmail / SMTP / SendGrid)
+2. ตั้งค่า:
+   - **To**: `{{$json.customer_email}}`
+   - **Subject**: `🧾 ยืนยันคำสั่งซื้อ {{$json.order_no}}`
+   - **HTML**: (ดู template ด้านล่าง)
+
+### 9.7 Email Template ตัวอย่าง
+
+```html
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { 
+      font-family: 'Sarabun', 'Helvetica', sans-serif; 
+      background: #f5f5f5; 
+      padding: 20px;
+    }
+    .container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background: white; 
+      border-radius: 12px; 
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .header { 
+      background: linear-gradient(135deg, #1a1a1a, #333); 
+      color: white; 
+      padding: 30px; 
+      text-align: center; 
+    }
+    .header h1 { margin: 0 0 10px 0; font-size: 24px; }
+    .header .order-no { 
+      background: rgba(255,255,255,0.2); 
+      padding: 8px 16px; 
+      border-radius: 20px; 
+      font-size: 14px;
+    }
+    .content { padding: 30px; }
+    .greeting { font-size: 18px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th { 
+      background: #f8f8f8; 
+      padding: 12px; 
+      text-align: left; 
+      border-bottom: 2px solid #eee;
+    }
+    td { padding: 12px; border-bottom: 1px solid #eee; }
+    .total-row { 
+      font-size: 20px; 
+      font-weight: bold; 
+      color: #2563eb; 
+    }
+    .btn { 
+      display: inline-block;
+      background: #2563eb; 
+      color: white !important; 
+      padding: 16px 32px; 
+      text-decoration: none; 
+      border-radius: 8px; 
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    .footer { 
+      background: #f8f8f8; 
+      padding: 20px; 
+      text-align: center; 
+      font-size: 12px; 
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧾 ยืนยันคำสั่งซื้อ</h1>
+      <span class="order-no">{{order_no}}</span>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">สวัสดีครับ/ค่ะ <strong>{{customer_name}}</strong></p>
+      <p>ขอบคุณสำหรับคำสั่งซื้อ รายละเอียดดังนี้:</p>
+      
+      <table>
+        <tr>
+          <th>สินค้า</th>
+          <th>จำนวน</th>
+          <th style="text-align: right;">ราคา</th>
+        </tr>
+        <!-- Loop items ใน n8n -->
+        {{#each items}}
+        <tr>
+          <td>{{name}}</td>
+          <td>{{quantity}}</td>
+          <td style="text-align: right;">฿{{line_total}}</td>
+        </tr>
+        {{/each}}
+        <tr class="total-row">
+          <td colspan="2">ยอดรวมทั้งสิ้น</td>
+          <td style="text-align: right;">฿{{total_amount}}</td>
+        </tr>
+      </table>
+      
+      <div style="text-align: center;">
+        <a href="{{pay_link}}" class="btn">💳 ชำระเงินเลย</a>
+      </div>
+      
+      <p style="color: #666; font-size: 14px;">
+        📍 <strong>ที่อยู่จัดส่ง:</strong><br>
+        {{customer_address}}
+      </p>
+      
+      <p style="color: #666; font-size: 14px;">
+        📞 <strong>เบอร์ติดต่อ:</strong> {{customer_phone}}
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>SmartShip Express - Premium Packing Solutions</p>
+      <p>หากมีคำถาม กรุณาติดต่อเราผ่าน LINE หรือโทร xxx-xxx-xxxx</p>
+    </div>
+  </div>
+</body>
+</html>
+```
+
+### 9.8 n8n Workflow Diagram
+
+```mermaid
+flowchart TD
+    A[Webhook: Order Confirmation] --> B{มี email?}
+    B -->|Yes| C[Set: Format Data]
+    B -->|No| END[End - Skip Email]
+    
+    C --> D[Send Email: ใบเสร็จ]
+    D --> E[Wait: 2 hours]
+    E --> F{ตรวจสอบ: ชำระแล้ว?}
+    F -->|No| G[Send Email: Reminder]
+    F -->|Yes| END2[End]
+    G --> END3[End]
+```
+
+### 9.9 Files ที่เกี่ยวข้อง
+
+| File | Description |
+|------|-------------|
+| `app/lib/n8n.ts` | Webhook helper functions |
+| `app/actions/order.ts` | Order creation + n8n trigger |
+| `app/components/shop/CheckoutForm.tsx` | Checkout form with email field |
+| `app/context/LanguageContext.tsx` | Thai/English translations |
+
+### 9.10 Testing
+
+1. **ตั้งค่า n8n Webhook** ใน Test Mode
+2. **สร้าง test order** พร้อมใส่ email
+3. **ตรวจสอบ n8n execution** ว่าได้รับ webhook
+4. **ตรวจสอบ inbox** ว่าได้รับ email
+
+```bash
+# ดู log ใน development
+npm run dev
+
+# ดู console output สำหรับ n8n trigger
+# [n8n] Order email triggered successfully for: ORD-xxx
+```
+
+---
+
+## 10. 🚀 Quick Start Guide
+
+### 10.1 Clone & Install
+
+```bash
+git clone https://github.com/Prakasit993/SmartShip-Branch.git
+cd SmartShip-Branch
+npm install
+```
+
+### 10.2 Environment Setup
+
+```bash
+# Copy template
+cp .env.example .env.local
+
+# Edit .env.local with your values
+```
+
+### 10.3 Database Setup
+
+```sql
+-- Run in Supabase SQL Editor
+-- 1. Add email column
+ALTER TABLE orders ADD COLUMN customer_email TEXT;
+
+-- 2. (Optional) Other migrations...
+```
+
+### 10.4 Run Development
+
+```bash
+npm run dev
+# Open http://localhost:3000
+```
+
+### 10.5 n8n Setup
+
+1. Create n8n account at https://n8n.io
+2. Create new workflow with Webhook trigger
+3. Copy webhook URL to `.env.local`
+4. Test with a sample order
+
+---
+
+## 11. 🚢 Production Deployment Guide
+
+### 11.1 Environment Variables (รายการทั้งหมด)
+
+| Variable | Required | Exposes to Client | Description |
+|----------|----------|-------------------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | ✅ | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | ✅ | Supabase anon/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | ❌ | Supabase service role key (bypasses RLS) |
+| `ADMIN_PASSWORD` | ✅ | ❌ | Password for admin login |
+| `ADMIN_EMAIL` | ✅ | ❌ | Email with full admin access |
+| `STAFF_EMAILS` | ❌ | ❌ | Comma-separated staff emails |
+| `N8N_ORDER_WEBHOOK_URL` | ❌ | ❌ | n8n webhook for email receipts |
+| `N8N_SLIP_WEBHOOK_URL` | ❌ | ❌ | n8n webhook for slip notifications |
+| `NEXT_PUBLIC_SITE_URL` | ❌ | ✅ | Production site URL |
+| `LINE_NOTIFY_TOKEN` | ❌ | ❌ | LINE Notify token for admin alerts |
+
+### 11.2 ตัวอย่าง .env.local (Development)
+
+```bash
+# ===== SUPABASE =====
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# ===== ADMIN ACCESS =====
+# รหัสผ่านควรยาว 16+ ตัวอักษร มีตัวพิมพ์ใหญ่/เล็ก ตัวเลข และสัญลักษณ์
+ADMIN_PASSWORD=MySecure@Password123!
+ADMIN_EMAIL=admin@yourcompany.com
+STAFF_EMAILS=staff1@company.com,staff2@company.com
+
+# ===== n8n AUTOMATION (Optional) =====
+N8N_ORDER_WEBHOOK_URL=https://your-n8n.com/webhook/order-confirmation
+N8N_SLIP_WEBHOOK_URL=https://your-n8n.com/webhook/slip-uploaded
+
+# ===== SITE CONFIG =====
+NEXT_PUBLIC_SITE_URL=https://smartship.vercel.app
+
+# ===== LINE NOTIFY (Optional) =====
+LINE_NOTIFY_TOKEN=xxxxxxxxxxxxxxxxxxxxx
+```
+
+### 11.3 การตั้งค่าใน Vercel (Production)
+
+**⚠️ อย่า commit ไฟล์ .env ขึ้น Git!**
+
+1. ไปที่ **Vercel Dashboard** → Project → **Settings** → **Environment Variables**
+
+2. เพิ่ม variables ทีละตัว:
+
+```
+┌─────────────────────────────────┬──────────────────────────────┐
+│ Key                             │ Environment                  │
+├─────────────────────────────────┼──────────────────────────────┤
+│ NEXT_PUBLIC_SUPABASE_URL        │ Production, Preview, Dev     │
+│ NEXT_PUBLIC_SUPABASE_ANON_KEY   │ Production, Preview, Dev     │
+│ SUPABASE_SERVICE_ROLE_KEY       │ Production only              │
+│ ADMIN_PASSWORD                  │ Production only              │
+│ ADMIN_EMAIL                     │ Production only              │
+│ STAFF_EMAILS                    │ Production only              │
+│ N8N_ORDER_WEBHOOK_URL           │ Production only              │
+│ NEXT_PUBLIC_SITE_URL            │ Production only              │
+└─────────────────────────────────┴──────────────────────────────┘
+```
+
+3. **Redeploy** หลังจากเพิ่ม variables
+
+### 11.4 Security Best Practices
+
+```bash
+# ✅ สิ่งที่ต้องทำ
+─────────────────────────────────────
+1. ใช้รหัสผ่านที่แข็งแรง (16+ ตัวอักษร)
+2. ตรวจสอบ .gitignore มี .env*
+3. ใช้ HTTPS เสมอใน production
+4. เปลี่ยน ADMIN_PASSWORD ทุก 3-6 เดือน
+5. Review STAFF_EMAILS เป็นประจำ
+
+# ❌ สิ่งที่ห้ามทำ
+─────────────────────────────────────
+1. Commit .env files ขึ้น Git
+2. Share credentials ผ่าน chat/email
+3. ใช้รหัสผ่านง่ายๆ เช่น admin123
+4. ใส่ SERVICE_ROLE_KEY ใน NEXT_PUBLIC_*
+```
+
+### 11.5 Pre-Deploy Checklist
+
+```
+[ ] รัน npm run build สำเร็จ
+[ ] ตรวจสอบ .gitignore มี .env*
+[ ] เพิ่ม customer_email column ใน database
+[ ] ตั้งค่า Environment Variables ใน Vercel
+[ ] ทดสอบ admin login
+[ ] ทดสอบ order flow
+```
+
+### 11.6 Deploy Commands
+
+```bash
+# 1. ตรวจสอบ build
+npm run build
+
+# 2. Commit changes
+git add .
+git commit -m "Production ready"
+
+# 3. Push to GitHub
+git push origin main
+
+# 4. Vercel auto-deploys หรือ:
+vercel --prod
+```
+
+### 11.7 Database Migrations (Supabase SQL)
+
+รันใน **Supabase SQL Editor** ก่อน deploy:
+
+```sql
+-- เพิ่ม customer_email column
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
+
+-- เพิ่ม index
+CREATE INDEX IF NOT EXISTS idx_orders_customer_email 
+    ON orders(customer_email);
+```
+
+### 11.8 Post-Deploy Verification
+
+หลัง deploy สำเร็จ ทดสอบ:
+
+1. **Homepage** - โหลดสินค้าได้ไหม
+2. **Admin Login** - `/admin/login` ใช้งานได้ไหม
+3. **Order Flow** - สร้าง order ได้ไหม
+4. **Email Receipt** - n8n trigger ทำงานไหม (ถ้าตั้งค่าไว้)
+
+---

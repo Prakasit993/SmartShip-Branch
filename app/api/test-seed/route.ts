@@ -2,6 +2,14 @@ import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+    // Prevent access in production
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json(
+            { error: 'This endpoint is not available in production' },
+            { status: 403 }
+        );
+    }
+
     const urls = [
         'https://placehold.co/600x400/252f3f/white?text=Main+Angle',
         'https://placehold.co/600x400/252f3f/white?text=Side+View',
