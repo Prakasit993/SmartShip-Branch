@@ -1,12 +1,31 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
+import { checkRateLimit, recordFailedAttempt, clearAttempts } from '@app/lib/rateLimit';
 
 export async function POST(request: Request) {
-    let ip = 'unknown';
-    try {
-        ip = request.headers.get('x-forwarded-for') || 'unknown';
-    } catch (e) { }
+    // Get IP for rate limiting
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || 'unknown';
+
+    // Check rate limit FIRST
+    const rateLimitResult = checkRateLimit(ip);
+    if (!rateLimitResult.allowed) {
+        await logger.security('ADMIN_LOGIN_RATE_LIMITED', { ip }, ip);
+        return NextResponse.json(
+            {
+                error: `Too many login attempts. Please try again in ${rateLimitResult.retryAfter} seconds.`,
+                retryAfter: rateLimitResult.retryAfter
+            },
+            {
+                status: 429,
+                headers: {
+                    'Retry-After': String(rateLimitResult.retryAfter)
+                }
+            }
+        );
+    }
 
     try {
         const { password } = await request.json();
@@ -19,6 +38,9 @@ export async function POST(request: Request) {
         }
 
         if (password === adminPassword) {
+            // Clear failed attempts on successful login
+            clearAttempts(ip);
+
             const cookieStore = await cookies();
 
             cookieStore.set('admin_session', 'admin', {
@@ -32,8 +54,18 @@ export async function POST(request: Request) {
             await logger.security('ADMIN_LOGIN_SUCCESS', { method: 'password' }, ip);
             return NextResponse.json({ success: true });
         } else {
-            await logger.security('ADMIN_LOGIN_FAILED', { reason: 'Invalid password' }, ip);
-            return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
+            // Record failed attempt
+            recordFailedAttempt(ip);
+
+            await logger.security('ADMIN_LOGIN_FAILED', {
+                reason: 'Invalid password',
+                remainingAttempts: rateLimitResult.remainingAttempts ? rateLimitResult.remainingAttempts - 1 : 0
+            }, ip);
+
+            return NextResponse.json({
+                error: 'Invalid password',
+                remainingAttempts: rateLimitResult.remainingAttempts ? rateLimitResult.remainingAttempts - 1 : 0
+            }, { status: 401 });
         }
     } catch (error) {
         await logger.error('ADMIN_LOGIN_EXCEPTION', { error: String(error) });

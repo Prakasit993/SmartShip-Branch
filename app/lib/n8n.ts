@@ -23,6 +23,23 @@ interface OrderEmailData {
 }
 
 /**
+ * Get secure headers for webhook requests
+ */
+function getWebhookHeaders(): HeadersInit {
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+    };
+
+    const webhookSecret = process.env.WEBHOOK_SECRET;
+    if (webhookSecret) {
+        headers['X-Webhook-Secret'] = webhookSecret;
+        headers['X-Webhook-Timestamp'] = new Date().toISOString();
+    }
+
+    return headers;
+}
+
+/**
  * Trigger n8n webhook สำหรับส่ง email ใบเสร็จ
  * @param orderData ข้อมูล order ที่ต้องการส่ง
  */
@@ -37,9 +54,7 @@ export async function triggerN8nOrderEmail(orderData: OrderEmailData): Promise<v
     try {
         const response = await fetch(webhookUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getWebhookHeaders(),
             body: JSON.stringify({
                 ...orderData,
                 triggered_at: new Date().toISOString(),
@@ -76,7 +91,7 @@ export async function triggerN8nSlipUploaded(orderData: {
     try {
         await fetch(webhookUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getWebhookHeaders(),
             body: JSON.stringify({
                 ...orderData,
                 triggered_at: new Date().toISOString(),
