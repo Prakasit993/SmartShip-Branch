@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 
 import { LanguageProvider } from '@app/context/LanguageContext';
 import CookieConsent from '@app/components/ui/CookieConsent';
+import { ToastProvider } from '@app/components/ui/Toast';
 
 export default function RootLayout({
   children,
@@ -31,10 +32,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <LanguageProvider>
-          {children}
-          <CookieConsent />
+          <ToastProvider>
+            {children}
+            <CookieConsent />
+          </ToastProvider>
         </LanguageProvider>
       </body>
     </html>
   );
 }
+
