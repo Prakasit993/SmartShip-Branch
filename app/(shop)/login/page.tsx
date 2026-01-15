@@ -111,6 +111,7 @@ function LoginForm() {
             let authProvider: any = provider;
             const options: any = {
                 redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+                flowType: 'pkce',
             };
 
             // Use OpenID Connect (OIDC) for LINE if native support is missing
