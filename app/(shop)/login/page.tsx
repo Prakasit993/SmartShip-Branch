@@ -1,12 +1,13 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import { useState, Suspense, useRef } from 'react';
+import { useState, Suspense, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Turnstile, { TurnstileRef } from '@app/components/ui/Turnstile';
 
 function LoginForm() {
     const [loading, setLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
     const router = useRouter();
     const searchParams = useSearchParams();
     const next = searchParams.get('next') || '/';
@@ -17,6 +18,63 @@ function LoginForm() {
     const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null);
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const turnstileRef = useRef<TurnstileRef>(null);
+
+    // Check for existing session on mount (handles OAuth redirect with token in URL fragment)
+    useEffect(() => {
+        const checkSession = async () => {
+            // Listen for auth state changes (handles OAuth implicit flow)
+            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    // Sync user to customers table
+                    try {
+                        const { data: existingCustomer } = await supabase
+                            .from('customers')
+                            .select('id')
+                            .eq('line_user_id', session.user.id)
+                            .single();
+
+                        if (!existingCustomer) {
+                            const userName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+                            await supabase.from('customers').insert({
+                                line_user_id: session.user.id,
+                                name: userName,
+                            });
+                        }
+                    } catch (err) {
+                        console.log('Customer sync handled elsewhere');
+                    }
+
+                    router.push(next);
+                    return;
+                }
+            });
+
+            // Check if already logged in
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                router.push(next);
+                return;
+            }
+
+            setCheckingSession(false);
+
+            return () => subscription.unsubscribe();
+        };
+        checkSession();
+    }, [router, next]);
+
+    // Show loading while checking session
+    if (checkingSession) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-black">
+                <div className="text-center">
+                    <div className="animate-spin h-8 w-8 border-2 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div>
+                    <p className="text-zinc-500">กำลังตรวจสอบ...</p>
+                </div>
+            </div>
+        );
+    }
+
 
     const handleEmailAuth = async (e: React.FormEvent) => {
         e.preventDefault();
