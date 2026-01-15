@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Turnstile, { TurnstileRef } from '@app/components/ui/Turnstile';
+import { FingerprintLoginButton } from '@app/admin/components/FingerprintButtons';
 
 export default function AdminLogin() {
     const [username, setUsername] = useState('');
@@ -130,6 +131,19 @@ export default function AdminLogin() {
                         {loading ? 'Verifying...' : 'Access Dashboard'}
                     </button>
                 </form>
+
+                {/* Divider */}
+                <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-zinc-700" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-black/40 px-2 text-zinc-500">หรือ</span>
+                    </div>
+                </div>
+
+                {/* Fingerprint Login */}
+                <FingerprintLoginButton />
 
                 <p className="mt-6 text-center text-xs text-zinc-600">
                     Protected by SmartShip Security

@@ -73,8 +73,8 @@ export default function AdminSidebar({ role }: { role: string }) {
                         <button
                             onClick={() => setLanguage('th')}
                             className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${language === 'th'
-                                    ? 'bg-blue-600 text-white shadow'
-                                    : 'text-zinc-400 hover:text-white'
+                                ? 'bg-blue-600 text-white shadow'
+                                : 'text-zinc-400 hover:text-white'
                                 }`}
                         >
                             TH
@@ -82,8 +82,8 @@ export default function AdminSidebar({ role }: { role: string }) {
                         <button
                             onClick={() => setLanguage('en')}
                             className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${language === 'en'
-                                    ? 'bg-blue-600 text-white shadow'
-                                    : 'text-zinc-400 hover:text-white'
+                                ? 'bg-blue-600 text-white shadow'
+                                : 'text-zinc-400 hover:text-white'
                                 }`}
                         >
                             EN
@@ -104,7 +104,8 @@ export default function AdminSidebar({ role }: { role: string }) {
                             <NavItem href="/admin/stock" icon="📋" label={t('nav.stock')} active={isActive('/admin/stock')} onClick={closeSidebar} />
 
                             <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-8">{t('nav.system')}</p>
-                            <NavItem href="/admin/settings" icon="⚙️" label={t('nav.settings')} active={isActive('/admin/settings')} onClick={closeSidebar} />
+                            <NavItem href="/admin/settings" icon="⚙️" label={t('nav.settings')} active={pathname === '/admin/settings'} onClick={closeSidebar} />
+                            <NavItem href="/admin/settings/security" icon="🔒" label="Security" active={isActive('/admin/settings/security')} onClick={closeSidebar} />
                         </>
                     )}
                 </nav>

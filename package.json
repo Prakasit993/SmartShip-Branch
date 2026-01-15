@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.4.1",
+    "@simplewebauthn/browser": "^13.2.2",
+    "@simplewebauthn/server": "^13.2.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.86.2",
     "@yudiel/react-qr-scanner": "^2.5.0",
