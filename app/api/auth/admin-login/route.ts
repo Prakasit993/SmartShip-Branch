@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     try {
-        const { password, turnstileToken } = await request.json();
+        const { username, password, turnstileToken } = await request.json();
 
         // Verify Turnstile token
         if (turnstileToken) {
@@ -43,15 +43,17 @@ export async function POST(request: Request) {
             }
         }
 
+        const adminUsername = process.env.ADMIN_USERNAME;
         const adminPassword = process.env.ADMIN_PASSWORD;
 
-        if (!adminPassword) {
-            console.error('ADMIN_PASSWORD not set in environment variables');
+        if (!adminPassword || !adminUsername) {
+            console.error('ADMIN_USERNAME or ADMIN_PASSWORD not set in environment variables');
             await logger.error('ADMIN_LOGIN_ERROR', { error: 'Env var missing' });
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
         }
 
-        if (password === adminPassword) {
+        // Check BOTH username AND password
+        if (username === adminUsername && password === adminPassword) {
             // Clear failed attempts on successful login
             clearAttempts(ip);
 
@@ -65,19 +67,20 @@ export async function POST(request: Request) {
                 path: '/',
             });
 
-            await logger.security('ADMIN_LOGIN_SUCCESS', { method: 'password' }, ip);
+            await logger.security('ADMIN_LOGIN_SUCCESS', { method: 'password', username }, ip);
             return NextResponse.json({ success: true });
         } else {
             // Record failed attempt
             recordFailedAttempt(ip);
 
             await logger.security('ADMIN_LOGIN_FAILED', {
-                reason: 'Invalid password',
+                reason: 'Invalid credentials',
+                usernameAttempt: username || '(empty)',
                 remainingAttempts: rateLimitResult.remainingAttempts ? rateLimitResult.remainingAttempts - 1 : 0
             }, ip);
 
             return NextResponse.json({
-                error: 'Invalid password',
+                error: 'Invalid username or password',
                 remainingAttempts: rateLimitResult.remainingAttempts ? rateLimitResult.remainingAttempts - 1 : 0
             }, { status: 401 });
         }

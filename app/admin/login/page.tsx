@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Turnstile, { TurnstileRef } from '@app/components/ui/Turnstile';
 
 export default function AdminLogin() {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -24,13 +25,20 @@ export default function AdminLogin() {
             return;
         }
 
+        // Validate inputs
+        if (!username.trim() || !password.trim()) {
+            setError('Please enter both username and password');
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await fetch('/api/auth/admin-login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ password, turnstileToken }),
+                body: JSON.stringify({ username, password, turnstileToken }),
             });
 
             if (res.ok) {
@@ -61,11 +69,28 @@ export default function AdminLogin() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 mb-4 shadow-lg shadow-blue-500/30">
                         <span className="text-3xl">📦</span>
                     </div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">Welcome Back</h1>
+                    <h1 className="text-3xl font-black text-white tracking-tight">Admin Login</h1>
                     <p className="text-zinc-400 mt-2 text-sm">Sign in to manage your shop</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-5">
+                    {/* Username Field */}
+                    <div className="space-y-1">
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest pl-1">Username</label>
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-700 text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-zinc-600 outline-none group-hover:border-zinc-600"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="Enter admin username"
+                                autoComplete="username"
+                            />
+                            <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 pointer-events-none" />
+                        </div>
+                    </div>
+
+                    {/* Password Field */}
                     <div className="space-y-1">
                         <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest pl-1">Password</label>
                         <div className="relative group">
@@ -74,7 +99,8 @@ export default function AdminLogin() {
                                 className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-700 text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-zinc-600 outline-none group-hover:border-zinc-600"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Enter admin code"
+                                placeholder="Enter admin password"
+                                autoComplete="current-password"
                             />
                             <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 pointer-events-none" />
                         </div>
