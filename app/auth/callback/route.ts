@@ -65,23 +65,26 @@ export async function GET(request: Request) {
                 });
             }
 
-            // 3. Sync user to customers table (using anon client - RLS will apply)
+            // 3. Sync user to customers table (using Admin client to bypass RLS)
             try {
-                const { data: existingCustomer } = await supabase
+                // Dynamically import to ensure server-side only usage
+                const { supabaseAdmin } = await import('@/lib/supabaseAdmin');
+
+                const { data: existingCustomer } = await supabaseAdmin
                     .from('customers')
                     .select('id')
                     .eq('line_user_id', userId)
                     .single();
 
                 if (!existingCustomer) {
-                    await supabase.from('customers').insert({
+                    await supabaseAdmin.from('customers').insert({
                         line_user_id: userId,
                         name: userName,
                     });
                     console.log('Created customer record for:', userEmail);
                 }
             } catch (err) {
-                console.log('Customer sync error (may be RLS):', err);
+                console.error('Customer sync error:', err);
                 // Don't block login if customer sync fails
             }
 
