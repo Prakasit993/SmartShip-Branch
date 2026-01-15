@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,8 @@ export async function GET(request: Request) {
 
         if (session) {
             const userEmail = session.user.email;
+            const userId = session.user.id;
+            const userName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || null;
             let role = null;
 
             // 1. Determine Role
@@ -57,16 +60,29 @@ export async function GET(request: Request) {
                 });
             }
 
-            // 3. Handle Redirection Logic
-            // If they are logging in via the Shop Login page, 'next' will be '/' or '/shop'
-            // If they are logging in via Admin Login page, 'next' defaults to '/admin'
+            // 3. Sync user to customers table (create if not exists)
+            try {
+                const { data: existingCustomer } = await supabaseAdmin
+                    .from('customers')
+                    .select('id')
+                    .eq('line_user_id', userId)
+                    .single();
 
-            // Logic:
-            // - If role exists (Admin/Staff): Allow entry to anywhere.
-            // - If role is NULL (Customer): 
-            //    - If trying to go to /admin -> DENY.
-            //    - If trying to go to /shop or / -> ALLOW.
+                if (!existingCustomer) {
+                    // Create new customer record
+                    await supabaseAdmin.from('customers').insert({
+                        line_user_id: userId,
+                        name: userName,
+                        // phone and address will be filled by user later
+                    });
+                    console.log('Created customer record for:', userEmail);
+                }
+            } catch (error) {
+                console.error('Error syncing customer:', error);
+                // Don't block login if customer sync fails
+            }
 
+            // 4. Handle Redirection Logic
             const isTargetingAdmin = next.startsWith('/admin');
 
             if (role) {
@@ -88,3 +104,4 @@ export async function GET(request: Request) {
     // URL to redirect to after sign in process completes
     return NextResponse.redirect(`${requestUrl.origin}/login?error=Auth Failed`);
 }
+
