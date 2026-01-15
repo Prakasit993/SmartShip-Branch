@@ -123,12 +123,38 @@ export async function createOrder(prevState: any, formData: FormData) {
     );
     const { data: { user } } = await supabase.auth.getUser();
 
+    // 2.6 Get Customer ID and Update Customer Profile
+    let customerId: string | null = null;
+    if (user) {
+        // Lookup customer by user ID
+        const { data: customer } = await supabaseAdmin
+            .from('customers')
+            .select('id')
+            .eq('line_user_id', user.id)
+            .single();
+
+        if (customer) {
+            customerId = customer.id;
+
+            // Update customer profile with checkout info (if not already filled)
+            await supabaseAdmin
+                .from('customers')
+                .update({
+                    name: customerName,
+                    phone: customerPhone,
+                    address: customerAddress,
+                })
+                .eq('id', customer.id);
+        }
+    }
+
     // 3. Create Order
     const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
         .insert({
             order_no: orderNo,
-            user_id: user?.id || null, // Link to user
+            user_id: user?.id || null,
+            customer_id: customerId, // Link to customer record
             customer_name: customerName,
             customer_phone: customerPhone,
             customer_email: customerEmail || null,

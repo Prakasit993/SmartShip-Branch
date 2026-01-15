@@ -16,54 +16,68 @@ function LoginForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
-    const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(
-        errorParam ? { text: decodeURIComponent(errorParam), type: 'error' } : null
-    );
+    const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null);
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const turnstileRef = useRef<TurnstileRef>(null);
 
-    // Check for existing session on mount
+    // Check for existing session on mount - handles hash fragment from OAuth
     useEffect(() => {
-        const checkSession = async () => {
-            // 1. Listen for auth state changes (Handles Implicit Flow / Fragment)
-            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-                if (event === 'SIGNED_IN' && session) {
-                    router.push(next);
-                }
-            });
-
-            // 2. Check current session (Handles Persistence)
+        const handleAuth = async () => {
             try {
-                // Set a timeout to prevent infinite loading
-                const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000));
-                const sessionPromise = supabase.auth.getSession();
+                // 1. Check if there's a hash fragment with access_token (OAuth Implicit Flow)
+                const hash = window.location.hash;
+                if (hash && hash.includes('access_token')) {
+                    console.log('Found access_token in hash, processing...');
 
-                const result: any = await Promise.race([sessionPromise, timeoutPromise]);
+                    // Supabase should automatically pick up the hash and set the session
+                    // Wait a moment for Supabase to process the hash
+                    await new Promise(resolve => setTimeout(resolve, 500));
 
-                if (result && result.data && result.data.session) {
+                    // Check if session is now set
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session) {
+                        console.log('Session established from hash, redirecting to:', next);
+                        // Clear the hash from URL before redirecting
+                        window.history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[?&]error=[^&]+/, ''));
+                        router.push(next);
+                        return;
+                    }
+                }
+
+                // 2. Listen for auth state changes
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+                    console.log('Auth state changed:', event, !!session);
+                    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+                        router.push(next);
+                    }
+                });
+
+                // 3. Check current session (for returning users)
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    console.log('Existing session found, redirecting to:', next);
                     router.push(next);
-                    // Don't return here, let the subscription handle any updates
+                    return;
                 }
+
+                // 4. Only show error message if no session was found at all
+                if (errorParam && !session) {
+                    setMessage({ text: decodeURIComponent(errorParam), type: 'error' });
+                }
+
+                setCheckingSession(false);
+
+                return () => {
+                    subscription.unsubscribe();
+                };
             } catch (error) {
-                console.error('Session check failed:', error);
-            } finally {
-                if (mountedRef.current) {
-                    setCheckingSession(false);
-                }
+                console.error('Auth check error:', error);
+                setCheckingSession(false);
             }
-
-            return () => {
-                subscription.unsubscribe();
-            };
         };
 
-        const mountedRef = { current: true };
-        checkSession();
-
-        return () => {
-            mountedRef.current = false;
-        };
-    }, [router, next]);
+        handleAuth();
+    }, [router, next, errorParam]);
 
     // Show loading while checking session
     if (checkingSession) {
@@ -76,6 +90,7 @@ function LoginForm() {
             </div>
         );
     }
+
 
 
     const handleEmailAuth = async (e: React.FormEvent) => {

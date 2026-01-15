@@ -72,16 +72,23 @@ export async function GET(request: Request) {
 
                 const { data: existingCustomer } = await supabaseAdmin
                     .from('customers')
-                    .select('id')
+                    .select('id, name')
                     .eq('line_user_id', userId)
                     .single();
 
                 if (!existingCustomer) {
+                    // Create new customer
                     await supabaseAdmin.from('customers').insert({
                         line_user_id: userId,
                         name: userName,
                     });
                     console.log('Created customer record for:', userEmail);
+                } else if (!existingCustomer.name && userName) {
+                    // Update existing customer with name if empty
+                    await supabaseAdmin.from('customers')
+                        .update({ name: userName })
+                        .eq('id', existingCustomer.id);
+                    console.log('Updated customer name for:', userEmail);
                 }
             } catch (err) {
                 console.error('Customer sync error:', err);

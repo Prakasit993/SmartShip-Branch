@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,8 @@ export default async function TrackPage({ searchParams }: { searchParams: Promis
 
     let order = null;
     if (order_no) {
-        const { data } = await supabase.from('orders').select('*').eq('order_no', order_no).single();
+        // Use supabaseAdmin to bypass RLS
+        const { data } = await supabaseAdmin.from('orders').select('*').eq('order_no', order_no).single();
         order = data;
     }
 
