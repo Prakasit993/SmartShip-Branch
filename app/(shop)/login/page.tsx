@@ -11,54 +11,26 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const next = searchParams.get('next') || '/';
+    const errorParam = searchParams.get('error');
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
-    const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null);
+    const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(
+        errorParam ? { text: decodeURIComponent(errorParam), type: 'error' } : null
+    );
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const turnstileRef = useRef<TurnstileRef>(null);
 
-    // Check for existing session on mount (handles OAuth redirect with token in URL fragment)
+    // Check for existing session on mount
     useEffect(() => {
         const checkSession = async () => {
-            // Listen for auth state changes (handles OAuth implicit flow)
-            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-                if (event === 'SIGNED_IN' && session) {
-                    // Sync user to customers table
-                    try {
-                        const { data: existingCustomer } = await supabase
-                            .from('customers')
-                            .select('id')
-                            .eq('line_user_id', session.user.id)
-                            .single();
-
-                        if (!existingCustomer) {
-                            const userName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
-                            await supabase.from('customers').insert({
-                                line_user_id: session.user.id,
-                                name: userName,
-                            });
-                        }
-                    } catch (err) {
-                        console.log('Customer sync handled elsewhere');
-                    }
-
-                    router.push(next);
-                    return;
-                }
-            });
-
-            // Check if already logged in
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 router.push(next);
                 return;
             }
-
             setCheckingSession(false);
-
-            return () => subscription.unsubscribe();
         };
         checkSession();
     }, [router, next]);
