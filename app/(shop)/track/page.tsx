@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -19,25 +21,45 @@ type OrderType = {
 export default async function TrackPage({ searchParams }: { searchParams: Promise<{ order_no?: string; phone?: string }> }) {
     const { order_no, phone } = await searchParams;
 
+    // Check if user is logged in (for phone search)
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll();
+                },
+                setAll() { },
+            },
+        }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    const isLoggedIn = !!user;
+
     let orders: OrderType[] = [];
     let singleOrder: OrderType | null = null;
+    let requiresLogin = false;
 
     if (order_no) {
-        // Search by Order Number
+        // Search by Order Number - PUBLIC (anyone can search)
         const { data } = await supabaseAdmin.from('orders').select('*').eq('order_no', order_no).single();
         singleOrder = data;
     } else if (phone) {
-        // Search by Phone Number - returns multiple orders
-        const { data } = await supabaseAdmin
-            .from('orders')
-            .select('*')
-            .eq('customer_phone', phone)
-            .order('created_at', { ascending: false });
-        orders = data || [];
+        // Search by Phone Number - REQUIRES LOGIN
+        if (!isLoggedIn) {
+            requiresLogin = true;
+        } else {
+            const { data } = await supabaseAdmin
+                .from('orders')
+                .select('*')
+                .eq('customer_phone', phone)
+                .order('created_at', { ascending: false });
+            orders = data || [];
+        }
     }
 
-    const searchValue = order_no || phone || '';
-    const searchType = order_no ? 'order_no' : 'phone';
     const hasSearched = order_no || phone;
 
     return (
@@ -47,39 +69,82 @@ export default async function TrackPage({ searchParams }: { searchParams: Promis
             {/* Search Form */}
             <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 mb-8 border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <form className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                ค้นหาด้วยหมายเลขคำสั่งซื้อ
-                            </label>
-                            <input
-                                name="order_no"
-                                defaultValue={order_no || ''}
-                                placeholder="ORD-1234567890"
-                                className="w-full px-4 py-3 border rounded-lg bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                            />
+                    {/* Order Number Search - Public */}
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                            🔓 ค้นหาด้วยหมายเลขคำสั่งซื้อ
+                        </label>
+                        <input
+                            name="order_no"
+                            defaultValue={order_no || ''}
+                            placeholder="ORD-1234567890"
+                            className="w-full px-4 py-3 border rounded-lg bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                        />
+                    </div>
+
+                    {/* Divider */}
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-zinc-200 dark:border-zinc-700" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                หรือ ค้นหาด้วยเบอร์โทรศัพท์
-                            </label>
-                            <input
-                                name="phone"
-                                defaultValue={phone || ''}
-                                placeholder="0812345678"
-                                className="w-full px-4 py-3 border rounded-lg bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                            />
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-400">หรือ</span>
                         </div>
                     </div>
+
+                    {/* Phone Search - Requires Login */}
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                            🔒 ค้นหาด้วยเบอร์โทรศัพท์
+                            {isLoggedIn ? (
+                                <span className="text-green-600 text-xs ml-2">✓ เข้าสู่ระบบแล้ว</span>
+                            ) : (
+                                <span className="text-yellow-600 text-xs ml-2">(ต้องเข้าสู่ระบบก่อน)</span>
+                            )}
+                        </label>
+                        <input
+                            name="phone"
+                            defaultValue={phone || ''}
+                            placeholder="0812345678"
+                            disabled={!isLoggedIn}
+                            className={`w-full px-4 py-3 border rounded-lg outline-none transition
+                                ${isLoggedIn
+                                    ? 'bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                    : 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 opacity-60 cursor-not-allowed'
+                                }`}
+                        />
+                    </div>
+
                     <button
                         type="submit"
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 transition"
                     >
                         🔍 ค้นหา
                     </button>
-                    <p className="text-xs text-zinc-500 text-center">กรอกหมายเลขคำสั่งซื้อ หรือเบอร์โทรศัพท์ที่ใช้ในการสั่งซื้อ</p>
+
+                    {!isLoggedIn && (
+                        <div className="text-center">
+                            <Link href="/login?next=/track" className="text-blue-600 hover:underline text-sm">
+                                เข้าสู่ระบบเพื่อค้นหาด้วยเบอร์โทรศัพท์ →
+                            </Link>
+                        </div>
+                    )}
                 </form>
             </div>
+
+            {/* Login Required Message */}
+            {requiresLogin && (
+                <div className="text-center p-8 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 mb-8">
+                    <p className="text-yellow-700 dark:text-yellow-400 font-medium">🔒 กรุณาเข้าสู่ระบบก่อน</p>
+                    <p className="text-sm text-zinc-500 mt-1 mb-4">การค้นหาด้วยเบอร์โทรศัพท์ต้องเข้าสู่ระบบเพื่อรักษาความปลอดภัยข้อมูล</p>
+                    <Link
+                        href={`/login?next=/track?phone=${encodeURIComponent(phone || '')}`}
+                        className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+                    >
+                        เข้าสู่ระบบ
+                    </Link>
+                </div>
+            )}
 
             {/* Single Order Result (by order_no) */}
             {singleOrder && (
@@ -99,7 +164,7 @@ export default async function TrackPage({ searchParams }: { searchParams: Promis
             )}
 
             {/* No Results */}
-            {hasSearched && !singleOrder && orders.length === 0 && (
+            {hasSearched && !requiresLogin && !singleOrder && orders.length === 0 && (
                 <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                     <p className="text-red-600 dark:text-red-400 font-medium">ไม่พบคำสั่งซื้อ</p>
                     <p className="text-sm text-zinc-500 mt-1">กรุณาตรวจสอบหมายเลขคำสั่งซื้อหรือเบอร์โทรศัพท์อีกครั้ง</p>
