@@ -21,7 +21,7 @@ type OrderType = {
 export default async function TrackPage({ searchParams }: { searchParams: Promise<{ order_no?: string; phone?: string }> }) {
     const { order_no, phone } = await searchParams;
 
-    // Check if user is logged in (for phone search)
+    // Check if user is logged in
     const cookieStore = await cookies();
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,9 +38,33 @@ export default async function TrackPage({ searchParams }: { searchParams: Promis
     const { data: { user } } = await supabase.auth.getUser();
     const isLoggedIn = !!user;
 
+    // Get customer's phone from profile if logged in
+    let customerPhone: string | null = null;
+    let customerName: string | null = null;
+    if (isLoggedIn && user) {
+        const { data: customer } = await supabaseAdmin
+            .from('customers')
+            .select('phone, name')
+            .eq('line_user_id', user.id)
+            .single();
+        customerPhone = customer?.phone || null;
+        customerName = customer?.name || user.user_metadata?.name || null;
+    }
+
     let orders: OrderType[] = [];
     let singleOrder: OrderType | null = null;
     let requiresLogin = false;
+    let myOrders: OrderType[] = [];
+
+    // Auto-fetch orders for logged-in users (using their phone from profile)
+    if (isLoggedIn && customerPhone && !order_no && !phone) {
+        const { data } = await supabaseAdmin
+            .from('orders')
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .order('created_at', { ascending: false });
+        myOrders = data || [];
+    }
 
     if (order_no) {
         // Search by Order Number - PUBLIC (anyone can search)
@@ -142,6 +166,36 @@ export default async function TrackPage({ searchParams }: { searchParams: Promis
                         className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
                     >
                         เข้าสู่ระบบ
+                    </Link>
+                </div>
+            )}
+
+            {/* My Orders - Auto-fetched for logged-in users */}
+            {myOrders.length > 0 && !hasSearched && (
+                <div className="space-y-4 mb-8">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                            <span className="text-green-500">👤</span>
+                            คำสั่งซื้อของ {customerName || 'ฉัน'} ({myOrders.length} รายการ)
+                        </h2>
+                        <span className="text-sm text-zinc-500">เบอร์: {customerPhone}</span>
+                    </div>
+                    {myOrders.map((order) => (
+                        <OrderCard key={order.id} order={order} />
+                    ))}
+                </div>
+            )}
+
+            {/* Logged in but no phone in profile */}
+            {isLoggedIn && !customerPhone && !hasSearched && (
+                <div className="text-center p-8 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-8">
+                    <p className="text-blue-700 dark:text-blue-400 font-medium">📝 กรุณากรอกเบอร์โทรศัพท์ในโปรไฟล์</p>
+                    <p className="text-sm text-zinc-500 mt-1 mb-4">เพื่อให้ระบบแสดงคำสั่งซื้อของคุณโดยอัตโนมัติ</p>
+                    <Link
+                        href="/profile"
+                        className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+                    >
+                        ไปหน้าโปรไฟล์
                     </Link>
                 </div>
             )}
