@@ -40,8 +40,7 @@ function AuthCallbackContent() {
                     if (data?.session) {
                         console.log('Session established via PKCE!');
                         setStatus('สำเร็จ! กำลังเปลี่ยนหน้า...');
-                        router.push(next);
-                        router.refresh();
+                        window.location.href = next;
                         return;
                     }
                 }
@@ -59,9 +58,7 @@ function AuthCallbackContent() {
                     if (session) {
                         console.log('Session established from hash!');
                         setStatus('สำเร็จ! กำลังเปลี่ยนหน้า...');
-                        window.history.replaceState({}, '', window.location.pathname);
-                        router.push(next);
-                        router.refresh();
+                        window.location.href = next;
                         return;
                     }
                 }
@@ -72,8 +69,7 @@ function AuthCallbackContent() {
                 if (session) {
                     console.log('Existing session found!');
                     setStatus('สำเร็จ! กำลังเปลี่ยนหน้า...');
-                    router.push(next);
-                    router.refresh();
+                    window.location.href = next;
                     return;
                 }
 
@@ -81,7 +77,7 @@ function AuthCallbackContent() {
                 console.log('No session found, redirecting to login');
                 setStatus('ไม่พบ session, กำลังกลับหน้า login...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                router.push('/login?error=โปรดลองเข้าสู่ระบบอีกครั้ง');
+                window.location.href = '/login?error=โปรดลองเข้าสู่ระบบอีกครั้ง';
 
             } catch (err) {
                 console.error('Auth callback error:', err);
