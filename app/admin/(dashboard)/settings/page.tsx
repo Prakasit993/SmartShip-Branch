@@ -3,7 +3,12 @@ import { updateSettings } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ saved?: string; error?: string }>;
+}) {
+    const params = await searchParams;
     const { data: settings } = await supabase.from('settings').select('*');
 
     const getSetting = (key: string) => {
@@ -15,6 +20,18 @@ export default async function SettingsPage() {
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <h1 className="text-2xl font-bold">Site Settings</h1>
+
+            {params.saved && (
+                <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 p-4 rounded-lg">
+                    ✅ บันทึกการตั้งค่าเรียบร้อยแล้ว!
+                </div>
+            )}
+
+            {params.error && (
+                <div className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 p-4 rounded-lg">
+                    ❌ เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่อีกครั้ง
+                </div>
+            )}
 
             <form action={updateSettings} className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
                 <h2 className="font-semibold text-lg border-b dark:border-zinc-800 pb-2">Homepage Content</h2>
