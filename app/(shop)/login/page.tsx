@@ -25,14 +25,32 @@ function LoginForm() {
     // Check for existing session on mount
     useEffect(() => {
         const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                router.push(next);
-                return;
+            try {
+                // Set a timeout to prevent infinite loading
+                const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000));
+                const sessionPromise = supabase.auth.getSession();
+
+                const result: any = await Promise.race([sessionPromise, timeoutPromise]);
+
+                if (result && result.data && result.data.session) {
+                    router.push(next);
+                    return;
+                }
+            } catch (error) {
+                console.error('Session check failed:', error);
+            } finally {
+                if (mountedRef.current) {
+                    setCheckingSession(false);
+                }
             }
-            setCheckingSession(false);
         };
+
+        const mountedRef = { current: true };
         checkSession();
+
+        return () => {
+            mountedRef.current = false;
+        };
     }, [router, next]);
 
     // Show loading while checking session
