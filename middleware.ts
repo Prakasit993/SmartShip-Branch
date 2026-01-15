@@ -92,23 +92,13 @@ export async function middleware(request: NextRequest) {
         return response;
     }
 
-    // 2. Profile Route Protection (Basic Cookie Check for MVP)
-    if (pathname.startsWith('/profile')) {
-        const allCookies = request.cookies.getAll();
-        // Check for common Supabase Auth cookie patterns
-        const hasAuthCookie = allCookies.some(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
-
-        if (!hasAuthCookie) {
-            const url = request.nextUrl.clone();
-            url.pathname = '/login';
-            url.searchParams.set('next', pathname);
-            return NextResponse.redirect(url);
-        }
-    }
+    // 2. Profile Route - Let the page handle its own auth check
+    // The page already redirects to login if no session exists
+    // No middleware protection needed here
 
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ['/admin/:path*', '/profile/:path*'],
+    matcher: ['/admin/:path*'],
 };
