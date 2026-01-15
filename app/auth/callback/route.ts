@@ -1,16 +1,15 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     const requestUrl = new URL(request.url);
     const code = requestUrl.searchParams.get('code');
-    const next = requestUrl.searchParams.get('next') || '/admin'; // Default to admin for legacy flows
+    const next = requestUrl.searchParams.get('next') || '/';
 
-    // Env vars
+    // Env vars for role detection
     const allowedAdminEmail = process.env.ADMIN_EMAIL;
     const allowedStaffEmails = (process.env.STAFF_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
@@ -34,7 +33,13 @@ export async function GET(request: Request) {
             }
         );
 
-        const { data: { session } } = await supabase.auth.exchangeCodeForSession(code);
+        // Exchange code for session (PKCE flow)
+        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (error) {
+            console.error('Auth callback error:', error);
+            return NextResponse.redirect(`${requestUrl.origin}/login?error=${encodeURIComponent(error.message)}`);
+        }
 
         if (session) {
             const userEmail = session.user.email;
@@ -60,29 +65,27 @@ export async function GET(request: Request) {
                 });
             }
 
-            // 3. Sync user to customers table (create if not exists)
+            // 3. Sync user to customers table (using anon client - RLS will apply)
             try {
-                const { data: existingCustomer } = await supabaseAdmin
+                const { data: existingCustomer } = await supabase
                     .from('customers')
                     .select('id')
                     .eq('line_user_id', userId)
                     .single();
 
                 if (!existingCustomer) {
-                    // Create new customer record
-                    await supabaseAdmin.from('customers').insert({
+                    await supabase.from('customers').insert({
                         line_user_id: userId,
                         name: userName,
-                        // phone and address will be filled by user later
                     });
                     console.log('Created customer record for:', userEmail);
                 }
-            } catch (error) {
-                console.error('Error syncing customer:', error);
+            } catch (err) {
+                console.log('Customer sync error (may be RLS):', err);
                 // Don't block login if customer sync fails
             }
 
-            // 4. Handle Redirection Logic
+            // 4. Handle Redirection
             const isTargetingAdmin = next.startsWith('/admin');
 
             if (role) {
@@ -90,18 +93,15 @@ export async function GET(request: Request) {
             } else {
                 // Customer Login
                 if (isTargetingAdmin) {
-                    // Tried to login to Admin but not an admin
                     await supabase.auth.signOut();
-                    return NextResponse.redirect(`${requestUrl.origin}/admin/login?error=Unauthorized Email`);
+                    return NextResponse.redirect(`${requestUrl.origin}/admin/login?error=Unauthorized`);
                 } else {
-                    // Regular customer login success
                     return NextResponse.redirect(`${requestUrl.origin}${next}`);
                 }
             }
         }
     }
 
-    // URL to redirect to after sign in process completes
+    // No code provided - redirect to login with error
     return NextResponse.redirect(`${requestUrl.origin}/login?error=Auth Failed`);
 }
-
