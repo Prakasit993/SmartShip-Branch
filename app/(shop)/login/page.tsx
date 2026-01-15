@@ -26,20 +26,39 @@ function LoginForm() {
             try {
                 // 1. Check if there's a hash fragment with access_token (OAuth Implicit Flow)
                 const hash = window.location.hash;
-                if (hash && hash.includes('access_token')) {
-                    console.log('Found access_token in hash, processing...');
+                const hasAccessToken = hash && hash.includes('access_token');
 
-                    // Supabase should automatically pick up the hash and set the session
-                    // Wait a moment for Supabase to process the hash
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                if (hasAccessToken) {
+                    console.log('Found access_token in hash, processing OAuth...');
 
-                    // Check if session is now set
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session) {
-                        console.log('Session established from hash, redirecting to:', next);
-                        // Clear the hash from URL before redirecting
-                        window.history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[?&]error=[^&]+/, ''));
+                    // Use Supabase's built-in method to handle the hash
+                    // This properly parses the hash and sets the session
+                    const { data, error } = await supabase.auth.getSession();
+
+                    if (error) {
+                        console.error('Error processing OAuth hash:', error);
+                        setMessage({ text: error.message, type: 'error' });
+                        setCheckingSession(false);
+                        return;
+                    }
+
+                    if (data.session) {
+                        console.log('Session established from OAuth, redirecting to:', next);
+                        // Clear the hash and error from URL before redirecting
+                        window.history.replaceState({}, '', window.location.pathname);
                         router.push(next);
+                        router.refresh();
+                        return;
+                    }
+
+                    // If no session yet, wait a bit more and try again
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    const { data: retryData } = await supabase.auth.getSession();
+                    if (retryData.session) {
+                        console.log('Session established on retry, redirecting to:', next);
+                        window.history.replaceState({}, '', window.location.pathname);
+                        router.push(next);
+                        router.refresh();
                         return;
                     }
                 }
@@ -49,6 +68,7 @@ function LoginForm() {
                     console.log('Auth state changed:', event, !!session);
                     if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
                         router.push(next);
+                        router.refresh();
                     }
                 });
 
@@ -60,8 +80,9 @@ function LoginForm() {
                     return;
                 }
 
-                // 4. Only show error message if no session was found at all
-                if (errorParam && !session) {
+                // 4. Only show error message if no session AND no access_token in hash
+                // (access_token in hash means OAuth is still processing)
+                if (errorParam && !session && !hasAccessToken) {
                     setMessage({ text: decodeURIComponent(errorParam), type: 'error' });
                 }
 
