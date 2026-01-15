@@ -25,6 +25,14 @@ function LoginForm() {
     // Check for existing session on mount
     useEffect(() => {
         const checkSession = async () => {
+            // 1. Listen for auth state changes (Handles Implicit Flow / Fragment)
+            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    router.push(next);
+                }
+            });
+
+            // 2. Check current session (Handles Persistence)
             try {
                 // Set a timeout to prevent infinite loading
                 const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000));
@@ -34,7 +42,7 @@ function LoginForm() {
 
                 if (result && result.data && result.data.session) {
                     router.push(next);
-                    return;
+                    // Don't return here, let the subscription handle any updates
                 }
             } catch (error) {
                 console.error('Session check failed:', error);
@@ -43,6 +51,10 @@ function LoginForm() {
                     setCheckingSession(false);
                 }
             }
+
+            return () => {
+                subscription.unsubscribe();
+            };
         };
 
         const mountedRef = { current: true };
