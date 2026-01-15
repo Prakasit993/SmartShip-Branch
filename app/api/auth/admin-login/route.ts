@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from '@app/lib/rateLimit';
+import { verifyTurnstileToken } from '@app/lib/turnstile';
 
 export async function POST(request: Request) {
     // Get IP for rate limiting
@@ -28,7 +29,20 @@ export async function POST(request: Request) {
     }
 
     try {
-        const { password } = await request.json();
+        const { password, turnstileToken } = await request.json();
+
+        // Verify Turnstile token
+        if (turnstileToken) {
+            const isValidTurnstile = await verifyTurnstileToken(turnstileToken, ip);
+            if (!isValidTurnstile) {
+                await logger.security('ADMIN_LOGIN_TURNSTILE_FAILED', { ip }, ip);
+                return NextResponse.json(
+                    { error: 'Security verification failed. Please try again.' },
+                    { status: 400 }
+                );
+            }
+        }
+
         const adminPassword = process.env.ADMIN_PASSWORD;
 
         if (!adminPassword) {

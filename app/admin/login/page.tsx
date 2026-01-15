@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Turnstile, { TurnstileRef } from '@app/components/ui/Turnstile';
 
 import AdminSocialLogin from './AdminSocialLogin';
 
@@ -9,6 +10,8 @@ export default function AdminLogin() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileRef = useRef<TurnstileRef>(null);
     const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -16,13 +19,20 @@ export default function AdminLogin() {
         setLoading(true);
         setError('');
 
+        // Check Turnstile token
+        if (!turnstileToken) {
+            setError('Please complete the security verification');
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await fetch('/api/auth/admin-login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({ password, turnstileToken }),
             });
 
             if (res.ok) {
@@ -79,9 +89,18 @@ export default function AdminLogin() {
                         </div>
                     )}
 
+                    {/* Turnstile Bot Protection */}
+                    <Turnstile
+                        ref={turnstileRef}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onError={() => setTurnstileToken(null)}
+                        onExpire={() => setTurnstileToken(null)}
+                        theme="dark"
+                    />
+
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !turnstileToken}
                         className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? 'Verifying...' : 'Access Dashboard'}

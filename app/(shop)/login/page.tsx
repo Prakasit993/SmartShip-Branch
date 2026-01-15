@@ -1,8 +1,9 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Turnstile, { TurnstileRef } from '@app/components/ui/Turnstile';
 
 function LoginForm() {
     const [loading, setLoading] = useState(false);
@@ -14,9 +15,18 @@ function LoginForm() {
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null);
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileRef = useRef<TurnstileRef>(null);
 
     const handleEmailAuth = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Check Turnstile token
+        if (!turnstileToken) {
+            setMessage({ text: 'Please complete the security verification', type: 'error' });
+            return;
+        }
+
         setLoading(true);
         setMessage(null);
 
@@ -115,9 +125,19 @@ function LoginForm() {
                             placeholder="••••••••"
                         />
                     </div>
+
+                    {/* Turnstile Bot Protection */}
+                    <Turnstile
+                        ref={turnstileRef}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onError={() => setTurnstileToken(null)}
+                        onExpire={() => setTurnstileToken(null)}
+                        theme="auto"
+                    />
+
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !turnstileToken}
                         className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-3 rounded-lg hover:opacity-80 transition-all disabled:opacity-50"
                     >
                         {loading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
