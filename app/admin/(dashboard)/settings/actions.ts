@@ -54,3 +54,43 @@ export async function updateSettings(formData: FormData) {
 
     redirect('/admin/settings?saved=1');
 }
+
+export async function uploadImage(formData: FormData): Promise<{ url: string } | { error: string }> {
+    try {
+        const file = formData.get('file') as File;
+        if (!file) {
+            return { error: 'No file provided' };
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `settings/${fileName}`;
+
+        // Convert to buffer
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from('images')
+            .upload(filePath, buffer, {
+                contentType: file.type,
+                upsert: false
+            });
+
+        if (uploadError) {
+            console.error('Upload error:', uploadError);
+            return { error: uploadError.message };
+        }
+
+        // Get public URL
+        const { data: urlData } = supabaseAdmin.storage
+            .from('images')
+            .getPublicUrl(filePath);
+
+        return { url: urlData.publicUrl };
+    } catch (error) {
+        console.error('Upload error:', error);
+        return { error: String(error) };
+    }
+}
