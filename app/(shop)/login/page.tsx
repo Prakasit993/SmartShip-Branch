@@ -91,27 +91,43 @@ function LoginForm() {
         setMessage(null);
 
         try {
+            // Create a timeout promise
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timed out. Please try again.')), 15000)
+            );
+
             if (isSignUp) {
-                const { error } = await supabase.auth.signUp({
+                const signUpPromise = supabase.auth.signUp({
                     email,
                     password,
                     options: {
                         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
                     },
                 });
-                if (error) throw error;
+
+                const result: any = await Promise.race([signUpPromise, timeoutPromise]);
+                if (result.error) throw result.error;
                 setMessage({ text: 'Check your email for the confirmation link!', type: 'success' });
             } else {
-                const { error } = await supabase.auth.signInWithPassword({
+                console.log('Attempting email login for:', email);
+
+                const signInPromise = supabase.auth.signInWithPassword({
                     email,
                     password,
                 });
-                if (error) throw error;
+
+                const result: any = await Promise.race([signInPromise, timeoutPromise]);
+                console.log('Sign in result:', result);
+
+                if (result.error) throw result.error;
+
+                console.log('Login successful, redirecting to:', next);
                 router.push(next);
                 router.refresh();
             }
         } catch (error: any) {
-            setMessage({ text: error.message, type: 'error' });
+            console.error('Auth error:', error);
+            setMessage({ text: error.message || 'Authentication failed', type: 'error' });
         } finally {
             setLoading(false);
         }
