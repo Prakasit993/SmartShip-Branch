@@ -13,11 +13,21 @@ export default function CheckoutPage() {
 
     useEffect(() => {
         const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) {
+                    console.error('Auth error:', error);
+                    router.push('/login?next=/checkout');
+                    return;
+                }
+                if (!user) {
+                    router.push('/login?next=/checkout');
+                } else {
+                    setChecking(false);
+                }
+            } catch (err) {
+                console.error('Auth check failed:', err);
                 router.push('/login?next=/checkout');
-            } else {
-                setChecking(false);
             }
         };
         checkUser();

@@ -17,31 +17,59 @@ export default function CheckoutForm() {
 
     useEffect(() => {
         const fetchUserData = async () => {
-            const { data: { user } } = await import('@/lib/supabaseClient').then(m => m.supabase.auth.getUser());
+            const { supabase } = await import('@/lib/supabaseClient');
+            const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                // Try to get last order for address
-                const { data: orders } = await import('@/lib/supabaseClient').then(m => m.supabase
-                    .from('orders')
-                    .select('customer_name, customer_phone, shipping_address')
-                    .eq('user_id', user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                );
+                // First try to get from customers table
+                let { data: customer, error: customerError } = await supabase
+                    .from('customers')
+                    .select('name, phone, address')
+                    .eq('line_user_id', user.id)
+                    .single();
 
-                if (orders && orders.length > 0) {
+                // If no customer record exists, create one
+                if (!customer && customerError?.code === 'PGRST116') {
+                    const userName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+                    const { data: newCustomer } = await supabase
+                        .from('customers')
+                        .insert({
+                            line_user_id: user.id,
+                            name: userName,
+                        })
+                        .select('name, phone, address')
+                        .single();
+                    customer = newCustomer;
+                }
+
+                if (customer && (customer.name || customer.phone || customer.address)) {
                     setUserData({
-                        name: orders[0].customer_name,
-                        phone: orders[0].customer_phone,
-                        address: orders[0].shipping_address
+                        name: customer.name || '',
+                        phone: customer.phone || '',
+                        address: customer.address || ''
                     });
                 } else {
-                    // Fallback to Metadata if available? or just empty
-                    // Social login might provide name
-                    setUserData({
-                        name: user.user_metadata?.full_name || user.user_metadata?.name || '',
-                        phone: '',
-                        address: ''
-                    });
+                    // Fallback: Try to get from last order
+                    const { data: orders } = await supabase
+                        .from('orders')
+                        .select('customer_name, customer_phone, shipping_address')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    if (orders && orders.length > 0) {
+                        setUserData({
+                            name: orders[0].customer_name || '',
+                            phone: orders[0].customer_phone || '',
+                            address: orders[0].shipping_address || ''
+                        });
+                    } else {
+                        // Use metadata from auth
+                        setUserData({
+                            name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+                            phone: '',
+                            address: ''
+                        });
+                    }
                 }
             }
         };
