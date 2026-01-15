@@ -246,18 +246,6 @@ function LoginForm() {
                 </div>
 
                 <div className="space-y-3">
-                    {/* LINE Login */}
-                    <button
-                        onClick={() => handleLogin('line')}
-                        disabled={loading}
-                        className="w-full flex items-center justify-center gap-3 bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-3 rounded-lg transition-all active:scale-95"
-                    >
-                        <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                            <path d="M22.288 10.384c0-5.074-4.665-9.189-10.422-9.189-5.76 0-10.423 4.115-10.423 9.189 0 4.542 3.733 8.337 9.07 9.066.866.19 2.035.586 2.333 1.341 0 0 .346 2.058.423 2.502.138.802 1.488.51 2.527-1.42 2.766-4.225 6.492-7.23 6.492-11.489z" />
-                        </svg>
-                        Login with LINE
-                    </button>
-
                     {/* Google Login */}
                     <button
                         onClick={() => handleLogin('google')}
@@ -283,18 +271,6 @@ function LoginForm() {
                             />
                         </svg>
                         Login with Google
-                    </button>
-
-                    {/* Facebook Login */}
-                    <button
-                        onClick={() => handleLogin('facebook')}
-                        disabled={loading}
-                        className="w-full flex items-center justify-center gap-3 bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold py-3 rounded-lg transition-all"
-                    >
-                        <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                        </svg>
-                        Login with Facebook
                     </button>
                 </div>
 
