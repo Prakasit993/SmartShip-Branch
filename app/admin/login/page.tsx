@@ -4,8 +4,6 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Turnstile, { TurnstileRef } from '@app/components/ui/Turnstile';
 
-import AdminSocialLogin from './AdminSocialLogin';
-
 export default function AdminLogin() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -106,10 +104,6 @@ export default function AdminLogin() {
                         {loading ? 'Verifying...' : 'Access Dashboard'}
                     </button>
                 </form>
-
-                <div className="mt-8 pt-6 border-t border-white/10">
-                    <AdminSocialLogin />
-                </div>
 
                 <p className="mt-6 text-center text-xs text-zinc-600">
                     Protected by SmartShip Security
