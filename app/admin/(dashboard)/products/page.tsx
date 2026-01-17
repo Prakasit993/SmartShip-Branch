@@ -30,60 +30,65 @@ export default async function ProductsPage({
         .range(offset, offset + ITEMS_PER_PAGE - 1);
 
     if (error) {
-        return <div className="text-red-500">Error loading products: {error.message}</div>;
+        return <div className="text-red-500">❌ เกิดข้อผิดพลาด: {error.message}</div>;
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-20">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-xl md:text-2xl font-bold">Products (Inventory)</h1>
+                <div>
+                    <h1 className="text-xl md:text-2xl font-bold">📦 สินค้า (คลังสินค้า)</h1>
+                    <p className="text-zinc-500 text-sm">จัดการรายการสินค้าทั้งหมด</p>
+                </div>
                 <Link
                     href="/admin/products/new"
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm md:text-base"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-medium"
                 >
-                    + Add Product
+                    ➕ เพิ่มสินค้า
                 </Link>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 shadow rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
+            <div className="bg-white dark:bg-zinc-900 shadow rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
                 <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                     <thead className="bg-zinc-50 dark:bg-zinc-800">
                         <tr>
-                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</th>
+                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">ชื่อสินค้า</th>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden sm:table-cell">SKU</th>
-                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Stock</th>
-                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Price</th>
-                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden sm:table-cell">Status</th>
-                            <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">สต๊อก</th>
+                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">ราคา</th>
+                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden sm:table-cell">สถานะ</th>
+                            <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-black divide-y divide-zinc-200 dark:divide-zinc-800">
                         {products?.map((product) => (
-                            <tr key={product.id}>
+                            <tr key={product.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">{product.name}</td>
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-zinc-500 hidden sm:table-cell">{product.sku || '-'}</td>
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm">
                                     {product.stock_quantity < 5 ? (
-                                        <span className="text-red-600 font-bold">{product.stock_quantity}</span>
+                                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">
+                                            ⚠️ {product.stock_quantity}
+                                        </span>
                                     ) : (
-                                        product.stock_quantity
+                                        <span className="text-green-600 font-medium">{product.stock_quantity}</span>
                                     )}
                                 </td>
-                                <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm">฿{product.price}</td>
+                                <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-bold">฿{product.price?.toLocaleString()}</td>
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm hidden sm:table-cell">
                                     {product.is_active ? (
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            Active
+                                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                            ✅ ใช้งาน
                                         </span>
                                     ) : (
-                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                            Inactive
+                                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                            ⛔ ปิด
                                         </span>
                                     )}
                                 </td>
-                                <td className="px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <Link href={`/admin/products/${product.id}`} className="text-blue-600 hover:text-blue-900 mr-2 md:mr-4">
-                                        Edit
+                                <td className="px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    <Link href={`/admin/products/${product.id}`} className="text-blue-600 hover:text-blue-900">
+                                        ✏️ แก้ไข
                                     </Link>
                                     <DeleteProductButton id={product.id} />
                                 </td>
@@ -91,7 +96,9 @@ export default async function ProductsPage({
                         ))}
                         {products?.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-6 py-4 text-center text-zinc-500">No products found.</td>
+                                <td colSpan={6} className="px-6 py-8 text-center text-zinc-500">
+                                    📭 ยังไม่มีสินค้า
+                                </td>
                             </tr>
                         )}
                     </tbody>
@@ -108,7 +115,7 @@ export default async function ProductsPage({
                         {currentPage > 1 && (
                             <Link
                                 href={`/admin/products?page=${currentPage - 1}`}
-                                className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 transition text-sm"
+                                className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-600 transition text-sm"
                             >
                                 ← ก่อนหน้า
                             </Link>
@@ -116,7 +123,7 @@ export default async function ProductsPage({
                         {currentPage < totalPages && (
                             <Link
                                 href={`/admin/products?page=${currentPage + 1}`}
-                                className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 transition text-sm"
+                                className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-600 transition text-sm"
                             >
                                 ถัดไป →
                             </Link>

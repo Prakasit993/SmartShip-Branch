@@ -102,7 +102,36 @@ export async function updateProduct(id: number, formData: FormData) {
         throw new Error(error.message);
     }
 
+    // Sync price to bundles with matching name
+    // Find bundles that contain this product name
+    const { data: matchingBundles } = await supabaseAdmin
+        .from('bundles')
+        .select('id, name')
+        .ilike('name', `%${name}%`);
+
+    if (matchingBundles && matchingBundles.length > 0) {
+        // Update bundles with exact name match
+        const exactMatch = matchingBundles.find(b =>
+            b.name.toLowerCase().trim() === name.toLowerCase().trim()
+        );
+
+        if (exactMatch) {
+            await supabaseAdmin
+                .from('bundles')
+                .update({
+                    price,
+                    description: description || undefined,
+                    image_urls: image_urls.length > 0 ? image_urls : undefined
+                })
+                .eq('id', exactMatch.id);
+
+            console.log(`Synced price ฿${price} to bundle: ${exactMatch.name}`);
+        }
+    }
+
     revalidatePath('/admin/products');
+    revalidatePath('/admin/bundles');
+    revalidatePath('/');
     redirect('/admin/products');
 }
 

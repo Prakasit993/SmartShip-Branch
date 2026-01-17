@@ -105,7 +105,7 @@ export default function AdminSidebar({ role }: { role: string }) {
 
                             <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-8">{t('nav.system')}</p>
                             <NavItem href="/admin/settings" icon="⚙️" label={t('nav.settings')} active={pathname === '/admin/settings'} onClick={closeSidebar} />
-                            <NavItem href="/admin/settings/security" icon="🔒" label="Security" active={isActive('/admin/settings/security')} onClick={closeSidebar} />
+                            <NavItem href="/admin/settings/security" icon="🔒" label={t('nav.security')} active={isActive('/admin/settings/security')} onClick={closeSidebar} />
                         </>
                     )}
                 </nav>

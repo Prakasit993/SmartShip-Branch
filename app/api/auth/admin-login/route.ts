@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import bcrypt from 'bcryptjs';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, recordFailedAttempt, clearAttempts } from '@app/lib/rateLimit';
 import { verifyTurnstileToken } from '@app/lib/turnstile';
@@ -69,16 +70,46 @@ export async function POST(request: Request) {
         }
 
         const adminUsername = process.env.ADMIN_USERNAME;
-        const adminPassword = process.env.ADMIN_PASSWORD;
+        // Support both hashed and plain password for backward compatibility
+        const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+        const adminPasswordPlain = process.env.ADMIN_PASSWORD;
 
-        if (!adminPassword || !adminUsername) {
-            console.error('ADMIN_USERNAME or ADMIN_PASSWORD not set in environment variables');
+        if (!adminUsername) {
+            console.error('ADMIN_USERNAME not set in environment variables');
             await logger.error('ADMIN_LOGIN_ERROR', { error: 'Env var missing' });
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
         }
 
-        // Check BOTH username AND password
-        if (username === adminUsername && password === adminPassword) {
+        if (!adminPasswordHash && !adminPasswordPlain) {
+            console.error('ADMIN_PASSWORD_HASH or ADMIN_PASSWORD not set in environment variables');
+            await logger.error('ADMIN_LOGIN_ERROR', { error: 'Password env var missing' });
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+        }
+
+        // Check username first
+        if (username !== adminUsername) {
+            recordFailedAttempt(ip);
+            await logger.security('ADMIN_LOGIN_FAILED', { reason: 'Invalid username', usernameAttempt: username }, ip);
+            await saveLoginLog(username, ip, userAgent, 'failed', 'Invalid credentials');
+            return NextResponse.json({
+                error: 'Invalid username or password',
+                remainingAttempts: rateLimitResult.remainingAttempts ? rateLimitResult.remainingAttempts - 1 : 0
+            }, { status: 401 });
+        }
+
+        // Check password - prefer hash, fallback to plain
+        let isPasswordValid = false;
+
+        if (adminPasswordHash) {
+            // Use bcrypt comparison (secure)
+            isPasswordValid = await bcrypt.compare(password, adminPasswordHash);
+        } else if (adminPasswordPlain) {
+            // Fallback to plain comparison (less secure, for backward compatibility)
+            isPasswordValid = password === adminPasswordPlain;
+            console.warn('⚠️ Using plain password comparison. Consider migrating to ADMIN_PASSWORD_HASH');
+        }
+
+        if (isPasswordValid) {
             // Clear failed attempts on successful login
             clearAttempts(ip);
 
@@ -92,7 +123,10 @@ export async function POST(request: Request) {
                 path: '/',
             });
 
-            await logger.security('ADMIN_LOGIN_SUCCESS', { method: 'password', username }, ip);
+            await logger.security('ADMIN_LOGIN_SUCCESS', {
+                method: adminPasswordHash ? 'bcrypt' : 'plain',
+                username
+            }, ip);
             await saveLoginLog(username, ip, userAgent, 'success');
             return NextResponse.json({ success: true });
         } else {
@@ -100,8 +134,8 @@ export async function POST(request: Request) {
             recordFailedAttempt(ip);
 
             await logger.security('ADMIN_LOGIN_FAILED', {
-                reason: 'Invalid credentials',
-                usernameAttempt: username || '(empty)',
+                reason: 'Invalid password',
+                usernameAttempt: username,
                 remainingAttempts: rateLimitResult.remainingAttempts ? rateLimitResult.remainingAttempts - 1 : 0
             }, ip);
             await saveLoginLog(username, ip, userAgent, 'failed', 'Invalid credentials');

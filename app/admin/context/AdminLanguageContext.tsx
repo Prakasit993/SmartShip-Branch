@@ -17,6 +17,8 @@ const adminTranslations = {
         'nav.stock': 'คลังสินค้า',
         'nav.system': 'ระบบ',
         'nav.settings': 'ตั้งค่า',
+        'nav.security': 'ความปลอดภัย',
+        'nav.categories': 'หมวดหมู่',
         'nav.signOut': 'ออกจากระบบ',
 
         // Dashboard
@@ -123,6 +125,8 @@ const adminTranslations = {
         'nav.stock': 'Stock',
         'nav.system': 'System',
         'nav.settings': 'Settings',
+        'nav.security': 'Security',
+        'nav.categories': 'Categories',
         'nav.signOut': 'Sign Out',
 
         // Dashboard

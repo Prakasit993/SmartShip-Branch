@@ -4,17 +4,12 @@ import { supabase } from '@/lib/supabaseClient';
 import Header from '@app/components/shop/Header';
 import { CartProvider } from '@app/context/CartContext';
 import CartDrawer from '@app/components/shop/CartDrawer';
-import { cookies } from 'next/headers';
 import HeroCarousel from '@app/components/home/HeroCarousel';
 import Footer from '@app/components/ui/Footer';
 
 export const dynamic = 'force-dynamic'; // Always fetch fresh data from DB
 
 export default async function Home() {
-  // Check if admin is logged in
-  const cookieStore = cookies();
-  const isLoggedIn = (await cookieStore).has('admin_session');
-
   // Fetch settings
   const { data: settings } = await supabase.from('settings').select('*');
   const getSetting = (key: string) => {
@@ -67,7 +62,7 @@ export default async function Home() {
   return (
     <CartProvider>
       <div className="flex flex-col min-h-screen bg-white dark:bg-black selection:bg-blue-500 selection:text-white">
-        <Header isLoggedIn={isLoggedIn} />
+        <Header />
 
         {/* Announcement */}
         {announcement && (

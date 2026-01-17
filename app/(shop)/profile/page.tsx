@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface CustomerData {
     name: string;
@@ -10,12 +10,14 @@ interface CustomerData {
     address: string;
 }
 
-export default function ProfilePage() {
+function ProfileContent() {
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const fromCheckout = searchParams.get('from') === 'checkout';
 
     const [formData, setFormData] = useState<CustomerData>({
         name: '',
@@ -59,6 +61,13 @@ export default function ProfilePage() {
         setSaving(true);
         setMessage(null);
 
+        // Validate required fields
+        if (!formData.phone || !formData.address) {
+            setMessage({ text: '❌ กรุณากรอกเบอร์โทรและที่อยู่', type: 'error' });
+            setSaving(false);
+            return;
+        }
+
         try {
             const { error } = await supabase
                 .from('customers')
@@ -70,7 +79,16 @@ export default function ProfilePage() {
                 }, { onConflict: 'line_user_id' });
 
             if (error) throw error;
-            setMessage({ text: '✅ บันทึกข้อมูลเรียบร้อยแล้ว!', type: 'success' });
+
+            // Redirect back to checkout if came from there
+            if (fromCheckout) {
+                setMessage({ text: '✅ บันทึกแล้ว! กำลังไปหน้าชำระเงิน...', type: 'success' });
+                setTimeout(() => {
+                    router.push('/checkout');
+                }, 1000);
+            } else {
+                setMessage({ text: '✅ บันทึกข้อมูลเรียบร้อยแล้ว!', type: 'success' });
+            }
         } catch (error: any) {
             console.error('Save error:', error);
             setMessage({ text: '❌ เกิดข้อผิดพลาด: ' + error.message, type: 'error' });
@@ -97,6 +115,13 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 </div>
+
+                {/* From Checkout Notice */}
+                {fromCheckout && (
+                    <div className="mb-6 p-4 rounded-lg bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-sm">
+                        📝 กรุณากรอกข้อมูลให้ครบก่อนดำเนินการสั่งซื้อ
+                    </div>
+                )}
 
                 {/* Message */}
                 {message && (
@@ -126,23 +151,29 @@ export default function ProfilePage() {
 
                     {/* Phone */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">เบอร์โทรศัพท์</label>
+                        <label className="block text-sm font-medium mb-2">
+                            เบอร์โทรศัพท์ <span className="text-red-500">*</span>
+                        </label>
                         <input
                             type="tel"
                             value={formData.phone}
                             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                             placeholder="08X-XXX-XXXX"
+                            required
                             className="w-full px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                         />
                     </div>
 
                     {/* Address */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">ที่อยู่จัดส่ง</label>
+                        <label className="block text-sm font-medium mb-2">
+                            ที่อยู่จัดส่ง <span className="text-red-500">*</span>
+                        </label>
                         <textarea
                             value={formData.address}
                             onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                             rows={3}
+                            required
                             placeholder="บ้านเลขที่, ซอย, ถนน, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์"
                             className="w-full px-4 py-3 border rounded-xl dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
                         />
@@ -172,5 +203,20 @@ export default function ProfilePage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function ProfilePage() {
+    return (
+        <Suspense fallback={
+            <div className="container mx-auto px-4 py-8 max-w-lg">
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2 mx-auto"></div>
+                    <div className="h-40 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
+                </div>
+            </div>
+        }>
+            <ProfileContent />
+        </Suspense>
     );
 }
