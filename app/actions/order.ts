@@ -197,8 +197,15 @@ export async function createOrder(prevState: any, formData: FormData) {
     // We do NOT deduct stock here anymore. 
     // This allows customers to place orders without locking inventory until Admin approves.
 
-    // LINE Notification
-    await notifyAdminNewOrder(order);
+    // LINE Notification (include items for display)
+    await notifyAdminNewOrder({
+        ...order,
+        order_items: verifiedOrderItems.map(item => ({
+            bundle_name: item.bundle_name,
+            quantity: item.quantity,
+            price: item.price
+        }))
+    });
 
     // n8n Email Trigger (if email provided)
     if (customerEmail) {

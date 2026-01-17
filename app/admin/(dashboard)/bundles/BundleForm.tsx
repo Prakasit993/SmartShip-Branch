@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { BundleInput, createBundle, updateBundle } from './actions';
 import { useRouter } from 'next/navigation';
 
@@ -16,6 +16,9 @@ interface BundleFormProps {
 export default function BundleForm({ initialData, categories, products }: BundleFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const [formData, setFormData] = useState<BundleInput>(initialData || {
         name: '',
         slug: '',
@@ -38,7 +41,7 @@ export default function BundleForm({ initialData, categories, products }: Bundle
             await createBundle(formData);
             router.push('/admin/bundles');
         } catch (err: any) {
-            alert(err.message || 'Failed to create bundle');
+            alert(err.message || 'สร้างชุดสินค้าไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
@@ -50,9 +53,35 @@ export default function BundleForm({ initialData, categories, products }: Bundle
             await updateBundle(formData);
             router.push('/admin/bundles');
         } catch (err: any) {
-            alert(err.message || 'Failed to update bundle');
+            alert(err.message || 'อัพเดตไม่สำเร็จ');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Image upload handler
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingImage(true);
+        try {
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', file);
+
+            const res = await fetch('/api/admin/upload', {
+                method: 'POST',
+                body: formDataUpload,
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            handleChange('image_urls', [data.url]);
+        } catch (err: any) {
+            alert('อัพโหลดไม่สำเร็จ: ' + err.message);
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -121,151 +150,198 @@ export default function BundleForm({ initialData, categories, products }: Bundle
     };
 
     return (
-        <div className="space-y-8 bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 max-w-4xl mx-auto">
-            <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                <h2 className="text-xl font-bold">🛍️ {formData.id ? 'แก้ไขชุดสินค้า' : 'เพิ่มชุดสินค้าใหม่'}</h2>
+                <p className="text-sm text-zinc-500">กรอกข้อมูลชุดสินค้าให้ครบถ้วน</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium mb-1">Bundle Name</label>
+                    <label className="block text-sm font-medium mb-1">🏷️ ชื่อชุดสินค้า</label>
                     <input
                         value={formData.name}
                         onChange={(e) => handleChange('name', e.target.value)}
-                        className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-700"
+                        className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="เช่น ชุดกล่อง A3 พร้อมเทป"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1">Slug</label>
+                    <label className="block text-sm font-medium mb-1">🔗 Slug (URL)</label>
                     <input
                         value={formData.slug}
                         onChange={(e) => handleChange('slug', e.target.value)}
-                        className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-700"
+                        className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="box-a3-set"
                     />
+                    <p className="text-xs text-zinc-500 mt-1">ใช้เป็น URL ของสินค้า ไม่ต้องมีช่องว่าง</p>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1">Price (฿)</label>
+                    <label className="block text-sm font-medium mb-1">💰 ราคา (บาท)</label>
                     <input
                         type="number"
                         value={formData.price}
                         onChange={(e) => handleChange('price', parseFloat(e.target.value))}
-                        className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-700"
+                        className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1">Category</label>
+                    <label className="block text-sm font-medium mb-1">📂 หมวดหมู่</label>
                     <select
                         value={formData.category_id ?? ''}
                         onChange={(e) => handleChange('category_id', parseInt(e.target.value))}
-                        className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-700"
+                        className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
                     >
-                        <option value="">Select Category</option>
+                        <option value="">-- เลือกหมวดหมู่ --</option>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1">Type</label>
+                    <label className="block text-sm font-medium mb-1">📦 ประเภท</label>
                     <select
                         value={formData.type}
                         onChange={(e) => handleChange('type', e.target.value)}
-                        className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-700"
+                        className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
                     >
-                        <option value="fixed">Fixed Set</option>
-                        <option value="configurable">Configurable</option>
+                        <option value="fixed">📦 แบบตายตัว (Fixed)</option>
+                        <option value="configurable">⚙️ แบบเลือกได้ (Configurable)</option>
                     </select>
-                    <p className="text-xs text-zinc-500 mt-1">Fixed: Predefined items. Configurable: User chooses from options.</p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                        {formData.type === 'fixed' ? '📦 สินค้าในชุดกำหนดไว้แล้ว' : '⚙️ ลูกค้าเลือกตัวเลือกได้'}
+                    </p>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium mb-1">Image URL</label>
-                    <input
-                        value={formData.image_urls?.[0] || ''}
-                        onChange={(e) => handleChange('image_urls', [e.target.value])}
-                        className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-700"
-                    />
+                    <label className="block text-sm font-medium mb-1">🖼️ รูปภาพ</label>
+                    <div className="flex gap-2">
+                        <input
+                            value={formData.image_urls?.[0] || ''}
+                            onChange={(e) => handleChange('image_urls', [e.target.value])}
+                            className="flex-1 px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="URL รูปภาพ"
+                        />
+                        <label className="cursor-pointer">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                            />
+                            <span className={`inline-flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium transition ${uploadingImage
+                                    ? 'bg-zinc-300 text-zinc-500'
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}>
+                                {uploadingImage ? '⏳ ...' : '📷'}
+                            </span>
+                        </label>
+                    </div>
+                    {formData.image_urls?.[0] && (
+                        <img src={formData.image_urls[0]} alt="Preview" className="mt-2 w-20 h-20 object-cover rounded-lg border" />
+                    )}
                 </div>
             </div>
 
             <hr className="dark:border-zinc-800" />
 
-            {/* Dynamic Sections Based on Type */}
+            {/* Fixed Bundle Items */}
             {formData.type === 'fixed' && (
-                <div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">Included Items</h3>
-                        <button type="button" onClick={addFixedItem} className="text-sm text-blue-600 hover:underline">+ Add Item</button>
+                        <div>
+                            <h3 className="text-lg font-semibold">📦 สินค้าในชุด</h3>
+                            <p className="text-xs text-zinc-500">เลือกสินค้าและจำนวนที่รวมในชุดนี้</p>
+                        </div>
+                        <button type="button" onClick={addFixedItem} className="text-sm text-blue-600 hover:underline font-medium">
+                            ➕ เพิ่มสินค้า
+                        </button>
                     </div>
+                    {formData.items?.length === 0 && (
+                        <p className="text-zinc-500 text-sm text-center py-4">ยังไม่มีสินค้าในชุด กดปุ่ม "เพิ่มสินค้า" เพื่อเริ่มต้น</p>
+                    )}
                     {formData.items?.map((item, idx) => (
-                        <div key={idx} className="flex gap-4 mb-2 items-center">
+                        <div key={idx} className="flex gap-3 mb-2 items-center">
                             <select
-                                className="flex-1 px-3 py-2 border rounded dark:bg-black dark:border-zinc-700"
+                                className="flex-1 px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700"
                                 value={item.product_id}
                                 onChange={(e) => updateFixedItem(idx, 'product_id', parseInt(e.target.value))}
                             >
-                                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                {products.map(p => <option key={p.id} value={p.id}>{p.name} (฿{p.price})</option>)}
                             </select>
                             <input
                                 type="number"
-                                className="w-24 px-3 py-2 border rounded dark:bg-black dark:border-zinc-700"
+                                className="w-20 px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 text-center"
                                 value={item.quantity}
                                 onChange={(e) => updateFixedItem(idx, 'quantity', parseInt(e.target.value))}
-                                placeholder="Qty"
+                                min={1}
                             />
-                            <button type="button" onClick={() => removeFixedItem(idx)} className="text-red-500">X</button>
+                            <span className="text-xs text-zinc-500">ชิ้น</span>
+                            <button type="button" onClick={() => removeFixedItem(idx)} className="text-red-500 hover:bg-red-100 px-2 py-1 rounded">✕</button>
                         </div>
                     ))}
                 </div>
             )}
 
+            {/* Configurable Options */}
             {formData.type === 'configurable' && (
-                <div>
+                <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">Option Groups</h3>
-                        <button type="button" onClick={addGroup} className="text-sm text-blue-600 hover:underline">+ Add Group</button>
+                        <div>
+                            <h3 className="text-lg font-semibold">⚙️ กลุ่มตัวเลือก</h3>
+                            <p className="text-xs text-zinc-500">สร้างกลุ่มตัวเลือกให้ลูกค้าเลือก เช่น ขนาดกล่อง, สีเทป</p>
+                        </div>
+                        <button type="button" onClick={addGroup} className="text-sm text-purple-600 hover:underline font-medium">
+                            ➕ เพิ่มกลุ่ม
+                        </button>
                     </div>
                     {formData.option_groups?.map((group, gIdx) => (
-                        <div key={gIdx} className="border dark:border-zinc-800 p-4 rounded mb-4 bg-zinc-50 dark:bg-zinc-800/50">
-                            <div className="flex gap-4 mb-2">
+                        <div key={gIdx} className="border dark:border-zinc-700 p-4 rounded-xl mb-4 bg-white dark:bg-zinc-800/50">
+                            <div className="flex gap-3 mb-3">
                                 <input
-                                    placeholder="Group Name (e.g. Box Size)"
-                                    className="flex-1 px-3 py-2 border rounded dark:bg-black dark:border-zinc-700"
+                                    placeholder="ชื่อกลุ่ม เช่น ขนาดกล่อง"
+                                    className="flex-1 px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700"
                                     value={group.name}
                                     onChange={(e) => updateGroup(gIdx, 'name', e.target.value)}
                                 />
                                 <input
-                                    placeholder="Sort"
+                                    placeholder="ลำดับ"
                                     type="number"
-                                    className="w-20 px-3 py-2 border rounded dark:bg-black dark:border-zinc-700"
+                                    className="w-16 px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 text-center"
                                     value={group.sort_order}
                                     onChange={(e) => updateGroup(gIdx, 'sort_order', parseInt(e.target.value))}
                                 />
-                                <button type="button" onClick={() => removeGroup(gIdx)} className="text-red-500">Remove Group</button>
+                                <button type="button" onClick={() => removeGroup(gIdx)} className="text-red-500 text-sm hover:underline">ลบกลุ่ม</button>
                             </div>
 
                             {/* Options inside group */}
-                            <div className="ml-4 pl-4 border-l-2 border-zinc-200 dark:border-zinc-700">
+                            <div className="ml-4 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
                                 <div className="flex justify-between items-center mb-2">
-                                    <h4 className="text-sm font-medium">Options</h4>
-                                    <button type="button" onClick={() => addOptionToGroup(gIdx)} className="text-xs text-blue-600">+ Add Option</button>
+                                    <h4 className="text-sm font-medium">📋 ตัวเลือกในกลุ่ม</h4>
+                                    <button type="button" onClick={() => addOptionToGroup(gIdx)} className="text-xs text-purple-600 hover:underline">➕ เพิ่มตัวเลือก</button>
                                 </div>
                                 {group.options?.map((opt, oIdx) => (
                                     <div key={oIdx} className="flex gap-2 mb-2 items-center">
                                         <select
-                                            className="flex-1 px-2 py-1 text-sm border rounded dark:bg-black dark:border-zinc-700"
+                                            className="flex-1 px-2 py-1.5 text-sm border rounded-lg dark:bg-black dark:border-zinc-700"
                                             value={opt.product_id}
                                             onChange={(e) => updateOption(gIdx, oIdx, 'product_id', parseInt(e.target.value))}
                                         >
                                             {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                         <input
-                                            placeholder="Name Override"
-                                            className="flex-1 px-2 py-1 text-sm border rounded dark:bg-black dark:border-zinc-700"
+                                            placeholder="ชื่อแสดง"
+                                            className="flex-1 px-2 py-1.5 text-sm border rounded-lg dark:bg-black dark:border-zinc-700"
                                             value={opt.name || ''}
                                             onChange={(e) => updateOption(gIdx, oIdx, 'name', e.target.value)}
                                         />
                                         <input
                                             type="number"
-                                            placeholder="+ Price"
-                                            className="w-20 px-2 py-1 text-sm border rounded dark:bg-black dark:border-zinc-700"
+                                            placeholder="+฿"
+                                            className="w-16 px-2 py-1.5 text-sm border rounded-lg dark:bg-black dark:border-zinc-700 text-center"
                                             value={opt.price_modifier}
                                             onChange={(e) => updateOption(gIdx, oIdx, 'price_modifier', parseFloat(e.target.value))}
                                         />
-                                        <button type="button" onClick={() => removeOption(gIdx, oIdx)} className="text-red-500 text-xs">X</button>
+                                        <button type="button" onClick={() => removeOption(gIdx, oIdx)} className="text-red-500 text-xs">✕</button>
                                     </div>
                                 ))}
                             </div>
@@ -274,22 +350,23 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                 </div>
             )}
 
-            <div className="flex justify-end gap-3">
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                 <button
                     type="button"
                     disabled={loading}
                     onClick={() => router.back()}
-                    className="px-4 py-2 text-zinc-600 hover:bg-zinc-100 rounded"
+                    className="px-6 py-2.5 text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition font-medium"
                 >
-                    Cancel
+                    ← ยกเลิก
                 </button>
                 <button
                     type="button"
                     disabled={loading}
                     onClick={formData.id ? handleUpdate : handleCreate}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
                 >
-                    {loading ? 'Saving...' : (formData.id ? 'Update Bundle' : 'Create Bundle')}
+                    {loading ? '⏳ กำลังบันทึก...' : (formData.id ? '💾 บันทึกการแก้ไข' : '➕ สร้างชุดสินค้า')}
                 </button>
             </div>
         </div>

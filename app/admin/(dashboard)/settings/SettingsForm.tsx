@@ -269,6 +269,77 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                         defaultValue={getSetting('promptpay_number')}
                         placeholder="เบอร์โทรหรือเลข ID"
                     />
+
+                    {/* QR Code Payment */}
+                    <div className="border-t border-zinc-700 pt-4 mt-4">
+                        <h4 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
+                            📱 QR Code สำหรับชำระเงิน
+                        </h4>
+                        <p className="text-xs text-zinc-500 mb-3">อัพโหลด QR Code PromptPay หรือ QR บัญชีธนาคาร เพื่อแสดงในหน้าชำระเงิน</p>
+
+                        <div className="flex gap-4 items-start">
+                            <div className="flex-1">
+                                <InputField
+                                    name="payment_qr_code"
+                                    label="URL รูป QR Code"
+                                    defaultValue={getSetting('payment_qr_code')}
+                                    placeholder="https://... หรือกดอัพโหลด"
+                                    helpText="ใส่ลิงก์รูป QR Code หรืออัพโหลดรูปใหม่"
+                                />
+                            </div>
+
+                            {/* QR Preview */}
+                            {getSetting('payment_qr_code') && (
+                                <div className="flex-shrink-0">
+                                    <p className="text-xs text-zinc-500 mb-1">ตัวอย่าง:</p>
+                                    <img
+                                        src={getSetting('payment_qr_code')}
+                                        alt="QR Code Preview"
+                                        className="w-24 h-24 object-contain bg-white rounded-lg border border-zinc-600"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-3">
+                            <label className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition text-sm font-medium">
+                                📷 อัพโหลด QR Code
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+
+                                        try {
+                                            const result = await uploadImage(formData);
+                                            if ('url' in result) {
+                                                // Update the input field
+                                                const input = document.querySelector('input[name="payment_qr_code"]') as HTMLInputElement;
+                                                if (input) {
+                                                    input.value = result.url;
+                                                    // Trigger change event
+                                                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                                                }
+                                                alert('✅ อัพโหลด QR Code สำเร็จ! กดบันทึกเพื่อยืนยัน');
+                                            } else {
+                                                alert('❌ อัพโหลดไม่สำเร็จ: ' + result.error);
+                                            }
+                                        } catch (err) {
+                                            alert('❌ เกิดข้อผิดพลาดในการอัพโหลด');
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                    </div>
                 </CollapsibleSection>
 
                 {/* Submit Button */}

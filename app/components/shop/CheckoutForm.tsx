@@ -5,6 +5,7 @@ import { createOrder } from '@app/actions/order';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@app/context/LanguageContext';
+import PaymentInfo from './PaymentInfo';
 
 export default function CheckoutForm() {
     const { items, cartTotal, clearCart } = useCart();
@@ -186,6 +187,9 @@ export default function CheckoutForm() {
                                         placeholder={t('form.notes_placeholder')}
                                     />
                                 </div>
+
+                                {/* Payment Info with QR Code */}
+                                <PaymentInfo />
                             </div>
                         </div>
                     </form>

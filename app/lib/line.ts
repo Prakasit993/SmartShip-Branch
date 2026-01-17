@@ -149,8 +149,17 @@ export async function notifyAdminNewOrder(order: any) {
                                 "layout": "baseline",
                                 "margin": "sm",
                                 "contents": [
+                                    { "type": "text", "text": "📞 เบอร์", "color": "#aaaaaa", "size": "sm", "flex": 1 },
+                                    { "type": "text", "text": order.customer_phone || '-', "size": "sm", "flex": 2, "color": "#1DB446" }
+                                ]
+                            },
+                            {
+                                "type": "box",
+                                "layout": "baseline",
+                                "margin": "sm",
+                                "contents": [
                                     { "type": "text", "text": "ยอดรวม", "color": "#aaaaaa", "size": "sm", "flex": 1 },
-                                    { "type": "text", "text": `฿${order.total_amount}`, "weight": "bold", "size": "sm", "flex": 2, "color": "#1DB446" }
+                                    { "type": "text", "text": `฿${order.total_amount?.toLocaleString() || order.total_amount}`, "weight": "bold", "size": "sm", "flex": 2, "color": "#1DB446" }
                                 ]
                             },
                             {
@@ -162,6 +171,40 @@ export async function notifyAdminNewOrder(order: any) {
                                     { "type": "text", "text": `${payment.emoji} ${payment.label}`, "size": "sm", "flex": 2, "color": payment.color }
                                 ]
                             }
+                        ]
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "margin": "md",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "🛒 รายการสินค้า:",
+                                "size": "sm",
+                                "weight": "bold",
+                                "color": "#555555"
+                            },
+                            ...(order.order_items?.slice(0, 5)?.map((item: any) => ({
+                                "type": "box",
+                                "layout": "baseline",
+                                "margin": "sm",
+                                "contents": [
+                                    { "type": "text", "text": `• ${item.bundle_name || item.product_name || 'สินค้า'}`, "size": "xs", "flex": 3, "wrap": true },
+                                    { "type": "text", "text": `x${item.quantity}`, "size": "xs", "flex": 1, "align": "end" }
+                                ]
+                            })) || [{ "type": "text", "text": "(ไม่มีรายการ)", "size": "xs", "color": "#aaaaaa" }]),
+                            ...(order.order_items?.length > 5 ? [{
+                                "type": "text",
+                                "text": `...และอีก ${order.order_items.length - 5} รายการ`,
+                                "size": "xs",
+                                "color": "#888888",
+                                "margin": "sm"
+                            }] : [])
                         ]
                     }
                 ]

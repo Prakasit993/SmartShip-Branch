@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import Link from 'next/link';
 import DeleteProductButton from './_components/DeleteProductButton';
+import ToastListener from '@app/admin/components/ToastListener';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,7 @@ export default async function ProductsPage({
 
     return (
         <div className="space-y-6 pb-20">
+            <ToastListener />
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-xl md:text-2xl font-bold">📦 สินค้า (คลังสินค้า)</h1>

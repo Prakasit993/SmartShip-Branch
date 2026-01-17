@@ -54,7 +54,7 @@ export async function createProduct(formData: FormData) {
     }
 
     revalidatePath('/admin/products');
-    redirect('/admin/products');
+    redirect('/admin/products?toast=success&message=' + encodeURIComponent('สร้างสินค้าใหม่สำเร็จ'));
 }
 
 export async function updateProduct(id: number, formData: FormData) {
@@ -132,7 +132,7 @@ export async function updateProduct(id: number, formData: FormData) {
     revalidatePath('/admin/products');
     revalidatePath('/admin/bundles');
     revalidatePath('/');
-    redirect('/admin/products');
+    redirect('/admin/products?toast=success&message=' + encodeURIComponent('บันทึกการแก้ไขสินค้าสำเร็จ'));
 }
 
 export async function deleteProduct(id: number) {

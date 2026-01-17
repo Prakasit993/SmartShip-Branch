@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import Link from 'next/link';
+import ToastListener from '@app/admin/components/ToastListener';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,7 @@ export default async function OrdersPage({
 
     return (
         <div className="space-y-4 pb-20">
+            <ToastListener />
             {/* Header */}
             <div className="flex items-center justify-between">
                 <h1 className="text-xl md:text-2xl font-bold">📦 คำสั่งซื้อ</h1>
