@@ -189,7 +189,7 @@ export default function CheckoutForm() {
                                 </div>
 
                                 {/* Payment Info with QR Code */}
-                                <PaymentInfo />
+                                <PaymentInfo amount={cartTotal} />
                             </div>
                         </div>
                     </form>
