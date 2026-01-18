@@ -20,17 +20,30 @@ export default function PaymentInfo() {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const { data } = await supabase
-                    .from('tyres_site_settings')
+                const { data, error } = await supabase
+                    .from('settings')
                     .select('key, value')
                     .in('key', ['bank_name', 'bank_account_number', 'bank_account_name', 'promptpay_number', 'payment_qr_code']);
 
-                if (data) {
+                if (error) {
+                    console.error('Error fetching settings:', error);
+                    setLoading(false);
+                    return;
+                }
+
+                if (data && data.length > 0) {
                     const settingsObj: PaymentSettings = {};
                     data.forEach((item: { key: string; value: string }) => {
-                        settingsObj[item.key as keyof PaymentSettings] = item.value;
+                        // Clean up escaped quotes from JSON storage
+                        let value = item.value || '';
+                        if (value.startsWith('"') && value.endsWith('"')) {
+                            value = value.slice(1, -1);
+                        }
+                        value = value.replace(/\\"/g, '"');
+                        settingsObj[item.key as keyof PaymentSettings] = value;
                     });
                     setSettings(settingsObj);
+                    console.log('Payment settings loaded:', settingsObj);
                 }
             } catch (err) {
                 console.error('Error fetching payment settings:', err);
@@ -51,6 +64,7 @@ export default function PaymentInfo() {
         );
     }
 
+    // Don't show anything if no payment info is configured
     if (!settings?.bank_name && !settings?.promptpay_number && !settings?.payment_qr_code) {
         return null;
     }

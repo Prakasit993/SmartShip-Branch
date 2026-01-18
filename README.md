@@ -882,3 +882,267 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer_email
 4. **Email Receipt** - n8n trigger ทำงานไหม (ถ้าตั้งค่าไว้)
 
 ---
+
+## 12. 🆕 New Features Update (January 2026)
+
+### 12.1 สรุปฟีเจอร์ที่เพิ่มเติม
+
+| ฟีเจอร์ | สถานะ | รายละเอียด |
+|---------|-------|------------|
+| 🔐 **Bcrypt Password Hashing** | ✅ เสร็จ | เปลี่ยนจาก plaintext เป็น bcrypt ใน admin login |
+| 🌏 **Thai Translation (Admin Forms)** | ✅ เสร็จ | แปล ProductForm, BundleForm เป็นภาษาไทย |
+| 📷 **Direct Image Upload** | ✅ เสร็จ | อัพโหลดรูปสินค้าตรงไป Supabase Storage |
+| 💳 **QR Code Payment** | ✅ เสร็จ | อัพโหลด QR Code PromptPay ใน Settings |
+| 🔔 **Toast Notifications** | ✅ เสร็จ | Popup แจ้งเตือนสำเร็จ/ล้มเหลวในทุกหน้า Admin |
+| 📱 **LINE Notify Enhanced** | ✅ เสร็จ | เพิ่มเบอร์โทร + รายการสินค้าในการแจ้งเตือน |
+| 🛡️ **Cloudflare Turnstile** | ✅ เสร็จ | Bot protection สำหรับ Admin Login |
+
+---
+
+### 12.2 🔐 การตั้งค่า Bcrypt Password
+
+#### ขั้นตอนการสร้าง Password Hash
+
+```bash
+# 1. ติดตั้ง bcryptjs (ถ้ายังไม่มี)
+npm install bcryptjs
+
+# 2. สร้าง hash ใน Node.js console
+node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('YOUR_PASSWORD_HERE', 12));"
+```
+
+#### ตัวอย่าง Output:
+```
+$2a$12$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+#### เพิ่มใน Environment Variables:
+
+```bash
+# .env.local หรือ Vercel Environment Variables
+ADMIN_PASSWORD_HASH=$2a$12$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ADMIN_USERNAME=admin
+```
+
+> ⚠️ **หมายเหตุ**: ระบบยังรองรับ `ADMIN_PASSWORD` แบบเก่า แต่แนะนำให้เปลี่ยนเป็น hash
+
+---
+
+### 12.3 📷 การตั้งค่า Image Upload (Supabase Storage)
+
+#### ขั้นตอนการสร้าง Storage Bucket
+
+1. **ไปที่ Supabase Dashboard** → Storage → New Bucket
+
+2. **ตั้งค่า Bucket**:
+   ```
+   Name: product-images
+   Public bucket: ✅ (ติ๊กเลือก)
+   ```
+
+3. **ตั้งค่า Policies** (ถ้าต้องการ):
+   - Allow public read: `SELECT` for all
+   - Allow authenticated upload: `INSERT` for authenticated users
+
+#### ไฟล์ที่เกี่ยวข้อง:
+
+| ไฟล์ | หน้าที่ |
+|------|--------|
+| `app/api/admin/upload/route.ts` | API endpoint สำหรับอัพโหลด |
+| `app/admin/(dashboard)/products/_components/ProductForm.tsx` | ฟอร์มสินค้าพร้อม image upload |
+| `app/admin/(dashboard)/bundles/BundleForm.tsx` | ฟอร์มชุดสินค้าพร้อม image upload |
+
+---
+
+### 12.4 💳 การตั้งค่า QR Code Payment
+
+#### ขั้นตอน:
+
+1. **ไปที่** `/admin/settings`
+2. **เปิดส่วน** "การชำระเงิน (Payment)"
+3. **กรอกข้อมูล**:
+   - ชื่อธนาคาร
+   - เลขบัญชี
+   - ชื่อบัญชี
+   - หมายเลข PromptPay
+4. **อัพโหลด QR Code**:
+   - กดปุ่ม "📷 อัพโหลด QR Code"
+   - เลือกไฟล์ภาพ QR Code PromptPay
+5. **กดบันทึก**
+
+#### การแสดงผลในหน้า Checkout:
+
+QR Code จะแสดงอัตโนมัติในหน้า Checkout พร้อม:
+- 📱 รูป QR Code
+- 🏦 ข้อมูลบัญชีธนาคาร
+- 💳 หมายเลข PromptPay
+
+---
+
+### 12.5 🔔 Toast Notification System
+
+#### การใช้งานใน Client Components:
+
+```tsx
+import { useToast } from '@app/admin/context/ToastContext';
+
+function MyComponent() {
+    const { showSuccess, showError, showInfo, showWarning } = useToast();
+    
+    const handleSave = async () => {
+        try {
+            await saveData();
+            showSuccess('บันทึกสำเร็จ');
+        } catch (error) {
+            showError('เกิดข้อผิดพลาด: ' + error.message);
+        }
+    };
+    
+    return <button onClick={handleSave}>บันทึก</button>;
+}
+```
+
+#### การใช้งานกับ Server Actions (redirect):
+
+```ts
+// ใน server action
+redirect('/admin/products?toast=success&message=' + encodeURIComponent('บันทึกสำเร็จ'));
+```
+
+#### ประเภท Toast ที่รองรับ:
+
+| Type | สี | Icon | ใช้เมื่อ |
+|------|-----|------|---------|
+| `success` | เขียว | ✅ | ทำงานสำเร็จ |
+| `error` | แดง | ❌ | เกิดข้อผิดพลาด |
+| `warning` | เหลือง | ⚠️ | คำเตือน |
+| `info` | ฟ้า | ℹ️ | ข้อมูลทั่วไป |
+
+---
+
+### 12.6 📱 LINE Notification Enhancement
+
+#### ข้อมูลที่แสดงในการแจ้งเตือน Order ใหม่:
+
+```
+📦 คำสั่งซื้อใหม่!
+─────────────────────
+เลขที่:    ORD-20260118-001
+ลูกค้า:    คุณสมชาย ใจดี
+📞 เบอร์:  081-234-5678         ← ใหม่!
+ยอดรวม:   ฿1,500
+ชำระ:     🏦 โอนเงิน
+─────────────────────
+🛒 รายการสินค้า:                ← ใหม่!
+• กล่องไปรษณีย์ A3           x5
+• เทปใส 2 นิ้ว              x2
+• ซองพลาสติก Size M         x10
+
+[📋 ดูรายละเอียด]
+[✅ ยืนยัน] [❌ ปฏิเสธ]
+```
+
+#### Configuration ที่ต้องมี:
+
+```bash
+# .env.local
+LINE_CHANNEL_ACCESS_TOKEN=your-line-channel-access-token
+LINE_ADMIN_USER_ID=Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+LINE_STAFF_USER_IDS=Uaaa,Ubbb,Uccc  # Optional: แยก comma
+```
+
+---
+
+### 12.7 🛡️ Cloudflare Turnstile Setup
+
+#### ขั้นตอน:
+
+1. **สร้าง Site** ที่ [Cloudflare Turnstile Dashboard](https://dash.cloudflare.com/?to=/:account/turnstile)
+
+2. **เพิ่ม Environment Variables**:
+   ```bash
+   NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4AAAxxxxxxxxxxxxxxxx
+   TURNSTILE_SECRET_KEY=0x4AAAxxxxxxxxxxxxxxxx
+   ```
+
+3. การ verify จะทำงานอัตโนมัติใน `/admin/login`
+
+---
+
+## 13. 📋 Remaining Tasks (งานที่เหลือ)
+
+### 13.1 ❗ ต้องทำก่อน Deploy
+
+| ลำดับ | งาน | รายละเอียด |
+|-------|-----|------------|
+| 1 | 🗄️ สร้าง Storage Bucket | Supabase → Storage → New bucket → `product-images` |
+| 2 | 🔐 สร้าง Password Hash | ใช้ bcrypt สร้าง hash แล้วใส่ใน `ADMIN_PASSWORD_HASH` |
+| 3 | 💳 อัพโหลด QR Code | `/admin/settings` → การชำระเงิน → อัพโหลด QR |
+| 4 | 📱 ตั้งค่า LINE Credentials | ใส่ `LINE_CHANNEL_ACCESS_TOKEN` และ `LINE_ADMIN_USER_ID` |
+
+### 13.2 🔧 Optional Improvements
+
+| งาน | ลำดับความสำคัญ | รายละเอียด |
+|-----|---------------|------------|
+| 📊 Dashboard Analytics | Medium | เพิ่มกราฟยอดขายรายวัน/รายเดือน |
+| 🎁 Promotions Page | Low | หน้าจัดการโปรโมชั่นแยก |
+| 📧 Email Templates | Low | เพิ่ม template email ใน n8n |
+| 🔐 2FA Login | Low | เพิ่ม Two-Factor Authentication |
+| 📱 PWA Support | Low | ทำเป็น Progressive Web App |
+
+### 13.3 🧪 Testing Checklist
+
+```
+Pre-Deploy Testing:
+[ ] npm run build สำเร็จ
+[ ] Admin login ใช้งานได้
+[ ] สร้าง/แก้ไขสินค้าได้
+[ ] อัพโหลดรูปภาพได้
+[ ] Toast notification แสดง
+[ ] Checkout แสดง QR Code
+[ ] LINE Notification ส่งได้
+[ ] Order flow ทำงานครบ
+```
+
+---
+
+## 14. 📁 Files Changed Summary
+
+### 14.1 New Files Created
+
+| File | Description |
+|------|-------------|
+| `app/admin/context/ToastContext.tsx` | Toast notification context and provider |
+| `app/admin/context/useToastFromUrl.tsx` | Hook to show toast from URL params |
+| `app/admin/components/ToastListener.tsx` | Component that listens for URL toast params |
+| `app/api/admin/upload/route.ts` | Image upload API endpoint |
+| `app/components/shop/PaymentInfo.tsx` | Payment info display with QR Code |
+
+### 14.2 Modified Files
+
+| File | Changes |
+|------|---------|
+| `app/lib/line.ts` | เพิ่มเบอร์โทร + รายการสินค้าใน notification |
+| `app/actions/order.ts` | ส่ง order_items ไปกับ LINE notify |
+| `app/admin/(dashboard)/products/_components/ProductForm.tsx` | แปลไทย + image upload |
+| `app/admin/(dashboard)/bundles/BundleForm.tsx` | แปลไทย + image upload |
+| `app/admin/(dashboard)/settings/SettingsForm.tsx` | เพิ่ม QR Code upload |
+| `app/admin/(dashboard)/products/page.tsx` | เพิ่ม ToastListener |
+| `app/admin/(dashboard)/bundles/page.tsx` | เพิ่ม ToastListener |
+| `app/admin/(dashboard)/categories/page.tsx` | เพิ่ม ToastListener |
+| `app/admin/(dashboard)/orders/page.tsx` | เพิ่ม ToastListener |
+| `app/admin/(dashboard)/stock/page.tsx` | เพิ่ม ToastListener |
+| `app/admin/(dashboard)/AdminClientWrapper.tsx` | เพิ่ม ToastProvider |
+| `app/api/auth/admin-login/route.ts` | เพิ่ม bcrypt + Turnstile verification |
+| `app/components/shop/CheckoutForm.tsx` | เพิ่ม PaymentInfo component |
+
+---
+
+## 15. 🔗 Related Documentation
+
+- [Supabase Storage Docs](https://supabase.com/docs/guides/storage)
+- [Cloudflare Turnstile Docs](https://developers.cloudflare.com/turnstile/)
+- [LINE Messaging API Docs](https://developers.line.biz/en/docs/messaging-api/)
+- [bcryptjs on npm](https://www.npmjs.com/package/bcryptjs)
+
+---
