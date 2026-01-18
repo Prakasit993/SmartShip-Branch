@@ -6,12 +6,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@app/context/LanguageContext';
 import PaymentInfo from './PaymentInfo';
+import StoreLocationInfo from './StoreLocationInfo';
 
 export default function CheckoutForm() {
     const { items, cartTotal, clearCart } = useCart();
     const router = useRouter();
     const { t } = useLanguage();
     const [loading, setLoading] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<'promptpay' | 'cash'>('promptpay');
 
     // User Data State
     const [userData, setUserData] = useState<{ name: string, phone: string, address: string } | null>(null);
@@ -167,6 +169,8 @@ export default function CheckoutForm() {
                                     <div className="relative">
                                         <select
                                             name="payment_method"
+                                            value={paymentMethod}
+                                            onChange={(e) => setPaymentMethod(e.target.value as 'promptpay' | 'cash')}
                                             className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-blue-500 transition-all text-zinc-900 dark:text-zinc-100 appearance-none cursor-pointer"
                                         >
                                             <option value="promptpay">{t('form.method.promptpay')}</option>
@@ -187,8 +191,12 @@ export default function CheckoutForm() {
                                     />
                                 </div>
 
-                                {/* Payment Info with QR Code */}
-                                <PaymentInfo amount={cartTotal} />
+                                {/* Payment Info - Conditional based on payment method */}
+                                {paymentMethod === 'promptpay' ? (
+                                    <PaymentInfo amount={cartTotal} />
+                                ) : (
+                                    <StoreLocationInfo />
+                                )}
                             </div>
                         </div>
                     </form>

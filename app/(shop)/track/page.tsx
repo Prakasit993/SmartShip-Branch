@@ -130,13 +130,11 @@ export default async function TrackPage({ searchParams }: { searchParams: Promis
                             name="phone"
                             defaultValue={phone || ''}
                             placeholder="0812345678"
-                            disabled={!isLoggedIn}
-                            className={`w-full px-4 py-3 border rounded-lg outline-none transition
-                                ${isLoggedIn
-                                    ? 'bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                                    : 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 opacity-60 cursor-not-allowed'
-                                }`}
+                            className="w-full px-4 py-3 border rounded-lg bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                         />
+                        {!isLoggedIn && (
+                            <p className="text-xs text-yellow-600 mt-1">⚠️ การค้นหาด้วยเบอร์โทรจะต้องเข้าสู่ระบบก่อน</p>
+                        )}
                     </div>
 
                     <button

@@ -123,12 +123,12 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
 
                     {/* Thumbnails */}
                     {bundle.image_urls && bundle.image_urls.length > 1 && (
-                        <div className="flex gap-3 overflow-x-auto pb-2 w-full justify-center scrollbar-hide">
+                        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 px-2 w-full scrollbar-hide -mx-2">
                             {bundle.image_urls.map((url: string, idx: number) => (
                                 <button
                                     key={idx}
                                     onClick={() => setActiveImageIndex(idx)}
-                                    className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${activeImageIndex === idx
+                                    className={`relative w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${activeImageIndex === idx
                                         ? 'border-zinc-900 dark:border-white ring-2 ring-zinc-200 dark:ring-zinc-700 opacity-100'
                                         : 'border-transparent bg-white dark:bg-zinc-800 opacity-60 hover:opacity-100'
                                         }`}
