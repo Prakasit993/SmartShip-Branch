@@ -30,11 +30,28 @@ export default async function CatalogPage({
 
     if (query) {
         const lowerQuery = query.toLowerCase();
-        filteredBundles = filteredBundles.filter((b: any) =>
-            b.name.toLowerCase().includes(lowerQuery) ||
-            b.description?.toLowerCase().includes(lowerQuery) ||
-            b.categories?.name?.toLowerCase().includes(lowerQuery)
-        );
+        // Parse dimension search like "30 20 5" or "30x20x5"
+        const dimensionPattern = query.replace(/[^\d\s]/g, ' ').trim().split(/\s+/).filter(Boolean);
+
+        filteredBundles = filteredBundles.filter((b: any) => {
+            // Regular text search
+            const matchesText =
+                b.name?.toLowerCase().includes(lowerQuery) ||
+                b.description?.toLowerCase().includes(lowerQuery) ||
+                b.categories?.name?.toLowerCase().includes(lowerQuery) ||
+                b.slug?.toLowerCase().includes(lowerQuery) ||
+                b.sku?.toLowerCase().includes(lowerQuery);
+
+            // Dimension search - check if all dimension numbers appear in name or description
+            const matchesDimensions = dimensionPattern.length >= 2 &&
+                dimensionPattern.every(dim =>
+                    b.name?.includes(dim) ||
+                    b.description?.includes(dim) ||
+                    b.slug?.includes(dim)
+                );
+
+            return matchesText || matchesDimensions;
+        });
     }
 
     // Simple grouping by category

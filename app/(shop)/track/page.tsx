@@ -23,20 +23,29 @@ export default async function TrackPage({ searchParams }: { searchParams: Promis
 
     // Check if user is logged in
     const cookieStore = await cookies();
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
+    let isLoggedIn = false;
+    let user = null;
+
+    try {
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: {
+                    getAll() {
+                        return cookieStore.getAll();
+                    },
+                    setAll() { },
                 },
-                setAll() { },
-            },
-        }
-    );
-    const { data: { user } } = await supabase.auth.getUser();
-    const isLoggedIn = !!user;
+            }
+        );
+        const { data } = await supabase.auth.getUser();
+        user = data.user;
+        isLoggedIn = !!user;
+    } catch (e) {
+        console.error('Session check error:', e);
+        isLoggedIn = false;
+    }
 
     // Get customer's phone from profile if logged in
     let customerPhone: string | null = null;

@@ -54,7 +54,7 @@ export default function AdminSidebar({ role }: { role: string }) {
             <aside className={`
                 w-64 bg-black border-r border-zinc-900 flex flex-col fixed h-full z-50 text-white
                 transition-transform duration-300 ease-in-out
-                md:translate-x-0 pb-20 md:pb-0
+                md:translate-x-0
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'}
             `}>
                 <div className="p-8 pb-4">
@@ -91,7 +91,7 @@ export default function AdminSidebar({ role }: { role: string }) {
                     </div>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+                <nav className="flex-1 px-4 space-y-1">
                     <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-4">{t('nav.overview')}</p>
                     <NavItem href="/admin" icon="📊" label={t('nav.dashboard')} active={pathname === '/admin'} onClick={closeSidebar} />
                     <NavItem href="/admin/orders" icon="🛍️" label={t('nav.orders')} active={isActive('/admin/orders')} onClick={closeSidebar} />
@@ -102,10 +102,15 @@ export default function AdminSidebar({ role }: { role: string }) {
                             <NavItem href="/admin/products" icon="🏷️" label={t('nav.products')} active={isActive('/admin/products')} onClick={closeSidebar} />
                             <NavItem href="/admin/bundles" icon="📦" label={t('nav.bundles')} active={isActive('/admin/bundles')} onClick={closeSidebar} />
                             <NavItem href="/admin/stock" icon="📋" label={t('nav.stock')} active={isActive('/admin/stock')} onClick={closeSidebar} />
+                            <NavItem href="/admin/shipping" icon="🚚" label={t('nav.shipping')} active={isActive('/admin/shipping')} onClick={closeSidebar} />
+
+                            <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-8">{t('nav.marketing')}</p>
+                            <NavItem href="/admin/reviews" icon="⭐" label={t('nav.reviews')} active={isActive('/admin/reviews')} onClick={closeSidebar} />
+                            <NavItem href="/admin/coupons" icon="🎫" label={t('nav.coupons')} active={isActive('/admin/coupons')} onClick={closeSidebar} />
+                            <NavItem href="/admin/bulk-discounts" icon="💰" label={t('nav.bulkDiscounts')} active={isActive('/admin/bulk-discounts')} onClick={closeSidebar} />
 
                             <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-8">{t('nav.system')}</p>
-                            <NavItem href="/admin/settings" icon="⚙️" label={t('nav.settings')} active={pathname === '/admin/settings'} onClick={closeSidebar} />
-                            <NavItem href="/admin/settings/security" icon="🔒" label={t('nav.security')} active={isActive('/admin/settings/security')} onClick={closeSidebar} />
+                            <NavItem href="/admin/settings" icon="⚙️" label={t('nav.settings')} active={isActive('/admin/settings')} onClick={closeSidebar} />
                         </>
                     )}
                 </nav>

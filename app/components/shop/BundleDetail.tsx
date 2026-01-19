@@ -1,11 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCart } from '@app/context/CartContext';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@app/context/LanguageContext';
 import { ShoppingCart, CreditCard, MessageCircle, ChevronLeft, Package, Edit, Check } from 'lucide-react';
 import Link from 'next/link';
+
+// Extend Window interface for TypeScript
+declare global {
+    interface Window {
+        __ADD_TO_CART_LOCK__?: Map<number, number>;
+    }
+}
+
+// Use window global for lock - survives HMR and all React re-renders
+const getAddToCartLock = (): Map<number, number> => {
+    if (typeof window !== 'undefined') {
+        if (!window.__ADD_TO_CART_LOCK__) {
+            window.__ADD_TO_CART_LOCK__ = new Map();
+        }
+        return window.__ADD_TO_CART_LOCK__;
+    }
+    return new Map();
+};
 
 interface BundleDetailProps {
     bundle: any;
@@ -18,10 +36,11 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
     const { addToCart } = useCart();
     const router = useRouter();
     const { t } = useLanguage();
-    const [quantity, setQuantity] = useState(1);
+    const [quantity, setQuantity] = useState(20);
     const [selectedOptions, setSelectedOptions] = useState<Record<number, any>>({});
     const [totalPrice, setTotalPrice] = useState(bundle.price);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const isAddingRef = useRef(false);
 
     // Recalculate price when options change
     useEffect(() => {
@@ -37,11 +56,33 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
     };
 
     const handleAddToCart = () => {
+        const now = Date.now();
+        const lock = getAddToCartLock();
+        const lastAdded = lock.get(bundle.id);
+
+        // If there's a recent lock (within 3 seconds), block this add
+        if (lastAdded && now - lastAdded < 3000) {
+            console.log('Blocked by window global lock:', bundle.id);
+            return;
+        }
+
+        // Set the lock immediately at window level
+        lock.set(bundle.id, now);
+
+        // Also check ref as secondary protection
+        if (isAddingRef.current) {
+            console.log('Blocked by ref lock');
+            return;
+        }
+        isAddingRef.current = true;
+
         // Validate Configurable
         if (bundle.type === 'configurable' && optionGroups) {
             const missingGroups = optionGroups.filter(g => !selectedOptions[g.id]);
             if (missingGroups.length > 0) {
                 alert(`Please select options for: ${missingGroups.map(g => g.name).join(', ')}`);
+                isAddingRef.current = false;
+                lock.delete(bundle.id);
                 return;
             }
         }
@@ -59,6 +100,8 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
             })
             : undefined;
 
+        console.log('Actually adding to cart:', bundle.id, 'qty:', quantity);
+
         addToCart({
             bundle_id: bundle.id,
             bundle_name: bundle.name,
@@ -67,6 +110,16 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
             image_url: bundle.image_urls?.[0],
             options: finalOptions
         });
+
+        // Reset ref after a delay
+        setTimeout(() => {
+            isAddingRef.current = false;
+        }, 3000);
+
+        // Clean up window global lock after 5 seconds
+        setTimeout(() => {
+            getAddToCartLock().delete(bundle.id);
+        }, 5000);
     };
 
     // Calculate max available stock based on items
@@ -251,7 +304,7 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="flex items-center border-2 border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden h-12 sm:h-auto shrink-0 transition-colors hover:border-zinc-300 dark:hover:border-zinc-600">
                                 <button
-                                    onClick={() => handleQuantityChange(quantity - 1)}
+                                    onClick={() => handleQuantityChange(quantity - 20)}
                                     disabled={quantity <= 1 || isOutOfStock}
                                     className="px-4 h-full hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30 transition flex items-center justify-center"
                                 >
@@ -261,7 +314,7 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
                                     {quantity}
                                 </div>
                                 <button
-                                    onClick={() => handleQuantityChange(quantity + 1)}
+                                    onClick={() => handleQuantityChange(quantity + 20)}
                                     disabled={quantity >= maxStock || isOutOfStock}
                                     className="px-4 h-full hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30 transition flex items-center justify-center"
                                 >
@@ -272,19 +325,10 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
                             <button
                                 onClick={handleAddToCart}
                                 disabled={isOutOfStock}
-                                className="flex-1 h-12 sm:h-14 bg-white border-2 border-zinc-900 text-zinc-900 dark:bg-zinc-900 dark:border-white dark:text-white rounded-xl font-bold hover:bg-zinc-50 dark:hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-                            >
-                                <ShoppingCart size={18} />
-                                {t('product.add_to_cart')}
-                            </button>
-
-                            <button
-                                onClick={handleBuyNow}
-                                disabled={isOutOfStock}
                                 className="flex-1 h-12 sm:h-14 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-xl font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-zinc-200 dark:shadow-none flex items-center justify-center gap-2"
                             >
-                                <CreditCard size={18} />
-                                {t('product.buy_now')}
+                                <ShoppingCart size={18} />
+                                เพิ่มสินค้าในตะกร้า
                             </button>
                         </div>
 

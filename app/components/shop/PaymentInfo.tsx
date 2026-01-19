@@ -22,6 +22,7 @@ export default function PaymentInfo({ amount = 0 }: PaymentInfoProps) {
     const [loading, setLoading] = useState(true);
     const [timeLeft, setTimeLeft] = useState(15 * 60);
     const [isExpired, setIsExpired] = useState(false);
+    const [isZoomed, setIsZoomed] = useState(false);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -131,102 +132,155 @@ export default function PaymentInfo({ amount = 0 }: PaymentInfoProps) {
             </div>
 
             {/* QR Code Section */}
-            <div className="p-6 text-center">
-                {/* Timer */}
-                <div className={`mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${isExpired
-                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        : timeLeft <= 60
-                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    }`}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {isExpired ? (
-                        <span>{language === 'th' ? 'QR Code หมดอายุ' : 'QR Code Expired'}</span>
+            <div className="p-6">
+                {/* QR Code Image - Centered & Zoomable */}
+                <div className="flex justify-center mb-4">
+                    {settings.payment_qr_code ? (
+                        <div className={`relative ${isExpired ? 'opacity-40' : ''}`}>
+                            <button
+                                type="button"
+                                onClick={() => setIsZoomed(!isZoomed)}
+                                className="bg-white p-3 rounded-xl shadow-lg border border-zinc-200 inline-block cursor-zoom-in hover:shadow-xl transition-shadow"
+                            >
+                                <img
+                                    src={settings.payment_qr_code}
+                                    alt="PromptPay QR Code"
+                                    className="w-44 h-44 object-contain"
+                                />
+                            </button>
+                            <p className="text-xs text-zinc-400 text-center mt-2">
+                                {language === 'th' ? '(กดเพื่อขยาย)' : '(Tap to zoom)'}
+                            </p>
+                            {isExpired && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <button
+                                        type="button"
+                                        onClick={resetTimer}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-lg transition"
+                                    >
+                                        🔄 {language === 'th' ? 'รีเฟรช QR' : 'Refresh QR'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     ) : (
-                        <span>
-                            {language === 'th' ? 'หมดอายุใน' : 'Expires in'} {formatTime(timeLeft)}
-                        </span>
+                        <div className="bg-zinc-100 dark:bg-zinc-800 w-44 h-44 rounded-xl flex items-center justify-center">
+                            <span className="text-zinc-400">No QR Code</span>
+                        </div>
                     )}
                 </div>
 
-                {/* QR Code Image */}
-                {settings.payment_qr_code ? (
-                    <div className={`relative inline-block ${isExpired ? 'opacity-40' : ''}`}>
-                        <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-zinc-100 inline-block">
-                            <img
-                                src={settings.payment_qr_code}
-                                alt="PromptPay QR Code"
-                                className="w-56 h-56 object-contain"
-                            />
-                        </div>
-                        {isExpired && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <button
-                                    onClick={resetTimer}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-lg transition"
-                                >
-                                    🔄 {language === 'th' ? 'รีเฟรช QR' : 'Refresh QR'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="bg-zinc-100 dark:bg-zinc-800 w-56 h-56 mx-auto rounded-xl flex items-center justify-center">
-                        <span className="text-zinc-400">No QR Code</span>
-                    </div>
+                {/* Shop Name - Below QR */}
+                {settings.bank_account_name && (
+                    <p className="text-center text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                        {language === 'th' ? 'ชื่อร้าน:' : 'Shop:'} <span className="font-semibold">{settings.bank_account_name}</span>
+                    </p>
                 )}
 
-                {/* Amount Display */}
+                {/* Amount Box */}
                 {amount > 0 && (
-                    <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg py-2 px-4 inline-block">
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 mb-4 text-center border border-blue-100 dark:border-blue-800">
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">
                             {language === 'th' ? 'ยอดที่ต้องชำระ' : 'Amount to pay'}
                         </p>
-                        <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                        <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
                             ฿{amount.toLocaleString()}
                         </p>
                     </div>
                 )}
 
-                {/* PromptPay Number */}
-                {settings.promptpay_number && (
-                    <div className="mt-4 space-y-1">
-                        <p className="text-xs text-zinc-500">PromptPay</p>
-                        <p className="text-lg font-mono font-bold text-blue-600 dark:text-blue-400 tracking-wider">
-                            {settings.promptpay_number}
-                        </p>
-                    </div>
-                )}
+                {/* PromptPay Number + Scan Button - Same Row */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+                    {settings.promptpay_number && (
+                        <div className="text-center sm:text-left">
+                            <p className="text-xs text-zinc-500">PromptPay</p>
+                            <p className="text-lg font-mono font-bold text-blue-600 dark:text-blue-400 tracking-wider">
+                                {settings.promptpay_number}
+                            </p>
+                        </div>
+                    )}
 
-                {/* Shop Name */}
-                {settings.bank_account_name && (
-                    <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        {language === 'th' ? 'ชื่อร้านค้า:' : 'Shop:'} <span className="font-medium">{settings.bank_account_name}</span>
-                    </p>
-                )}
-
-                {/* Open Bank App Button */}
-                {paymentUrl && !isExpired && (
-                    <div className="mt-6">
+                    {paymentUrl && !isExpired && (
                         <a
                             href={paymentUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition transform hover:scale-105"
+                            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg transition transform hover:scale-105 text-sm"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                             </svg>
-                            {language === 'th' ? '💳 ชำระผ่าน App ธนาคาร' : '💳 Pay via Bank App'}
+                            {language === 'th' ? 'สแกน QR' : 'Scan QR'}
                         </a>
-                        <p className="text-xs text-zinc-400 mt-2">
-                            {language === 'th' ? 'กดเพื่อเปิด App ธนาคารโดยอัตโนมัติ' : 'Tap to open your banking app'}
-                        </p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
+
+            {/* Zoom Modal */}
+            {isZoomed && settings.payment_qr_code && (
+                <div
+                    className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+                    onClick={() => setIsZoomed(false)}
+                >
+                    <div
+                        className="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-zinc-800">
+                                {language === 'th' ? 'สแกนเพื่อชำระเงิน' : 'Scan to Pay'}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setIsZoomed(false)}
+                                className="text-zinc-400 hover:text-zinc-600 transition"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* QR Code */}
+                        <div className="bg-white p-2 rounded-xl border-2 border-blue-100 mb-4">
+                            <img
+                                src={settings.payment_qr_code}
+                                alt="PromptPay QR Code (Zoomed)"
+                                className="w-full object-contain"
+                            />
+                        </div>
+
+                        {/* Info */}
+                        <div className="text-center mb-4">
+                            {settings.bank_account_name && (
+                                <p className="text-sm text-zinc-600 mb-1">
+                                    {settings.bank_account_name}
+                                </p>
+                            )}
+                            {amount > 0 && (
+                                <p className="text-2xl font-bold text-blue-600">
+                                    ฿{amount.toLocaleString()}
+                                </p>
+                            )}
+                            {settings.promptpay_number && (
+                                <p className="text-xs text-zinc-400 mt-1">
+                                    PromptPay: {settings.promptpay_number}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Confirm Button */}
+                        <button
+                            type="button"
+                            onClick={() => setIsZoomed(false)}
+                            className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition transform hover:scale-[1.02]"
+                        >
+                            ✓ {language === 'th' ? 'โอนเงินแล้ว ปิดหน้าต่าง' : 'Done, Close Window'}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Footer */}
             <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-3 border-t border-zinc-200 dark:border-zinc-700">

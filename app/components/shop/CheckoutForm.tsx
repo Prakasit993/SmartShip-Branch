@@ -5,6 +5,8 @@ import { createOrder } from '@app/actions/order';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@app/context/LanguageContext';
+import ShippingSelector from './ShippingSelector';
+import CouponInput from './CouponInput';
 import PaymentInfo from './PaymentInfo';
 import StoreLocationInfo from './StoreLocationInfo';
 
@@ -13,7 +15,10 @@ export default function CheckoutForm() {
     const router = useRouter();
     const { t } = useLanguage();
     const [loading, setLoading] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<'promptpay' | 'cash'>('promptpay');
+    const [shippingCost, setShippingCost] = useState(0);
+    const [couponDiscount, setCouponDiscount] = useState(0);
+    const [couponCode, setCouponCode] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('promptpay');
 
     // User Data State
     const [userData, setUserData] = useState<{ name: string, phone: string, address: string } | null>(null);
@@ -158,9 +163,24 @@ export default function CheckoutForm() {
                             />
                         </div>
 
+                        {/* Shipping Method Section */}
                         <div className="pt-4 mt-4 border-t border-zinc-100 dark:border-zinc-800">
                             <h2 className="text-xl font-bold mb-6 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm">2</span>
+                                🚚 วิธีจัดส่ง
+                            </h2>
+                            <ShippingSelector
+                                onSelect={(provider) => {
+                                    if (provider) {
+                                        setShippingCost(provider.base_rate);
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        <div className="pt-4 mt-4 border-t border-zinc-100 dark:border-zinc-800">
+                            <h2 className="text-xl font-bold mb-6 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm">3</span>
                                 {t('checkout.payment_notes')}
                             </h2>
                             <div className="space-y-5">
@@ -170,17 +190,25 @@ export default function CheckoutForm() {
                                         <select
                                             name="payment_method"
                                             value={paymentMethod}
-                                            onChange={(e) => setPaymentMethod(e.target.value as 'promptpay' | 'cash')}
+                                            onChange={(e) => setPaymentMethod(e.target.value)}
                                             className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-blue-500 transition-all text-zinc-900 dark:text-zinc-100 appearance-none cursor-pointer"
                                         >
-                                            <option value="promptpay">{t('form.method.promptpay')}</option>
-                                            <option value="cash">{t('form.method.cash')}</option>
+                                            <option value="promptpay">พร้อมเพย์ / QR Code</option>
+                                            <option value="shop">ชำระที่หน้าร้าน</option>
                                         </select>
                                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Show QR/Bank Info or Store Location */}
+                                {paymentMethod === 'promptpay' ? (
+                                    <PaymentInfo amount={cartTotal + shippingCost - couponDiscount} />
+                                ) : paymentMethod === 'shop' ? (
+                                    <StoreLocationInfo />
+                                ) : null}
+
                                 <div className="space-y-1.5">
                                     <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">{t('form.notes')}</label>
                                     <textarea
@@ -190,13 +218,6 @@ export default function CheckoutForm() {
                                         placeholder={t('form.notes_placeholder')}
                                     />
                                 </div>
-
-                                {/* Payment Info - Conditional based on payment method */}
-                                {paymentMethod === 'promptpay' ? (
-                                    <PaymentInfo amount={cartTotal} />
-                                ) : (
-                                    <StoreLocationInfo />
-                                )}
                             </div>
                         </div>
                     </form>
@@ -222,6 +243,17 @@ export default function CheckoutForm() {
                         ))}
                     </div>
 
+                    {/* Coupon Input */}
+                    <div className="py-4 border-t border-zinc-100 dark:border-zinc-800">
+                        <CouponInput
+                            orderTotal={cartTotal}
+                            onApply={(discount) => {
+                                setCouponDiscount(discount.amount);
+                                setCouponCode(discount.code);
+                            }}
+                        />
+                    </div>
+
                     <div className="space-y-3 py-4 border-t border-zinc-100 dark:border-zinc-800">
                         <div className="flex justify-between text-zinc-500 text-sm">
                             <span>{t('cart.subtotal')}</span>
@@ -229,11 +261,21 @@ export default function CheckoutForm() {
                         </div>
                         <div className="flex justify-between text-zinc-500 text-sm">
                             <span>{t('checkout.shipping')}</span>
-                            <span className="text-green-600 font-medium">{t('checkout.free')}</span>
+                            {shippingCost === 0 ? (
+                                <span className="text-green-600 font-medium">{t('checkout.free')}</span>
+                            ) : (
+                                <span className="font-medium">฿{shippingCost.toLocaleString()}</span>
+                            )}
                         </div>
+                        {couponDiscount > 0 && (
+                            <div className="flex justify-between text-green-600 text-sm">
+                                <span>🎉 ส่วนลด</span>
+                                <span>-฿{couponDiscount.toLocaleString()}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between text-zinc-900 dark:text-white font-bold text-xl pt-2">
                             <span>{t('cart.total')}</span>
-                            <span>฿{cartTotal.toLocaleString()}</span>
+                            <span>฿{(cartTotal + shippingCost - couponDiscount).toLocaleString()}</span>
                         </div>
                     </div>
 

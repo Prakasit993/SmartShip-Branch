@@ -104,7 +104,7 @@ const translations: Record<string, Record<Language, string>> = {
     'form.method.cash': { en: 'Cash at Store', th: 'ชำระเงินสดที่หน้าร้าน' },
     'form.notes': { en: 'Notes (Optional)', th: 'หมายเหตุ (ถ้ามี)' },
     'form.notes_placeholder': { en: 'Any special instructions for delivery...', th: 'รายละเอียดเพิ่มเติม เช่น จุดสังเกต...' },
-    'search.placeholder': { en: 'Search for products, size, or type...', th: 'ค้นหาสินค้า ขนาด หรือประเภท...' },
+    'search.placeholder': { en: 'Search by name, size (A2), or dimensions (30x20x5)...', th: 'ค้นหาชื่อ ขนาด (A2) หรือ กว้างxยาวxสูง (30x20x5)...' },
 
     // Cookie Consent
     'cookie.title': { en: 'We use cookies', th: 'เราใช้คุกกี้' },

@@ -15,10 +15,13 @@ const adminTranslations = {
         'nav.products': 'สินค้า',
         'nav.bundles': 'ชุดสินค้า',
         'nav.stock': 'คลังสินค้า',
+        'nav.shipping': 'ขนส่ง',
+        'nav.marketing': 'การตลาด',
+        'nav.reviews': 'รีวิว',
+        'nav.coupons': 'คูปอง',
+        'nav.bulkDiscounts': 'ส่วนลดซื้อเยอะ',
         'nav.system': 'ระบบ',
         'nav.settings': 'ตั้งค่า',
-        'nav.security': 'ความปลอดภัย',
-        'nav.categories': 'หมวดหมู่',
         'nav.signOut': 'ออกจากระบบ',
 
         // Dashboard
@@ -123,10 +126,13 @@ const adminTranslations = {
         'nav.products': 'Products',
         'nav.bundles': 'Bundles',
         'nav.stock': 'Stock',
+        'nav.shipping': 'Shipping',
+        'nav.marketing': 'Marketing',
+        'nav.reviews': 'Reviews',
+        'nav.coupons': 'Coupons',
+        'nav.bulkDiscounts': 'Bulk Discounts',
         'nav.system': 'System',
         'nav.settings': 'Settings',
-        'nav.security': 'Security',
-        'nav.categories': 'Categories',
         'nav.signOut': 'Sign Out',
 
         // Dashboard

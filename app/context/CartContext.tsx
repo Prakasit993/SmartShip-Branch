@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 
 export type CartItem = {
     bundle_id: number;
@@ -33,6 +33,8 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
     const [items, setItems] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const processedCallsRef = useRef<Set<string>>(new Set());
+    const callCounterRef = useRef(0);
 
     useEffect(() => {
         const saved = localStorage.getItem('cart');
@@ -49,7 +51,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('cart', JSON.stringify(items));
     }, [items]);
 
-    const addToCart = (newItem: CartItem) => {
+    const addToCart = useCallback((newItem: CartItem) => {
+        // Generate unique call ID based on bundle and current counter
+        const callId = `${newItem.bundle_id}-${Date.now()}-${callCounterRef.current++}`;
+
+        // If we've seen a very similar call recently (within last 100 calls), skip
+        const recentCallKey = `${newItem.bundle_id}-${Math.floor(Date.now() / 1000)}`;
+
+        if (processedCallsRef.current.has(recentCallKey)) {
+            console.log('Blocked duplicate addToCart:', recentCallKey);
+            return;
+        }
+
+        // Mark this call as processed
+        processedCallsRef.current.add(recentCallKey);
+
+        // Clean up old entries after 2 seconds
+        setTimeout(() => {
+            processedCallsRef.current.delete(recentCallKey);
+        }, 2000);
+
         setItems((prev) => {
             // Check if identical item exists (same bundle and options)
             const existingIdx = prev.findIndex(item =>
@@ -65,7 +86,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             return [...prev, newItem];
         });
         setIsCartOpen(true);
-    };
+    }, []);
 
     const removeFromCart = (index: number) => {
         setItems((prev) => prev.filter((_, i) => i !== index));
