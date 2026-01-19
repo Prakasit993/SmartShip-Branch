@@ -157,16 +157,16 @@ export default async function Home() {
                     {/* Ranking Badge */}
                     <div className="absolute top-3 right-3 z-20">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-white shadow-lg ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' :
-                          index === 1 ? 'bg-gradient-to-br from-zinc-300 to-zinc-500' :
-                            index === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-800' :
-                              'bg-gradient-to-br from-orange-400 to-red-500'
+                        index === 1 ? 'bg-gradient-to-br from-zinc-300 to-zinc-500' :
+                          index === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-800' :
+                            'bg-gradient-to-br from-orange-400 to-red-500'
                         }`}>
                         {index + 1}
                       </div>
                     </div>
 
                     <div className="aspect-square relative overflow-hidden">
-                      {bundle.image_urls?.[0] ? (
+                      {bundle.image_urls?.[0] && !bundle.image_urls[0].includes('placehold') ? (
                         <Image
                           src={bundle.image_urls[0]}
                           alt={bundle.name}

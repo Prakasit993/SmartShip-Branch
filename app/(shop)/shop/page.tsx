@@ -7,10 +7,9 @@ export const dynamic = 'force-dynamic';
 export default async function CatalogPage({
     searchParams,
 }: {
-    searchParams: Promise<{ q?: string }>;
+    searchParams: Promise<{ name?: string; w?: string; l?: string; h?: string }>;
 }) {
-    const { q } = await searchParams;
-    const query = q || '';
+    const { name, w, l, h } = await searchParams;
 
     let supabaseQuery = supabase
         .from('bundles')
@@ -18,41 +17,31 @@ export default async function CatalogPage({
         .eq('is_active', true)
         .order('sort_order', { foreignTable: 'categories' });
 
-    // Client-side filtering would be easier for complex "or" logic across related tables if the dataset is small,
-    // but here we can try a simple text search on the bundle level.
-    // Note: 'or' with foreign tables is tricky in simple Supabase queries.
-    // For now, let's filter after fetching since the catalog is small (<100 items).
-    // This allows robust "characteristics" search against description/name.
-
     const { data: bundles, error } = await supabaseQuery;
 
     let filteredBundles = bundles || [];
 
-    if (query) {
-        const lowerQuery = query.toLowerCase();
-        // Parse dimension search like "30 20 5" or "30x20x5"
-        const dimensionPattern = query.replace(/[^\d\s]/g, ' ').trim().split(/\s+/).filter(Boolean);
+    // Filter by name
+    if (name) {
+        const lowerName = name.toLowerCase();
+        filteredBundles = filteredBundles.filter((b: any) =>
+            b.name?.toLowerCase().includes(lowerName) ||
+            b.description?.toLowerCase().includes(lowerName) ||
+            b.sku?.toLowerCase().includes(lowerName) ||
+            b.slug?.toLowerCase().includes(lowerName)
+        );
+    }
 
+    // Filter by dimensions - check if dimension appears in name or description
+    const dimensionFilters = [w, l, h].filter(Boolean);
+    if (dimensionFilters.length > 0) {
         filteredBundles = filteredBundles.filter((b: any) => {
-            // Regular text search
-            const matchesText =
-                b.name?.toLowerCase().includes(lowerQuery) ||
-                b.description?.toLowerCase().includes(lowerQuery) ||
-                b.categories?.name?.toLowerCase().includes(lowerQuery) ||
-                b.slug?.toLowerCase().includes(lowerQuery) ||
-                b.sku?.toLowerCase().includes(lowerQuery);
-
-            // Dimension search - check if all dimension numbers appear in name or description
-            const matchesDimensions = dimensionPattern.length >= 2 &&
-                dimensionPattern.every(dim =>
-                    b.name?.includes(dim) ||
-                    b.description?.includes(dim) ||
-                    b.slug?.includes(dim)
-                );
-
-            return matchesText || matchesDimensions;
+            const searchText = `${b.name || ''} ${b.description || ''} ${b.slug || ''}`;
+            return dimensionFilters.every(dim => searchText.includes(dim!));
         });
     }
+
+    const hasFilters = name || w || l || h;
 
     // Simple grouping by category
     const grouped = filteredBundles.reduce((acc: any, bundle: any) => {
@@ -70,9 +59,9 @@ export default async function CatalogPage({
 
             {Object.keys(grouped).length === 0 ? (
                 <div className="text-center py-20 text-zinc-500">
-                    <p className="text-lg">No products found matching &quot;{query}&quot;</p>
+                    <p className="text-lg">ไม่พบสินค้าที่ตรงกับเงื่อนไข</p>
                     <Link href="/shop" className="text-blue-600 hover:underline mt-2 inline-block">
-                        Clear Search
+                        ล้างการค้นหา
                     </Link>
                 </div>
             ) : (
