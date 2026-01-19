@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '@app/context/CartContext';
 import { useLanguage } from '@app/context/LanguageContext';
 import { useEffect, useState } from 'react';
@@ -111,13 +112,13 @@ export default function Header() {
                             // Logged in - show avatar and name
                             <>
                                 {user.avatar ? (
-                                    <img
+                                    <Image
                                         src={user.avatar}
                                         alt={user.name || 'User'}
-                                        className="w-8 h-8 rounded-full object-cover border-2 border-green-500"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).style.display = 'none';
-                                        }}
+                                        width={32}
+                                        height={32}
+                                        className="rounded-full object-cover border-2 border-green-500"
+                                        unoptimized
                                     />
                                 ) : (
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
