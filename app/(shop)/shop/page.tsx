@@ -32,12 +32,35 @@ export default async function CatalogPage({
         );
     }
 
-    // Filter by dimensions - check if dimension appears in name or description
+    // Filter by dimensions
     const dimensionFilters = [w, l, h].filter(Boolean);
     if (dimensionFilters.length > 0) {
         filteredBundles = filteredBundles.filter((b: any) => {
-            const searchText = `${b.name || ''} ${b.description || ''} ${b.slug || ''}`;
-            return dimensionFilters.every(dim => searchText.includes(dim!));
+            // Parse DB values
+            const dbW = b.width_cm ? Number(b.width_cm) : 0;
+            const dbL = b.length_cm ? Number(b.length_cm) : 0;
+            const dbH = b.height_cm ? Number(b.height_cm) : 0;
+
+            // Check if this bundle has valid dimensions data (to avoid filtering out legacy items)
+            const hasValidDims = dbW > 0 || dbL > 0 || dbH > 0;
+
+            if (hasValidDims) {
+                // Use GTE (Fit logic: Box >= Input)
+                // If input is null/invalid, it matches (ignore that dimension)
+                const wVal = w && !isNaN(parseFloat(w)) ? parseFloat(w) : null;
+                const lVal = l && !isNaN(parseFloat(l)) ? parseFloat(l) : null;
+                const hVal = h && !isNaN(parseFloat(h)) ? parseFloat(h) : null;
+
+                const fitsW = wVal === null || dbW >= wVal;
+                const fitsL = lVal === null || dbL >= lVal;
+                const fitsH = hVal === null || dbH >= hVal;
+
+                return fitsW && fitsL && fitsH;
+            } else {
+                // Fallback: Text matching for legacy data
+                const searchText = `${b.name || ''} ${b.description || ''} ${b.slug || ''}`;
+                return dimensionFilters.every(dim => searchText.includes(dim!));
+            }
         });
     }
 

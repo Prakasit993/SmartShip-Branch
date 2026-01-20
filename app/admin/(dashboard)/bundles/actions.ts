@@ -14,6 +14,12 @@ export type BundleInput = {
     category_id: number;
     image_urls?: string[];
     is_active: boolean;
+    // Dimension fields (in centimeters)
+    width_cm?: number;
+    length_cm?: number;
+    height_cm?: number;
+    weight_g?: number;
+    sku?: string;
     // Fixed items
     items?: { product_id: number; quantity: number }[];
     // Configurable groups
@@ -43,7 +49,12 @@ export async function createBundle(data: BundleInput) {
             type: data.type,
             category_id: data.category_id,
             image_urls: data.image_urls,
-            is_active: data.is_active
+            is_active: data.is_active,
+            width_cm: data.width_cm,
+            length_cm: data.length_cm,
+            height_cm: data.height_cm,
+            weight_g: data.weight_g,
+            sku: data.sku
         })
         .select()
         .single();
@@ -120,7 +131,12 @@ export async function updateBundle(data: BundleInput) {
             type: data.type,
             category_id: data.category_id,
             image_urls: data.image_urls,
-            is_active: data.is_active
+            is_active: data.is_active,
+            width_cm: data.width_cm,
+            length_cm: data.length_cm,
+            height_cm: data.height_cm,
+            weight_g: data.weight_g,
+            sku: data.sku
         })
         .eq('id', data.id);
 

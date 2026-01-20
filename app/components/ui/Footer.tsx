@@ -4,9 +4,24 @@ import Link from 'next/link';
 import CookieSettingsButton from '@app/components/ui/CookieSettingsButton';
 import { useLanguage } from '@app/context/LanguageContext';
 
-export default function Footer() {
+interface FooterProps {
+    settings?: Record<string, string>;
+}
+
+export default function Footer({ settings = {} }: FooterProps) {
     const currentYear = new Date().getFullYear();
     const { t } = useLanguage();
+
+    // Helper to get setting with fallback
+    const getVal = (key: string, fallback: string) => settings[key] || fallback;
+
+    const contactPhone = getVal('contact_phone', '02-XXX-XXXX');
+    const contactLine = getVal('contact_line', '@expressshop');
+    const contactEmail = getVal('contact_email', 'contact@expressshop.com');
+    const contactAddress = getVal('contact_address', 'กรุงเทพมหานคร, ประเทศไทย');
+    const contactLineUrl = getVal('contact_line_url', 'https://line.me');
+    const mapLink = getVal('map_link', 'https://maps.app.goo.gl/u8xZxi6XjyWpgm54A');
+    const openingHours = getVal('contact_opening_hours', 'จ-ส 09:00 - 18:00');
 
     return (
         <footer className="bg-gradient-to-b from-zinc-900 to-black text-white py-16 px-4 relative overflow-hidden">
@@ -46,7 +61,7 @@ export default function Footer() {
                                 </svg>
                             </a>
                             <a
-                                href="https://line.me"
+                                href={contactLineUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-10 h-10 rounded-xl bg-white/10 hover:bg-green-500 flex items-center justify-center text-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-green-500/30"
@@ -57,7 +72,7 @@ export default function Footer() {
                                 </svg>
                             </a>
                             <a
-                                href="https://maps.app.goo.gl/u8xZxi6XjyWpgm54A"
+                                href={mapLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-10 h-10 rounded-xl bg-white/10 hover:bg-red-500 flex items-center justify-center text-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/30"
@@ -138,19 +153,19 @@ export default function Footer() {
                         <ul className="space-y-4 text-sm">
                             <li className="flex items-start gap-3 text-zinc-400">
                                 <span className="text-lg">📍</span>
-                                <span>กรุงเทพมหานคร, ประเทศไทย</span>
+                                <span>{contactAddress}</span>
                             </li>
                             <li className="flex items-center gap-3 text-zinc-400">
                                 <span className="text-lg">📞</span>
-                                <span>02-XXX-XXXX</span>
+                                <span>{contactPhone}</span>
                             </li>
                             <li className="flex items-center gap-3 text-zinc-400">
                                 <span className="text-lg">✉️</span>
-                                <span>contact@expressshop.com</span>
+                                <span>{contactEmail}</span>
                             </li>
                             <li className="flex items-center gap-3 text-zinc-400">
                                 <span className="text-lg">🕐</span>
-                                <span>จ-ส 09:00 - 18:00</span>
+                                <span>{openingHours}</span>
                             </li>
                         </ul>
                     </div>

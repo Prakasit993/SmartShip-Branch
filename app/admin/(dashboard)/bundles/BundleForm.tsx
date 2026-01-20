@@ -229,8 +229,8 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                                 className="hidden"
                             />
                             <span className={`inline-flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium transition ${uploadingImage
-                                    ? 'bg-zinc-300 text-zinc-500'
-                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                ? 'bg-zinc-300 text-zinc-500'
+                                : 'bg-green-600 text-white hover:bg-green-700'
                                 }`}>
                                 {uploadingImage ? '⏳ ...' : '📷'}
                             </span>
@@ -239,6 +239,59 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                     {formData.image_urls?.[0] && (
                         <img src={formData.image_urls[0]} alt="Preview" className="mt-2 w-20 h-20 object-cover rounded-lg border" />
                     )}
+                </div>
+
+                {/* SKU & Dimensions */}
+                <div className="col-span-full grid grid-cols-2 md:grid-cols-5 gap-4 bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                    <div className="md:col-span-1">
+                        <label className="block text-sm font-medium mb-1">🔖 SKU (รหัส)</label>
+                        <input
+                            value={formData.sku || ''}
+                            onChange={(e) => handleChange('sku', e.target.value)}
+                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="A-001"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">↔ กว้าง (ซม.)</label>
+                        <input
+                            type="number"
+                            value={formData.width_cm || ''}
+                            onChange={(e) => handleChange('width_cm', parseFloat(e.target.value))}
+                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-green-500 outline-none"
+                            placeholder="0"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">↕ ยาว (ซม.)</label>
+                        <input
+                            type="number"
+                            value={formData.length_cm || ''}
+                            onChange={(e) => handleChange('length_cm', parseFloat(e.target.value))}
+                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-purple-500 outline-none"
+                            placeholder="0"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">↥ สูง (ซม.)</label>
+                        <input
+                            type="number"
+                            value={formData.height_cm || ''}
+                            onChange={(e) => handleChange('height_cm', parseFloat(e.target.value))}
+                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-orange-500 outline-none"
+                            placeholder="0"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">⚖️ น้ำหนัก (กรัม)</label>
+                        <input
+                            type="number"
+                            value={formData.weight_g || ''}
+                            onChange={(e) => handleChange('weight_g', parseFloat(e.target.value))}
+                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-red-500 outline-none"
+                            placeholder="0"
+                        />
+                    </div>
                 </div>
             </div>
 
