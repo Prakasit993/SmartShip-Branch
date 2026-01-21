@@ -304,7 +304,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <Footer />
+        <Footer settings={settings?.reduce((acc, s) => ({ ...acc, [s.key]: String(s.value).replace(/^"|"$/g, '') }), {} as Record<string, string>)} />
         <CartDrawer />
       </div>
     </CartProvider>

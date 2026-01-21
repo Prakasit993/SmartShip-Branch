@@ -333,10 +333,10 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pt-2">
-                            <button className="flex items-center justify-center gap-2 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition">
+                            <Link href="/chat" className="flex items-center justify-center gap-2 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition">
                                 <MessageCircle size={16} />
                                 {t('product.chat')}
-                            </button>
+                            </Link>
                             <Link href="/shop" className="flex items-center justify-center gap-2 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition">
                                 <ChevronLeft size={16} />
                                 {t('shop.back')}

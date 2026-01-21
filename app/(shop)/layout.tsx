@@ -3,6 +3,9 @@ import Footer from '@app/components/ui/Footer';
 import { CartProvider } from '@app/context/CartContext';
 import CartDrawer from '@app/components/shop/CartDrawer';
 import { getSiteSettings } from '@app/lib/getSiteSettings';
+import ChatWidget from '@app/components/ui/ChatWidget';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ShopLayout({
     children,
@@ -18,6 +21,7 @@ export default async function ShopLayout({
                 <main className="flex-1">
                     {children}
                 </main>
+                <ChatWidget />
                 <Footer settings={settings} />
                 <CartDrawer />
             </div>

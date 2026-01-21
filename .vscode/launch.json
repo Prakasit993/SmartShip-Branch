@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "type": "chrome",
+            "name": "https://box.mybabymeal.com/",
+            "request": "launch",
+            "url": "https://box.mybabymeal.com/"
+        }
+    ]
+}
