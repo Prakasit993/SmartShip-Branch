@@ -102,7 +102,7 @@ export default function AdminSidebar({ role }: { role: string }) {
                             <NavItem href="/admin/products" icon="🏷️" label={t('nav.products')} active={isActive('/admin/products')} onClick={closeSidebar} />
                             <NavItem href="/admin/bundles" icon="📦" label={t('nav.bundles')} active={isActive('/admin/bundles')} onClick={closeSidebar} />
                             <NavItem href="/admin/stock" icon="📋" label={t('nav.stock')} active={isActive('/admin/stock')} onClick={closeSidebar} />
-                            <NavItem href="/admin/shipping" icon="🚚" label={t('nav.shipping')} active={isActive('/admin/shipping')} onClick={closeSidebar} />
+
 
                             <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-8">{t('nav.marketing')}</p>
                             <NavItem href="/admin/reviews" icon="⭐" label={t('nav.reviews')} active={isActive('/admin/reviews')} onClick={closeSidebar} />

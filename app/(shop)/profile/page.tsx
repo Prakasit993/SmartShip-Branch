@@ -243,9 +243,7 @@ function ProfileContent() {
                                         className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition"
                                     >
                                         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                            <span className="text-xs font-mono text-zinc-500">
-                                                #{order.id.toString().slice(-8).toUpperCase()}
-                                            </span>
+
                                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusData.color}`}>
                                                 {statusData.emoji} {statusData.label}
                                             </span>
