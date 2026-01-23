@@ -98,7 +98,7 @@ export default function CheckoutForm() {
             setLoading(false);
         } else if (res?.success) {
             clearCart();
-            router.push(`/track?order_no=${res.orderNo}`);
+            router.push(`/order-success?order_no=${res.orderNo}`);
         }
     };
 

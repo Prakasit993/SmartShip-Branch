@@ -99,9 +99,9 @@ export default function Footer({ settings = {} }: FooterProps) {
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/track" className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
+                                <Link href="/orders" className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    ติดตามคำสั่งซื้อ
+                                    คำสั่งซื้อของฉัน
                                 </Link>
                             </li>
                             <li>

@@ -25,6 +25,9 @@ function ProfileContent() {
         address: '',
     });
 
+    // Orders state
+    const [orders, setOrders] = useState<any[]>([]);
+
     // Fetch user and customer data
     useEffect(() => {
         const fetchData = async () => {
@@ -48,6 +51,15 @@ function ProfileContent() {
                     phone: customer.phone || '',
                     address: customer.address || '',
                 });
+            }
+
+            // Fetch orders using Server Action (bypasses RLS and supports fallback)
+            // Pass user.id from client to ensuring we have context even if cookie is flaky
+            const { getUserOrders } = await import('@app/actions/user');
+            const { orders: fetchedOrders, error } = await getUserOrders(user.id);
+
+            if (fetchedOrders) {
+                setOrders(fetchedOrders);
             }
 
             setLoading(false);
@@ -188,6 +200,78 @@ function ProfileContent() {
                         {saving ? 'กำลังบันทึก...' : '💾 บันทึกข้อมูล'}
                     </button>
                 </form>
+
+                {/* Orders Section */}
+                <div className="mt-6 bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <h2 className="text-lg font-bold border-b dark:border-zinc-800 pb-3 mb-4 flex items-center gap-2">
+                        📦 ประวัติคำสั่งซื้อ
+                        {orders.length > 0 && (
+                            <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full">
+                                {orders.length} รายการ
+                            </span>
+                        )}
+                    </h2>
+
+                    {orders.length === 0 ? (
+                        <div className="text-center py-8 text-zinc-500">
+                            <div className="text-4xl mb-2">📭</div>
+                            <p>ยังไม่มีคำสั่งซื้อ</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                            {orders.map((order) => {
+                                const statusMap: Record<string, { label: string; emoji: string; color: string }> = {
+                                    pending: { label: 'รอดำเนินการ', emoji: '⏳', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' },
+                                    confirmed: { label: 'ยืนยันแล้ว', emoji: '✅', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+                                    shipped: { label: 'จัดส่งแล้ว', emoji: '🚚', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
+                                    completed: { label: 'สำเร็จ', emoji: '🎉', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+                                    cancelled: { label: 'ยกเลิก', emoji: '❌', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+                                };
+                                const statusData = statusMap[order.status] || statusMap.pending;
+                                const orderDate = new Date(order.created_at);
+                                const formattedDate = orderDate.toLocaleDateString('th-TH', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
+
+                                return (
+                                    <div
+                                        key={order.id}
+                                        className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition"
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                            <span className="text-xs font-mono text-zinc-500">
+                                                #{order.id.toString().slice(-8).toUpperCase()}
+                                            </span>
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusData.color}`}>
+                                                {statusData.emoji} {statusData.label}
+                                            </span>
+                                        </div>
+
+                                        <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                                            {order.order_items?.map((item: any, idx: number) => (
+                                                <span key={item.id}>
+                                                    {item.bundle_name} x{item.quantity}
+                                                    {idx < order.order_items.length - 1 && ', '}
+                                                </span>
+                                            ))}
+                                        </div>
+
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-zinc-500">{formattedDate}</span>
+                                            <span className="font-bold text-zinc-900 dark:text-white">
+                                                ฿{(order.total_amount || 0).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
 
                 {/* Actions */}
                 <div className="mt-6 bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-3">

@@ -79,9 +79,6 @@ export default function Header() {
                     <Link href="/shop" className="text-sm font-medium hover:underline underline-offset-4 hidden md:block">
                         {t('nav.catalog')}
                     </Link>
-                    <Link href="/track" className="text-sm font-medium hover:underline underline-offset-4 hidden md:block">
-                        {t('nav.track')}
-                    </Link>
                     <Link href="/contact" className="text-sm font-medium hover:underline underline-offset-4 hidden md:block">
                         {language === 'th' ? 'ติดต่อ' : 'Contact'}
                     </Link>

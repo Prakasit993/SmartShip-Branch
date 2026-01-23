@@ -123,6 +123,9 @@ export async function createOrder(prevState: any, formData: FormData) {
     );
     const { data: { user } } = await supabase.auth.getUser();
 
+    // Debug: Log user status
+    console.log('Order creation - User logged in:', !!user, 'User ID:', user?.id || 'NULL');
+
     // 2.6 Get Customer ID and Update Customer Profile
     let customerId: string | null = null;
     if (user) {
