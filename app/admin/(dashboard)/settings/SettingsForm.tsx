@@ -243,6 +243,44 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                     />
                 </CollapsibleSection>
 
+                {/* Bundle Dimensions Sync Section */}
+                <CollapsibleSection title="ซิงค์ขนาดสินค้า (Bundle Dimensions Sync)" icon="📐" defaultOpen={false}>
+                    <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-4">
+                        <h4 className="font-semibold text-blue-300 mb-2">🔄 ซิงค์ขนาด Bundle จาก Products</h4>
+                        <p className="text-sm text-zinc-400 mb-4">
+                            กดปุ่มด้านล่างเพื่อดึงข้อมูลขนาด (กว้าง, ยาว, สูง) จากสินค้าตัวแรกใน Bundle มาใส่ในตาราง Bundles
+                            เพื่อให้การค้นหาด้วยขนาดทำงานได้ถูกต้อง
+                        </p>
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                if (!confirm('ยืนยันการซิงค์ขนาด Bundle ทั้งหมด?')) return;
+
+                                try {
+                                    const res = await fetch('/api/admin/sync-bundle-dimensions', {
+                                        method: 'POST'
+                                    });
+                                    const data = await res.json();
+
+                                    if (data.success) {
+                                        alert(`✅ ซิงค์สำเร็จ!\n\nอัปเดต: ${data.updated} รายการ\nทั้งหมด: ${data.total} รายการ`);
+                                    } else {
+                                        alert('❌ เกิดข้อผิดพลาด: ' + data.error);
+                                    }
+                                } catch (err: any) {
+                                    alert('❌ เกิดข้อผิดพลาด: ' + err.message);
+                                }
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center gap-2"
+                        >
+                            🔄 ซิงค์ขนาด Bundle ทั้งหมด
+                        </button>
+                        <p className="text-xs text-zinc-500 mt-3">
+                            หมายเหตุ: จะอัปเดตเฉพาะ Bundle ที่ยังไม่มีข้อมูลขนาด และมีสินค้าที่มีข้อมูลขนาดครบถ้วน
+                        </p>
+                    </div>
+                </CollapsibleSection>
+
                 {/* Payment Section */}
                 <CollapsibleSection title="การชำระเงิน (Payment)" icon="💳" defaultOpen={false}>
                     <InputField

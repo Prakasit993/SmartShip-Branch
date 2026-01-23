@@ -33,7 +33,7 @@ export default async function EditBundlePage({ params }: { params: Promise<{ id:
 
     // Fetch dependencies
     const { data: categories } = await supabase.from('categories').select('id, name');
-    const { data: products } = await supabase.from('products').select('id, name, price');
+    const { data: products } = await supabase.from('products').select('id, name, price, width, length, height, dimension_unit');
 
     const initialData = {
         ...bundle,

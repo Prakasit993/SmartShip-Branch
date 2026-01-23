@@ -73,11 +73,25 @@ export default async function Home() {
       <div className="flex flex-col min-h-screen bg-white dark:bg-black selection:bg-blue-500 selection:text-white">
         <Header />
 
-        {/* Announcement */}
+        {/* Announcement Banner - Premium Animated Design */}
         {announcement && (
-          <div className="bg-[#FFD700] text-black text-center py-2.5 font-bold text-sm tracking-wide uppercase shadow-sm relative z-20">
-            <span className="animate-pulse mr-2">📢</span>
-            {announcement}
+          <div className="relative overflow-hidden bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-400 text-black text-center py-3 font-bold text-sm tracking-wide shadow-lg z-20">
+            {/* Animated shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-shimmer"
+              style={{ animation: 'shimmer 3s ease-in-out infinite' }} />
+
+            <div className="relative flex items-center justify-center gap-3">
+              <span className="inline-flex items-center gap-1">
+                <span className="text-lg animate-bounce">🔥</span>
+                <span className="hidden sm:inline text-orange-800">โปรโมชั่นพิเศษ!</span>
+              </span>
+              <span className="border-l border-orange-500/50 h-4" />
+              <span className="font-extrabold tracking-wide">
+                {announcement}
+              </span>
+              <span className="border-l border-orange-500/50 h-4" />
+              <span className="text-lg animate-bounce delay-100">🎁</span>
+            </div>
           </div>
         )}
 

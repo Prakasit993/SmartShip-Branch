@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { BundleInput, createBundle, updateBundle } from './actions';
 import { useRouter } from 'next/navigation';
 
-type Product = { id: number; name: string; price: number };
+type Product = { id: number; name: string; price: number; width?: number; length?: number; height?: number; dimension_unit?: string };
 type Category = { id: number; name: string };
 
 interface BundleFormProps {
@@ -85,12 +85,47 @@ export default function BundleForm({ initialData, categories, products }: Bundle
         }
     };
 
+    // Sync dimensions from first product in items
+    const syncDimensionsFromProduct = () => {
+        const firstItem = formData.items?.[0];
+        if (!firstItem) {
+            alert('กรุณาเพิ่มสินค้าในชุดก่อน');
+            return;
+        }
+        const product = products.find(p => p.id === firstItem.product_id);
+        if (product) {
+            setFormData(prev => ({
+                ...prev,
+                width_cm: product.width || prev.width_cm,
+                length_cm: product.length || prev.length_cm,
+                height_cm: product.height || prev.height_cm
+            }));
+        }
+    };
+
     // Fixed Items Handlers
     const addFixedItem = () => {
-        setFormData(prev => ({
-            ...prev,
-            items: [...(prev.items || []), { product_id: products[0]?.id, quantity: 1 }]
-        }));
+        const isFirstItem = !formData.items || formData.items.length === 0;
+        const newProductId = products[0]?.id;
+
+        setFormData(prev => {
+            const updated = {
+                ...prev,
+                items: [...(prev.items || []), { product_id: newProductId, quantity: 1 }]
+            };
+
+            // Auto-sync dimensions if this is the first item and dimensions are empty
+            if (isFirstItem && (!prev.width_cm && !prev.length_cm && !prev.height_cm)) {
+                const product = products.find(p => p.id === newProductId);
+                if (product) {
+                    updated.width_cm = product.width;
+                    updated.length_cm = product.length;
+                    updated.height_cm = product.height;
+                }
+            }
+
+            return updated;
+        });
     };
 
     const removeFixedItem = (index: number) => {
@@ -242,55 +277,69 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                 </div>
 
                 {/* SKU & Dimensions */}
-                <div className="col-span-full grid grid-cols-2 md:grid-cols-5 gap-4 bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800">
-                    <div className="md:col-span-1">
-                        <label className="block text-sm font-medium mb-1">🔖 SKU (รหัส)</label>
-                        <input
-                            value={formData.sku || ''}
-                            onChange={(e) => handleChange('sku', e.target.value)}
-                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="A-001"
-                        />
+                <div className="col-span-full bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">📐 ขนาดสำหรับค้นหา</span>
+                        {formData.type === 'fixed' && formData.items && formData.items.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={syncDimensionsFromProduct}
+                                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1"
+                            >
+                                🔄 ดึงขนาดจากสินค้า
+                            </button>
+                        )}
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">↔ กว้าง (ซม.)</label>
-                        <input
-                            type="number"
-                            value={formData.width_cm || ''}
-                            onChange={(e) => handleChange('width_cm', parseFloat(e.target.value))}
-                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-green-500 outline-none"
-                            placeholder="0"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">↕ ยาว (ซม.)</label>
-                        <input
-                            type="number"
-                            value={formData.length_cm || ''}
-                            onChange={(e) => handleChange('length_cm', parseFloat(e.target.value))}
-                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-purple-500 outline-none"
-                            placeholder="0"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">↥ สูง (ซม.)</label>
-                        <input
-                            type="number"
-                            value={formData.height_cm || ''}
-                            onChange={(e) => handleChange('height_cm', parseFloat(e.target.value))}
-                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-orange-500 outline-none"
-                            placeholder="0"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">⚖️ น้ำหนัก (กรัม)</label>
-                        <input
-                            type="number"
-                            value={formData.weight_g || ''}
-                            onChange={(e) => handleChange('weight_g', parseFloat(e.target.value))}
-                            className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-red-500 outline-none"
-                            placeholder="0"
-                        />
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div className="md:col-span-1">
+                            <label className="block text-sm font-medium mb-1">🔖 SKU (รหัส)</label>
+                            <input
+                                value={formData.sku || ''}
+                                onChange={(e) => handleChange('sku', e.target.value)}
+                                className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="A-001"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">↔ กว้าง (ซม.)</label>
+                            <input
+                                type="number"
+                                value={formData.width_cm || ''}
+                                onChange={(e) => handleChange('width_cm', parseFloat(e.target.value))}
+                                className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-green-500 outline-none"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">↕ ยาว (ซม.)</label>
+                            <input
+                                type="number"
+                                value={formData.length_cm || ''}
+                                onChange={(e) => handleChange('length_cm', parseFloat(e.target.value))}
+                                className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-purple-500 outline-none"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">↥ สูง (ซม.)</label>
+                            <input
+                                type="number"
+                                value={formData.height_cm || ''}
+                                onChange={(e) => handleChange('height_cm', parseFloat(e.target.value))}
+                                className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-orange-500 outline-none"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">⚖️ น้ำหนัก (กรัม)</label>
+                            <input
+                                type="number"
+                                value={formData.weight_g || ''}
+                                onChange={(e) => handleChange('weight_g', parseFloat(e.target.value))}
+                                className="w-full px-3 py-2 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-red-500 outline-none"
+                                placeholder="0"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
