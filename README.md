@@ -1,777 +1,168 @@
-# Project To-Do – SmartShip Branch Assistant
-
-รวมรายการงานทั้งหมดที่ใช้วางแผนใน ClickUp / GitHub Issues  
-(ติ๊กเช็กได้ตามความคืบหน้า)
-
----
-
-## 0. Repo & Project Setup
-
-- [ ] สร้าง GitHub repo `SmartShip-Branch` (หรือชื่อใกล้เคียง)
-- [ ] เพิ่มไฟล์ `README.md` (Project Overview + Goals)
-- [ ] สร้างโฟลเดอร์ `docs/`
-- [ ] สร้างไฟล์เอกสารหลัก:
-  - [ ] `docs/use-cases.md`
-  - [ ] `docs/data-model.md`
-  - [ ] `docs/architecture.md`
-  - [ ] `docs/security.md`
-  - [ ] `docs/todo.md` (ไฟล์นี้)
-
----
-
-## 1. Analysis & Documentation
-
-- [ ] เก็บข้อมูล AS-IS Process ของสาขา J&T (ทำเป็นข้อความ/แผนภาพ)
-- [ ] เขียน Problem Statement & Business Goals
-- [ ] ระบุ Actors หลัก:
-  - [ ] Customer
-  - [ ] Branch Staff
-  - [ ] Branch Owner
-  - [ ] SmartShip System
-  - [ ] J&T System
-  - [ ] AI Services
-- [ ] นิยาม Scope ของระบบ (In Scope / Out of Scope)
-- [ ] เขียน Use Case รายละเอียด:
-  - [ ] UC-01: Create Shipment Draft & QR (Part 1)
-  - [ ] UC-02: Scan QR & Confirm Shipment in J&T (Part 2)
-  - [ ] UC-03: Create Shipment at Counter (No LINE)
-  - [ ] UC-04: Daily Shipment Summary Report
-  - [ ] UC-05: Customer Management (VIP/Regular)
-- [ ] สรุป Use Case ทั้งหมดใน `docs/use-cases.md`
-- [ ] วาด/อธิบาย Context Diagram / Level 0 DFD (เป็นข้อความหรือภาพ)
-
----
-
-## 2. Data & Architecture Design
-
-### 2.1 Data Model
-
-- [ ] ออกแบบ Conceptual Data Model (Entities หลัก)
-- [ ] เติมรายละเอียดใน `docs/data-model.md` สำหรับ:
-  - [ ] `branches`
-  - [ ] `customers`
-  - [ ] `shipments`
-  - [ ] `branch_daily_report`
-  - [ ] `thai_locations` (reference table)
-- [ ] ระบุฟิลด์สำคัญ + key / index ที่จำเป็น
-- [ ] ระบุ flag สำหรับคุณภาพข้อมูล:
-  - [ ] `address_validated`
-  - [ ] `address_needs_staff_review`
-  - [ ] `status` (draft/confirmed/sent_to_jt/...)
-
-### 2.2 Architecture
-
-- [ ] เติม `docs/architecture.md` (High-Level Architecture)
-- [ ] อธิบาย:
-  - [ ] Actors & External Systems
-  - [ ] Presentation Layer (Staff Portal / LINE/LIFF)
-  - [ ] Application & Integration Layer (n8n หรือเทียบเท่า)
-  - [ ] Data Layer (PostgreSQL / Supabase)
-  - [ ] External Services (J&T System, AI Services, LINE)
-- [ ] ระบุ Main Flows ระดับสถาปัตยกรรม:
-  - [ ] Flow A – UC-01: Create Shipment Draft & QR
-  - [ ] Flow B – UC-02: Scan QR & Confirm Shipment in J&T
-  - [ ] Flow C – Daily Summary (UC-04)
-- [ ] ใส่ Design Considerations:
-  - [ ] Tool-agnostic (เปลี่ยนจาก n8n ไปใช้ขององค์กรได้)
-  - [ ] Scalability (รองรับหลายสาขา)
-  - [ ] Security & Compliance (โยงไป `docs/security.md`)
-
----
-
-## 3. MVP Implementation (Part 1 – Branch System)
-
-### 3.1 Backend & Database
-
-- [ ] สร้างฐานข้อมูล (เช่น Supabase / PostgreSQL)
-- [ ] สร้างตาราง:
-  - [ ] `branches`
-  - [ ] `customers`
-  - [ ] `shipments`
-  - [ ] `branch_daily_report`
-  - [ ] `thai_locations`
-- [ ] Seed ข้อมูล `branches` (ที่อยู่สาขาจริง)
-- [ ] เตรียม/อิมพอร์ตข้อมูล `thai_locations` (จังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์)
-
-### 3.2 Staff Portal (Web App)
-
-- [ ] ตั้งโปรเจกต์ Web App (เช่น Next.js/React)
-- [ ] หน้าจอ:
-  - [ ] หน้า Login (Staff / Owner)
-  - [ ] ฟอร์มสร้าง Shipment (Part 1)
-  - [ ] หน้าแสดง QR Code และสรุปข้อมูลพัสดุ
-  - [ ] หน้า “รับเข้าระบบ J&T (Part 2)” + สแกน QR
-  - [ ] หน้า Customer Management (ค้น/แก้ลูกค้าประจำ)
-  - [ ] หน้าแสดงรายงานพื้นฐาน (ดึงจาก `branch_daily_report`)
-- [ ] เชื่อมต่อ Backend / DB ผ่าน API หรือ Supabase client
-
----
-
-## 4. Automation & AI (n8n / Workflow Layer)
-
-- [ ] ติดตั้ง/ตั้งค่า n8n (หรือเลือกเครื่องมือ Orchestrator อื่น)
-- [ ] สร้าง Credentials ที่จำเป็น:
-  - [ ] DB (PostgreSQL/Supabase)
-  - [ ] AI Service (เช่น DeepSeek / OpenAI)
-  - [ ] LINE / J&T API (ถ้าใช้)
-- [ ] Workflow A: `CreateShipmentDraft`
-  - [ ] รับข้อมูลจาก Staff Portal / HTTP Request
-  - [ ] ตรวจสอบข้อมูลที่อยู่กับ `thai_locations`
-  - [ ] เรียก AI ช่วย normalize address (ถ้าใช้)
-  - [ ] บันทึก `customers` + `shipments` (สถานะ `draft`)
-  - [ ] ส่งข้อมูลกลับไปให้ Frontend สำหรับสร้าง QR
-- [ ] Workflow B: `ConfirmShipmentAndSendToJT`
-  - [ ] รับ `shipment_id` จากการสแกน QR
-  - [ ] ดึง shipment จาก DB
-  - [ ] อัปเดตข้อมูลเพิ่ม (น้ำหนัก, ประเภทบริการ, COD)
-  - [ ] ส่งข้อมูลไป J&T System (API / automation)
-  - [ ] เปลี่ยนสถานะ shipment เป็น `sent_to_jt` หรือ `confirmed`
-- [ ] Workflow C: `DailySummaryReport`
-  - [ ] Trigger ทุกวันตามเวลาปิดร้าน
-  - [ ] Query `shipments` ของวันนั้น
-  - [ ] รวมยอด/สถิติ
-  - [ ] เรียก AI เขียน summary text
-  - [ ] บันทึกลง `branch_daily_report`
-  - [ ] ส่งสรุปไป Owner (LINE / Email)
-
----
-
-## 5. Integration & Reporting
-
-- [ ] วิเคราะห์วิธีเชื่อมกับ J&T:
-  - [ ] ปัจจุบัน (กรอกมือจากข้อมูลบนหน้าจอ SmartShip)
-  - [ ] อนาคต (API / QR Payload)
-- [ ] ออกแบบฟอร์แมต QR Payload ให้ชัดเจน:
-  - [ ] ต้องมี: branch code, shipment_id, vip_code, sender/receiver summary
-- [ ] หน้า Dashboard / รายงาน:
-  - [ ] รายงานยอดส่งรายวัน (ดึงจาก `branch_daily_report`)
-  - [ ] filter ตามวันที่, สาขา, ประเภทบริการ
-- [ ] ระบุ Next Step สำหรับการเชื่อม JT API จริงในอนาคต
-
----
-
-## 6. Presentation & Portfolio
-
-- [ ] เตรียม Slide Deck สำหรับพรีเซนต์โปรเจกต์นี้ (6–10 สไลด์):
-  - [ ] Slide 1 – Project Intro (SmartShip Branch Assistant คืออะไร)
-  - [ ] Slide 2 – Business Problem & Pain Points
-  - [ ] Slide 3 – Goals & Scope
-  - [ ] Slide 4 – Use Cases หลัก (UC-01 – UC-04)
-  - [ ] Slide 5 – Data Model / Architecture Overview
-  - [ ] Slide 6 – ตัวอย่างหน้าจอ/Flow (Prototype หรือ Screenshot)
-  - [ ] Slide 7 – AI & Automation ใช้ตรงไหน
-  - [ ] Slide 8 – Security & Next Steps
-- [ ] เขียน Section “Role as System Analyst” ใน README / Slide:
-  - [ ] วิเคราะห์งานจริงจากธุรกิจของตัวเอง
-  - [ ] ออกแบบ Process, Use Case, Data Model, Architecture, Security
-  - [ ] วาง Roadmap จาก MVP ไปสู่ Multi-branch
-
----
-
-## 7. Security & Compliance
-
-- [ ] เติมรายละเอียดใน `docs/security.md` (ตามหัวข้อหลัก)
-- [ ] ออกแบบ RBAC:
-  - [ ] สิทธิ์ Staff
-  - [ ] สิทธิ์ Branch Owner
-  - [ ] สิทธิ์ Admin/System Owner
-- [ ] Implement Login / Auth สำหรับ Staff Portal
-- [ ] บังคับใช้ HTTPS ทุกการเชื่อมต่อ:
-  - [ ] Staff Portal ↔ Backend
-  - [ ] Backend ↔ DB
-  - [ ] n8n ↔ External Services
-- [ ] ตั้งค่าการเก็บ Secret:
-  - [ ] API Keys / Tokens เก็บใน Environment Variables / n8n Credentials
-  - [ ] ห้าม hard-code ใน source code
-- [ ] Implement Address Validation:
-  - [ ] ใช้ `thai_locations` ตรวจ combination ตำบล/อำเภอ/จังหวัด/รหัสไปรษณีย์
-  - [ ] Popup ให้เลือก “ยืนยันตามที่ระบบแนะนำ” หรือ “ให้พนักงานตรวจสอบ”
-  - [ ] ตั้งค่า flag `address_validated`, `address_needs_staff_review`
-- [ ] ออกแบบ/สร้าง `audit_log` (Audit Trail):
-  - [ ] บันทึกการสร้าง/แก้ไข/เปลี่ยนสถานะ shipment
-  - [ ] บันทึกการแก้ข้อมูลลูกค้า
-- [ ] ปรับ Logging ให้ไม่เก็บข้อมูลอ่อนไหวใน log:
-  - [ ] เบอร์โทร
-  - [ ] ที่อยู่เต็ม
-  - [ ] VIP Code
-- [ ] วาง Data Retention Policy:
-  - [ ] เก็บรายละเอียด shipment กี่ปี
-  - [ ] วิธี anonymize / ลบข้อมูลเก่า
-- [ ] ตั้งค่า Backup & Recovery:
-  - [ ] Backup DB รายวัน
-  - [ ] ทดสอบ Restore เป็นระยะ
-- [ ] ทบทวน Terms/Privacy ของ AI Services / J&T / LINE ที่ใช้
-
----
-
-### 7.5 🔐 Admin Panel Setup & Security (การตั้งค่า Admin และความปลอดภัย)
-
-#### Environment Variables ที่จำเป็น
-
-สร้างไฟล์ `.env.local` และตั้งค่าดังนี้:
-
-```bash
-# ===== ADMIN ACCESS CONTROL =====
-# รหัสผ่านสำหรับ login หน้า admin (ต้องเป็นรหัสที่คาดเดายาก!)
-ADMIN_PASSWORD=your-super-secure-password-here
-
-# Email ของ Admin หลัก (จะเห็นเมนูทุกอย่าง: Products, Settings, Bundles, Stock)
-ADMIN_EMAIL=admin@yourcompany.com
-
-# Email ของ Staff (คั่นด้วย comma) - เห็นเฉพาะ Dashboard และ Orders
-STAFF_EMAILS=staff1@company.com,staff2@company.com
-
-# ===== SUPABASE =====
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbG...  # ใช้เฉพาะฝั่ง server
-```
-
-#### วิธีเพิ่ม Admin/Staff
-
-| Role | วิธีตั้งค่า | สิทธิ์ |
-|------|------------|--------|
-| **Admin** | ใส่ email ใน `ADMIN_EMAIL` | เห็นทุกเมนู: Dashboard, Orders, Products, Bundles, Stock, Settings |
-| **Staff** | ใส่ email ใน `STAFF_EMAILS` | เห็นเฉพาะ: Dashboard, Orders |
-| **Password Login** | ใช้ `ADMIN_PASSWORD` ใน login หน้า admin | Full Admin Access |
-
-#### Security Protections
-
-**🛡️ สำหรับ Admin Panel**
-
-| Protection | Status | รายละเอียด |
-|------------|--------|------------|
-| Middleware Protection | ✅ | ทุก route `/admin/*` ถูกตรวจสอบ session |
-| HttpOnly Cookie | ✅ | ป้องกัน XSS ขโมย session |
-| Email Allowlist | ✅ | OAuth login ต้องมี email ใน `ADMIN_EMAIL` หรือ `STAFF_EMAILS` |
-| RBAC | ✅ | Staff ไม่สามารถเข้าหน้า Products/Settings/Bundles/Stock |
-| Secure Auth | ✅ | ใช้ `supabase.auth.getUser()` (server-side validation) |
-| Security Logging | ✅ | บันทึกการ login สำเร็จ/ล้มเหลว |
-
-**🛡️ สำหรับ Customer (User ธรรมดา)**
-
-| Protection | Status | รายละเอียด |
-|------------|--------|------------|
-| Route Protection | ✅ | `/profile/*` ต้องมี auth cookie |
-| Row Level Security (RLS) | ✅ | Users เห็นเฉพาะ orders ของตัวเอง |
-| OAuth only | ✅ | Login ผ่าน Google/Facebook (Supabase Auth) |
-| Session Validation | ✅ | ตรวจสอบ Supabase auth token |
-
-#### Best Practices
-
-```bash
-# ❌ อย่าทำ (รหัสผ่านอ่อนแอ)
-ADMIN_PASSWORD=admin123
-ADMIN_PASSWORD=password
-
-# ✅ ควรทำ (รหัสผ่านแข็งแรง)
-ADMIN_PASSWORD=Ks8#mP2$vQ9@nL4!
-```
-
-**ข้อปฏิบัติ:**
-1. **รหัสผ่าน** - ใช้อย่างน้อย 12 ตัวอักษร มีตัวพิมพ์ใหญ่/เล็ก ตัวเลข และสัญลักษณ์
-2. **HTTPS** - ใช้ HTTPS เสมอใน production
-3. **Rotate Password** - เปลี่ยนรหัสผ่าน admin ทุก 3-6 เดือน
-4. **Review Staff List** - ตรวจสอบรายชื่อ staff emails เป็นระยะ
-
----
-
-## 8. Optional / Future Enhancements
-
-- [ ] รองรับ Multi-Branch (หลายสาขาในระบบเดียว)
-- [ ] เพิ่มระบบ Notification (แจ้งลูกค้าเมื่อสถานะเปลี่ยน)
-- [ ] เพิ่ม Dashboard เชิงลึก (Top ลูกค้าประจำ, สถิติปลายทาง, Peak time)
-- [ ] PoC เชื่อม J&T API (ถ้ามีเอกสารให้ใช้จริง)
-- [ ] เพิ่ม Unit Test / Integration Test ส่วนสำคัญ
-
----
-
 # SmartShip Branch Assistant
 
-ระบบผู้ช่วยสาขาขนส่งพัสดุ (ฉบับ J&T Franchise)  
-โฟกัสลดขั้นตอนหน้าร้าน, ลดการพิมพ์ซ้ำ, และเตรียมต่อยอดเชื่อม API J&T + AI ช่วยจัดการข้อมูล
+ระบบผู้ช่วยสาขาขนส่งพัสดุ (J&T Franchise) - ลดขั้นตอนหน้าร้าน, ลดการพิมพ์ซ้ำ, เตรียมต่อยอด AI + Automation
 
 ---
 
-## 1. Project Overview (ภาพรวมโปรเจกต์)
+## 📋 สารบัญ (Table of Contents)
 
-**SmartShip Branch Assistant** คือระบบ Portal เล็ก ๆ สำหรับสาขาขนส่ง ที่ช่วยจัดการ “ขั้นตอนหน้าร้าน” ให้เป็นระบบมากขึ้น โดยแยกงานออกเป็น 2 ส่วนหลัก:
-
-1. **ส่วนที่ 1 – ระบบหน้าร้านของสาขา (SmartShip System)**  
-   - เก็บข้อมูลผู้ส่ง/ผู้รับให้เรียบร้อย  
-   - ล็อกที่อยู่ผู้ส่งให้เป็นที่อยู่สาขา  
-   - สร้าง Shipment Draft + QR Code สำหรับเอาไปใช้ในขั้นตอนรับเข้าระบบ J&T
-
-2. **ส่วนที่ 2 – ระบบรับเข้าระบบ J&T (Existing J&T System)**  
-   - ใช้ QR จากส่วนที่ 1 เพื่อดึงข้อมูลได้เร็ว  
-   - พนักงานตรวจสอบ/เติมข้อมูลเพิ่ม แล้วส่งเข้าระบบ J&T (ปัจจุบันยังเป็น “จำลองส่ง” ใน DB)
-
-เป้าหมายของโปรเจกต์นี้คือ **ทำ demo ระดับ System Analyst + Dev** ที่:
-
-- มี **Use Case ชัดเจน (UC-01, UC-02)**  
-- มี **ฐานข้อมูลจริง (Supabase / PostgreSQL)**  
-- มี **เว็บจริงให้กดใช้งาน (Next.js)**  
-- มี **QR Flow ครบวง**: สร้าง → ปริ้น/แสดง → สแกน → ยืนยัน
+- [ภาพรวมโปรเจกต์](#-ภาพรวมโปรเจกต์)
+- [Tech Stack & Versions](#-tech-stack--versions)
+- [Prerequisites](#-prerequisites)
+- [Installation Guide](#-installation-guide)
+- [Environment Setup](#-environment-setup)
+- [Database Setup](#-database-setup)
+- [Running the Application](#-running-the-application)
+- [Project Structure](#-project-structure)
+- [Architecture Diagram](#-architecture-diagram)
+- [Features](#-features)
+- [Security](#-security)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
-## 2. Business Problem & Goals
+## 🎯 ภาพรวมโปรเจกต์
 
-### 2.1 Pain Points ปัจจุบัน (มองจากมุมสาขา J&T)
+**SmartShip Branch Assistant** คือระบบ Portal สำหรับสาขาขนส่ง ช่วยจัดการ "ขั้นตอนหน้าร้าน" ให้เป็นระบบ:
 
-- ลูกค้าต้องเขียนที่อยู่/เบอร์โทรซ้ำ ๆ ทุกครั้ง  
-- พนักงานหน้าร้านต้องพิมพ์ข้อมูลซ้ำจากกระดาษเข้าเครื่อง J&T  
-- มีโอกาสพิมพ์ผิด (ชื่อ/เบอร์/รหัสไปรษณีย์)  
-- เวลาเยอะในขั้นตอน “รับข้อมูล” มากกว่าการจัดการพัสดุจริง ๆ  
-- ยังไม่ได้นำ AI / Automation มาช่วยตรวจสอบหรือทวนข้อมูล
-
-### 2.2 Goals ของ SmartShip Branch Assistant
-
-1. **ลดเวลาหน้าร้าน**  
-   - ให้พนักงานมีหน้าจอเดียว ที่ต้องพิมพ์น้อยที่สุด  
-   - ใช้ QR Code เป็นตัวกลางระหว่างระบบสาขา vs ระบบ J&T
-
-2. **เตรียมฐานข้อมูลกลางของสาขาเอง**  
-   - เก็บข้อมูลลูกค้า, ประวัติการส่ง, สถานะพัสดุ (ระดับ branch)  
-   - ต่อกับระบบอื่นในอนาคตได้ (n8n, Line, AI ฯลฯ)
-
-3. **ออกแบบให้ต่อยอดเป็น AI/Automation ได้ง่าย**  
-   - ตรวจสอบที่อยู่/รหัสไปรษณีย์  
-   - แนะนำบริการเสริม (COD, ประกัน ฯลฯ)  
-   - ทำรายงานสรุปยอดรายวัน/รายเดือนอัตโนมัติ
+1. **ส่วนที่ 1 – ระบบหน้าร้านของสาขา** – เก็บข้อมูลผู้ส่ง/ผู้รับ, สร้าง QR Code
+2. **ส่วนที่ 2 – ระบบรับเข้า J&T** – สแกน QR เพื่อดึงข้อมูลได้เร็ว, ยืนยันส่งเข้าระบบ
 
 ---
 
-## 3. Scope ปัจจุบัน (MVP 1 – Implement แล้ว)
+## 🛠 Tech Stack & Versions
 
-### 3.1 ฟีเจอร์ที่ทำงานจริงแล้ว
+### Core Framework
 
-- ✅ **UC-01: Create Shipment Draft & QR**
-  - หน้าเว็บ `/shipments/new`
-  - พนักงานกรอกข้อมูลผู้ส่ง/ผู้รับ  
-  - ระบบล็อกที่อยู่ผู้ส่ง = ที่อยู่สาขา
-  - บันทึกลงตาราง `shipments` (สถานะ `draft`)
-  - สร้าง QR Code ที่มี payload:
+| Technology | Version | Description |
+|------------|---------|-------------|
+| **Next.js** | `16.0.7` | React Framework with App Router |
+| **React** | `19.2.0` | UI Library |
+| **React DOM** | `19.2.0` | React DOM Renderer |
+| **TypeScript** | `^5` | Type-safe JavaScript |
 
-    ```json
-    {
-      "shipment_id": "<UUID จาก shipments.id>",
-      "branch_code": "BR001"
-    }
-    ```
+### Database & Auth
 
-- ✅ **UC-02: Scan QR & Confirm Shipment**
-  - หน้าเว็บ `/shipments/scan`
-  - รับ QR ผ่านกล้อง (หรือวาง JSON ลง textarea สำหรับเครื่องที่ไม่มีกล้อง)
-  - อ่าน `shipment_id` จาก QR → ดึงข้อมูลจาก `shipments`
-  - แสดงรายละเอียดพัสดุให้พนักงานตรวจสอบ
-  - ปุ่ม “ยืนยันรับพัสดุ (จำลองส่งเข้า J&T)”  
-    → update `shipments.status = 'confirmed'`  
-    → set `confirmed_at`, `confirmed_by`
+| Technology | Version | Description |
+|------------|---------|-------------|
+| **Supabase JS** | `^2.86.2` | Supabase Client |
+| **Supabase SSR** | `^0.8.0` | Server-Side Rendering support |
+| **PostgreSQL** | (via Supabase) | Database |
 
-### 3.2 ฟีเจอร์ในเอกสาร / DB พร้อมต่อยอด
+### Styling
 
-- ตาราง `thai_locations` – เก็บข้อมูลจังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์ (เตรียมไว้ใช้ตรวจสอบ address)  
-- ตาราง `audit_log` – ใช้บันทึกเหตุการณ์สำคัญ เช่น `CREATE_SHIPMENT`, `CONFIRM_SHIPMENT` (ยังไม่ implement logic เต็ม)  
-- โครง security / hardening ที่ระบุไว้ใน README + docs (RLS, การแยก role ฯลฯ) – ใช้เป็น guideline ในอนาคต
+| Technology | Version | Description |
+|------------|---------|-------------|
+| **TailwindCSS** | `^4` | Utility-first CSS |
+| **@tailwindcss/postcss** | `^4` | PostCSS plugin |
 
----
+### QR Code & Scanner
 
-## 4. System Design
+| Technology | Version | Description |
+|------------|---------|-------------|
+| **react-qr-code** | `^2.0.18` | QR Code Generator |
+| **@yudiel/react-qr-scanner** | `^2.5.0` | QR Code Scanner |
+| **promptpay-qr** | `^0.5.0` | PromptPay QR Generator |
 
-### 4.1 High-level Architecture
+### Security & Auth
 
-```mermaid
-flowchart LR
-    C[Customer<br/>ลูกค้าหน้าร้าน] -->|แจ้งข้อมูลส่งของ| S(Branch Staff)
+| Technology | Version | Description |
+|------------|---------|-------------|
+| **bcryptjs** | `^3.0.3` | Password Hashing |
+| **@simplewebauthn/browser** | `^13.2.2` | WebAuthn Browser API |
+| **@simplewebauthn/server** | `^13.2.2` | WebAuthn Server API |
+| **@marsidev/react-turnstile** | `^1.4.1` | Cloudflare Turnstile |
 
-    subgraph Portal[SmartShip Branch Portal<br/>(Next.js)]
-        P1[/หน้า UC-01<br/>/shipments/new/]
-        P2[/หน้า UC-02<br/>/shipments/scan/]
-    end
+### UI Components
 
-    S --> P1
-    P1 -->|insert draft + สร้าง QR| DB[(Supabase<br/>PostgreSQL)]
-
-    P1 -->|แสดง QR Code| S
-
-    S --> P2
-    P2 -->|scan/wrap JSON<br/>{"shipment_id", "branch_code"}| P2
-    P2 -->|ดึงข้อมูล shipment| DB
-
-    P2 -->|update status=confirmed<br/>+ confirmed_at, confirmed_by| DB
-
-    DB --> R[(Reports / n8n / Line<br/>(ในอนาคต))]
-    เทคโนโลยีหลัก:
-
-      Frontend / Portal: Next.js 15 (App Router), TypeScript, Tailwind CSS
-
-      Database: Supabase (PostgreSQL)
-
-      Auth (MVP): ยังไม่แยก user จริง ใช้ค่า demo_staff ใน confirmed_by เพื่อให้เห็น flow ก่อน
-
-    QR:
-
-      Generate: react-qr-code
-
-      Scan: @yudiel/react-qr-scanner
+| Technology | Version | Description |
+|------------|---------|-------------|
+| **lucide-react** | `^0.562.0` | Icon Library |
 
 ---
 
-## 9. 📧 n8n Email & Automation Integration
+## 📦 Prerequisites
 
-ระบบ SmartShip ใช้ **n8n** เป็น automation layer สำหรับส่ง email ใบเสร็จและการแจ้งเตือนต่างๆ
+ก่อนติดตั้ง ตรวจสอบว่าเครื่องมีโปรแกรมเหล่านี้:
 
-### 9.1 Architecture Overview
+| Software | Minimum Version | Check Command |
+|----------|-----------------|---------------|
+| **Node.js** | `18.17.0+` (แนะนำ `20.x` หรือ `22.x`) | `node --version` |
+| **npm** | `9.0+` | `npm --version` |
+| **Git** | `2.x` | `git --version` |
 
-```mermaid
-flowchart LR
-    A[Customer สั่งซื้อ] --> B[SmartShip สร้าง Order]
-    B --> C[Trigger Webhook → n8n]
-    C --> D[n8n สร้าง Email Template]
-    D --> E[ส่ง Email ถึงลูกค้า]
-    C --> F[แจ้ง LINE Admin]
-    C --> G[บันทึก Log]
-```
-
-### 9.2 Environment Variables ที่จำเป็น
-
-เพิ่มใน `.env.local`:
+### ติดตั้ง Node.js
 
 ```bash
-# ===== n8n WEBHOOKS =====
-# Webhook URL สำหรับ trigger email ใบเสร็จเมื่อมี order ใหม่
-N8N_ORDER_WEBHOOK_URL=https://your-n8n.com/webhook/order-confirmation
+# Windows - ดาวน์โหลดจาก https://nodejs.org/
+# หรือใช้ winget
+winget install OpenJS.NodeJS.LTS
 
-# Webhook URL สำหรับแจ้งเตือนเมื่ออัปโหลดสลิป (optional)
-N8N_SLIP_WEBHOOK_URL=https://your-n8n.com/webhook/slip-uploaded
+# macOS - ใช้ Homebrew
+brew install node@20
 
-# Base URL ของ site (ใช้สร้าง link ชำระเงิน)
-NEXT_PUBLIC_SITE_URL=https://smartship.vercel.app
-```
-
-### 9.3 Database Migration
-
-เพิ่ม column สำหรับ email ลูกค้า:
-
-```sql
--- เพิ่ม column customer_email ใน orders table
-ALTER TABLE orders ADD COLUMN customer_email TEXT;
-
--- (Optional) เพิ่ม index สำหรับ query ตาม email
-CREATE INDEX idx_orders_customer_email ON orders(customer_email);
-```
-
-### 9.4 Webhook Payload ที่ส่งไป n8n
-
-เมื่อมี order ใหม่ ระบบจะส่ง JSON ดังนี้ไปยัง n8n:
-
-```json
-{
-  "order_no": "ORD-1705234567890",
-  "customer_name": "สมชาย ใจดี",
-  "customer_email": "somchai@email.com",
-  "customer_phone": "0812345678",
-  "customer_address": "123/45 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110",
-  "total_amount": 1500,
-  "payment_method": "promptpay",
-  "items": [
-    {
-      "name": "ชุดแพ็คกิ้ง A",
-      "quantity": 2,
-      "price": 500,
-      "line_total": 1000
-    },
-    {
-      "name": "กล่องพัสดุ B",
-      "quantity": 1,
-      "price": 500,
-      "line_total": 500
-    }
-  ],
-  "pay_link": "https://smartship.vercel.app/pay/ORD-1705234567890",
-  "created_at": "2026-01-14T20:30:00.000Z",
-  "triggered_at": "2026-01-14T20:30:01.000Z",
-  "source": "smartship-order"
-}
-```
-
-### 9.5 Use Cases ที่รองรับ
-
-| Use Case | Trigger | การทำงาน |
-|----------|---------|----------|
-| **UC-Email-01**: ส่ง Email ใบเสร็จ | Order สร้างสำเร็จ + มี email | n8n สร้าง HTML email พร้อมลิงก์ชำระเงิน |
-| **UC-Email-02**: เตือนชำระเงิน | n8n Delay 1-24 ชม. | ถ้ายังไม่ชำระ ส่ง reminder email |
-| **UC-Email-03**: ยืนยันชำระเงิน | Admin อนุมัติสลิป | ส่ง email ขอบคุณพร้อมสถานะ |
-| **UC-Email-04**: Multi-channel | Order ใหม่ | ส่ง Email + LINE + Slack พร้อมกัน |
-
-### 9.6 วิธี Setup n8n Workflow
-
-#### Step 1: สร้าง Webhook Node
-
-1. ใน n8n สร้าง New Workflow
-2. เพิ่ม **Webhook** node
-3. ตั้งค่า:
-   - HTTP Method: `POST`
-   - Path: `order-confirmation` (หรือชื่อที่ต้องการ)
-4. Copy Production URL เอาไปใส่ใน `N8N_ORDER_WEBHOOK_URL`
-
-#### Step 2: เพิ่ม Set Node (Format Data)
-
-1. เพิ่ม **Set** node หลัง Webhook
-2. สร้าง fields ใหม่:
-
-```javascript
-// ตัวอย่าง expressions
-{{$json.customer_name}}
-{{$json.order_no}}
-{{$json.total_amount.toLocaleString('th-TH')}}
-```
-
-#### Step 3: ใส่ Email Node
-
-1. เพิ่ม **Send Email** node (Gmail / SMTP / SendGrid)
-2. ตั้งค่า:
-   - **To**: `{{$json.customer_email}}`
-   - **Subject**: `🧾 ยืนยันคำสั่งซื้อ {{$json.order_no}}`
-   - **HTML**: (ดู template ด้านล่าง)
-
-### 9.7 Email Template ตัวอย่าง
-
-```html
-<!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { 
-      font-family: 'Sarabun', 'Helvetica', sans-serif; 
-      background: #f5f5f5; 
-      padding: 20px;
-    }
-    .container { 
-      max-width: 600px; 
-      margin: 0 auto; 
-      background: white; 
-      border-radius: 12px; 
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .header { 
-      background: linear-gradient(135deg, #1a1a1a, #333); 
-      color: white; 
-      padding: 30px; 
-      text-align: center; 
-    }
-    .header h1 { margin: 0 0 10px 0; font-size: 24px; }
-    .header .order-no { 
-      background: rgba(255,255,255,0.2); 
-      padding: 8px 16px; 
-      border-radius: 20px; 
-      font-size: 14px;
-    }
-    .content { padding: 30px; }
-    .greeting { font-size: 18px; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    th { 
-      background: #f8f8f8; 
-      padding: 12px; 
-      text-align: left; 
-      border-bottom: 2px solid #eee;
-    }
-    td { padding: 12px; border-bottom: 1px solid #eee; }
-    .total-row { 
-      font-size: 20px; 
-      font-weight: bold; 
-      color: #2563eb; 
-    }
-    .btn { 
-      display: inline-block;
-      background: #2563eb; 
-      color: white !important; 
-      padding: 16px 32px; 
-      text-decoration: none; 
-      border-radius: 8px; 
-      font-weight: bold;
-      margin: 20px 0;
-    }
-    .footer { 
-      background: #f8f8f8; 
-      padding: 20px; 
-      text-align: center; 
-      font-size: 12px; 
-      color: #666;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>🧾 ยืนยันคำสั่งซื้อ</h1>
-      <span class="order-no">{{order_no}}</span>
-    </div>
-    
-    <div class="content">
-      <p class="greeting">สวัสดีครับ/ค่ะ <strong>{{customer_name}}</strong></p>
-      <p>ขอบคุณสำหรับคำสั่งซื้อ รายละเอียดดังนี้:</p>
-      
-      <table>
-        <tr>
-          <th>สินค้า</th>
-          <th>จำนวน</th>
-          <th style="text-align: right;">ราคา</th>
-        </tr>
-        <!-- Loop items ใน n8n -->
-        {{#each items}}
-        <tr>
-          <td>{{name}}</td>
-          <td>{{quantity}}</td>
-          <td style="text-align: right;">฿{{line_total}}</td>
-        </tr>
-        {{/each}}
-        <tr class="total-row">
-          <td colspan="2">ยอดรวมทั้งสิ้น</td>
-          <td style="text-align: right;">฿{{total_amount}}</td>
-        </tr>
-      </table>
-      
-      <div style="text-align: center;">
-        <a href="{{pay_link}}" class="btn">💳 ชำระเงินเลย</a>
-      </div>
-      
-      <p style="color: #666; font-size: 14px;">
-        📍 <strong>ที่อยู่จัดส่ง:</strong><br>
-        {{customer_address}}
-      </p>
-      
-      <p style="color: #666; font-size: 14px;">
-        📞 <strong>เบอร์ติดต่อ:</strong> {{customer_phone}}
-      </p>
-    </div>
-    
-    <div class="footer">
-      <p>SmartShip Express - Premium Packing Solutions</p>
-      <p>หากมีคำถาม กรุณาติดต่อเราผ่าน LINE หรือโทร xxx-xxx-xxxx</p>
-    </div>
-  </div>
-</body>
-</html>
-```
-
-### 9.8 n8n Workflow Diagram
-
-```mermaid
-flowchart TD
-    A[Webhook: Order Confirmation] --> B{มี email?}
-    B -->|Yes| C[Set: Format Data]
-    B -->|No| END[End - Skip Email]
-    
-    C --> D[Send Email: ใบเสร็จ]
-    D --> E[Wait: 2 hours]
-    E --> F{ตรวจสอบ: ชำระแล้ว?}
-    F -->|No| G[Send Email: Reminder]
-    F -->|Yes| END2[End]
-    G --> END3[End]
-```
-
-### 9.9 Files ที่เกี่ยวข้อง
-
-| File | Description |
-|------|-------------|
-| `app/lib/n8n.ts` | Webhook helper functions |
-| `app/actions/order.ts` | Order creation + n8n trigger |
-| `app/components/shop/CheckoutForm.tsx` | Checkout form with email field |
-| `app/context/LanguageContext.tsx` | Thai/English translations |
-
-### 9.10 Testing
-
-1. **ตั้งค่า n8n Webhook** ใน Test Mode
-2. **สร้าง test order** พร้อมใส่ email
-3. **ตรวจสอบ n8n execution** ว่าได้รับ webhook
-4. **ตรวจสอบ inbox** ว่าได้รับ email
-
-```bash
-# ดู log ใน development
-npm run dev
-
-# ดู console output สำหรับ n8n trigger
-# [n8n] Order email triggered successfully for: ORD-xxx
+# Linux - ใช้ nvm (แนะนำ)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+nvm install 20
+nvm use 20
 ```
 
 ---
 
-## 10. 🚀 Quick Start Guide
+## 🚀 Installation Guide
 
-### 10.1 Clone & Install
+### Step 1: Clone Repository
 
 ```bash
+# Clone the repository
 git clone https://github.com/Prakasit993/SmartShip-Branch.git
+
+# Navigate to project directory
 cd SmartShip-Branch
+```
+
+### Step 2: Install Dependencies
+
+```bash
+# Install all npm packages
 npm install
 ```
 
-### 10.2 Environment Setup
+> ⏱️ การติดตั้งใช้เวลาประมาณ 1-2 นาที
+
+### Step 3: Verify Installation
 
 ```bash
-# Copy template
-cp .env.example .env.local
-
-# Edit .env.local with your values
+# Check if installation successful
+npm list --depth=0
 ```
-
-### 10.3 Database Setup
-
-```sql
--- Run in Supabase SQL Editor
--- 1. Add email column
-ALTER TABLE orders ADD COLUMN customer_email TEXT;
-
--- 2. (Optional) Other migrations...
-```
-
-### 10.4 Run Development
-
-```bash
-npm run dev
-# Open http://localhost:3000
-```
-
-### 10.5 n8n Setup
-
-1. Create n8n account at https://n8n.io
-2. Create new workflow with Webhook trigger
-3. Copy webhook URL to `.env.local`
-4. Test with a sample order
 
 ---
 
-## 11. 🚢 Production Deployment Guide
+## ⚙️ Environment Setup
 
-### 11.1 Environment Variables (รายการทั้งหมด)
-
-| Variable | Required | Exposes to Client | Description |
-|----------|----------|-------------------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | ✅ | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | ✅ | Supabase anon/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | ❌ | Supabase service role key (bypasses RLS) |
-| `ADMIN_PASSWORD` | ✅ | ❌ | Password for admin login |
-| `ADMIN_EMAIL` | ✅ | ❌ | Email with full admin access |
-| `STAFF_EMAILS` | ❌ | ❌ | Comma-separated staff emails |
-| `N8N_ORDER_WEBHOOK_URL` | ❌ | ❌ | n8n webhook for email receipts |
-| `N8N_SLIP_WEBHOOK_URL` | ❌ | ❌ | n8n webhook for slip notifications |
-| `NEXT_PUBLIC_SITE_URL` | ❌ | ✅ | Production site URL |
-| `LINE_NOTIFY_TOKEN` | ❌ | ❌ | LINE Notify token for admin alerts |
-
-### 11.2 ตัวอย่าง .env.local (Development)
+### Step 1: Create Environment File
 
 ```bash
-# ===== SUPABASE =====
+# Copy template (ถ้ามี .env.example)
+cp .env.example .env.local
+
+# หรือสร้างไฟล์ใหม่
+touch .env.local  # Linux/macOS
+# Windows: สร้างไฟล์ .env.local ด้วย Notepad หรือ IDE
+```
+
+### Step 2: Configure Environment Variables
+
+เพิ่มค่าต่อไปนี้ใน `.env.local`:
+
+```bash
+# ===== SUPABASE (Required) =====
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# ===== ADMIN ACCESS =====
-# รหัสผ่านควรยาว 16+ ตัวอักษร มีตัวพิมพ์ใหญ่/เล็ก ตัวเลข และสัญลักษณ์
+# ===== ADMIN ACCESS (Required) =====
 ADMIN_PASSWORD=MySecure@Password123!
 ADMIN_EMAIL=admin@yourcompany.com
 STAFF_EMAILS=staff1@company.com,staff2@company.com
@@ -781,368 +172,577 @@ N8N_ORDER_WEBHOOK_URL=https://your-n8n.com/webhook/order-confirmation
 N8N_SLIP_WEBHOOK_URL=https://your-n8n.com/webhook/slip-uploaded
 
 # ===== SITE CONFIG =====
-NEXT_PUBLIC_SITE_URL=https://smartship.vercel.app
-
-# ===== LINE NOTIFY (Optional) =====
-LINE_NOTIFY_TOKEN=xxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-### 11.3 การตั้งค่าใน Vercel (Production)
+### Environment Variables Reference
 
-**⚠️ อย่า commit ไฟล์ .env ขึ้น Git!**
+| Variable | Required | Client-side | Description |
+|----------|:--------:|:-----------:|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | ✅ | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | ✅ | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | ❌ | Service role key (bypasses RLS) |
+| `ADMIN_PASSWORD` | ✅ | ❌ | Admin login password |
+| `ADMIN_EMAIL` | ✅ | ❌ | Admin email |
+| `STAFF_EMAILS` | ❌ | ❌ | Staff emails (comma-separated) |
+| `N8N_ORDER_WEBHOOK_URL` | ❌ | ❌ | n8n webhook URL |
+| `NEXT_PUBLIC_SITE_URL` | ❌ | ✅ | Production site URL |
 
-1. ไปที่ **Vercel Dashboard** → Project → **Settings** → **Environment Variables**
+---
 
-2. เพิ่ม variables ทีละตัว:
+## 🗄️ Database Setup
 
-```
-┌─────────────────────────────────┬──────────────────────────────┐
-│ Key                             │ Environment                  │
-├─────────────────────────────────┼──────────────────────────────┤
-│ NEXT_PUBLIC_SUPABASE_URL        │ Production, Preview, Dev     │
-│ NEXT_PUBLIC_SUPABASE_ANON_KEY   │ Production, Preview, Dev     │
-│ SUPABASE_SERVICE_ROLE_KEY       │ Production only              │
-│ ADMIN_PASSWORD                  │ Production only              │
-│ ADMIN_EMAIL                     │ Production only              │
-│ STAFF_EMAILS                    │ Production only              │
-│ N8N_ORDER_WEBHOOK_URL           │ Production only              │
-│ NEXT_PUBLIC_SITE_URL            │ Production only              │
-└─────────────────────────────────┴──────────────────────────────┘
-```
+### Option A: Using Supabase (Recommended)
 
-3. **Redeploy** หลังจากเพิ่ม variables
+1. **สร้าง Supabase Project** ที่ [supabase.com](https://supabase.com)
 
-### 11.4 Security Best Practices
-
-```bash
-# ✅ สิ่งที่ต้องทำ
-─────────────────────────────────────
-1. ใช้รหัสผ่านที่แข็งแรง (16+ ตัวอักษร)
-2. ตรวจสอบ .gitignore มี .env*
-3. ใช้ HTTPS เสมอใน production
-4. เปลี่ยน ADMIN_PASSWORD ทุก 3-6 เดือน
-5. Review STAFF_EMAILS เป็นประจำ
-
-# ❌ สิ่งที่ห้ามทำ
-─────────────────────────────────────
-1. Commit .env files ขึ้น Git
-2. Share credentials ผ่าน chat/email
-3. ใช้รหัสผ่านง่ายๆ เช่น admin123
-4. ใส่ SERVICE_ROLE_KEY ใน NEXT_PUBLIC_*
-```
-
-### 11.5 Pre-Deploy Checklist
-
-```
-[ ] รัน npm run build สำเร็จ
-[ ] ตรวจสอบ .gitignore มี .env*
-[ ] เพิ่ม customer_email column ใน database
-[ ] ตั้งค่า Environment Variables ใน Vercel
-[ ] ทดสอบ admin login
-[ ] ทดสอบ order flow
-```
-
-### 11.6 Deploy Commands
-
-```bash
-# 1. ตรวจสอบ build
-npm run build
-
-# 2. Commit changes
-git add .
-git commit -m "Production ready"
-
-# 3. Push to GitHub
-git push origin main
-
-# 4. Vercel auto-deploys หรือ:
-vercel --prod
-```
-
-### 11.7 Database Migrations (Supabase SQL)
-
-รันใน **Supabase SQL Editor** ก่อน deploy:
+2. **รัน Schema** ใน SQL Editor:
 
 ```sql
--- เพิ่ม customer_email column
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
-
--- เพิ่ม index
-CREATE INDEX IF NOT EXISTS idx_orders_customer_email 
-    ON orders(customer_email);
+-- ไปที่ database/db/schema.sql แล้ว copy มารัน
+-- หรือรันทีละไฟล์ใน database/db/migrations/
 ```
 
-### 11.8 Post-Deploy Verification
+3. **รัน Migrations** ตามลำดับ:
 
-หลัง deploy สำเร็จ ทดสอบ:
+```
+database/db/migrations/
+├── 20260110_operations.sql
+├── 20260110_rpc_stock.sql
+├── 20260111_add_product_attributes.sql
+├── 20260111_add_product_attributes_safe.sql
+├── 20260111_add_product_images.sql
+├── 20260114_fix_rls_security.sql
+├── 20260115_security_hardening.sql
+├── 20260119_add_bundle_dimensions.sql
+├── 20260123_sync_bundle_dimensions.sql
+├── add_email_and_rls.sql
+└── v2_reviews_coupons.sql
+```
 
-1. **Homepage** - โหลดสินค้าได้ไหม
-2. **Admin Login** - `/admin/login` ใช้งานได้ไหม
-3. **Order Flow** - สร้าง order ได้ไหม
-4. **Email Receipt** - n8n trigger ทำงานไหม (ถ้าตั้งค่าไว้)
-
----
-
-## 12. 🆕 New Features Update (January 2026)
-
-### 12.1 สรุปฟีเจอร์ที่เพิ่มเติม
-
-| ฟีเจอร์ | สถานะ | รายละเอียด |
-|---------|-------|------------|
-| 🔐 **Bcrypt Password Hashing** | ✅ เสร็จ | เปลี่ยนจาก plaintext เป็น bcrypt ใน admin login |
-| 🌏 **Thai Translation (Admin Forms)** | ✅ เสร็จ | แปล ProductForm, BundleForm เป็นภาษาไทย |
-| 📷 **Direct Image Upload** | ✅ เสร็จ | อัพโหลดรูปสินค้าตรงไป Supabase Storage |
-| 💳 **QR Code Payment** | ✅ เสร็จ | อัพโหลด QR Code PromptPay ใน Settings |
-| 🔔 **Toast Notifications** | ✅ เสร็จ | Popup แจ้งเตือนสำเร็จ/ล้มเหลวในทุกหน้า Admin |
-| 📱 **LINE Notify Enhanced** | ✅ เสร็จ | เพิ่มเบอร์โทร + รายการสินค้าในการแจ้งเตือน |
-| 🛡️ **Cloudflare Turnstile** | ✅ เสร็จ | Bot protection สำหรับ Admin Login |
-
----
-
-### 12.2 🔐 การตั้งค่า Bcrypt Password
-
-#### ขั้นตอนการสร้าง Password Hash
+### Option B: Local PostgreSQL
 
 ```bash
-# 1. ติดตั้ง bcryptjs (ถ้ายังไม่มี)
-npm install bcryptjs
+# สร้าง database
+createdb smartship
 
-# 2. สร้าง hash ใน Node.js console
-node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('YOUR_PASSWORD_HERE', 12));"
+# รัน schema
+psql -d smartship -f database/db/schema.sql
+
+# รัน migrations
+for f in database/db/migrations/*.sql; do
+  psql -d smartship -f "$f"
+done
 ```
-
-#### ตัวอย่าง Output:
-```
-$2a$12$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-#### เพิ่มใน Environment Variables:
-
-```bash
-# .env.local หรือ Vercel Environment Variables
-ADMIN_PASSWORD_HASH=$2a$12$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ADMIN_USERNAME=admin
-```
-
-> ⚠️ **หมายเหตุ**: ระบบยังรองรับ `ADMIN_PASSWORD` แบบเก่า แต่แนะนำให้เปลี่ยนเป็น hash
 
 ---
 
-### 12.3 📷 การตั้งค่า Image Upload (Supabase Storage)
+## ▶️ Running the Application
 
-#### ขั้นตอนการสร้าง Storage Bucket
+### Development Mode
 
-1. **ไปที่ Supabase Dashboard** → Storage → New Bucket
+```bash
+# Start development server
+npm run dev
 
-2. **ตั้งค่า Bucket**:
-   ```
-   Name: product-images
-   Public bucket: ✅ (ติ๊กเลือก)
-   ```
+# เปิด browser ที่ http://localhost:3000
+```
 
-3. **ตั้งค่า Policies** (ถ้าต้องการ):
-   - Allow public read: `SELECT` for all
-   - Allow authenticated upload: `INSERT` for authenticated users
+### Production Build
 
-#### ไฟล์ที่เกี่ยวข้อง:
+```bash
+# Build for production
+npm run build
 
-| ไฟล์ | หน้าที่ |
+# Start production server
+npm run start
+```
+
+### Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server (port 3000) |
+| `npm run build` | Create production build |
+| `npm run start` | Start production server |
+
+---
+
+## 📁 Project Structure
+
+```
+SmartShip-Branch/
+├── 📂 app/                    # Next.js App Router
+│   ├── 📂 (shop)/             # Shop pages (ฝั่งลูกค้า)
+│   ├── 📂 admin/              # Admin dashboard
+│   ├── 📂 api/                # API routes
+│   ├── 📂 actions/            # Server actions
+│   ├── 📂 auth/               # Authentication
+│   ├── 📂 components/         # React components
+│   ├── 📂 context/            # React contexts
+│   ├── 📂 hooks/              # Custom hooks
+│   ├── 📂 lib/                # Utility libraries
+│   ├── 📂 shipments/          # Shipment management
+│   ├── 📂 types/              # TypeScript types
+│   ├── 📜 layout.tsx          # Root layout
+│   ├── 📜 page.tsx            # Home page
+│   └── 📜 globals.css         # Global styles
+│
+├── 📂 database/
+│   └── 📂 db/
+│       ├── 📜 schema.sql      # Main database schema
+│       ├── 📂 migrations/     # SQL migrations
+│       └── 📂 seeds/          # Seed data
+│
+├── 📂 docs/                   # Documentation
+│   ├── 📜 architecture.md     # System architecture
+│   ├── 📜 data-model.md       # Data model documentation
+│   ├── 📜 security.md         # Security guidelines
+│   ├── 📜 use-cases.md        # Use case documentation
+│   └── 📜 todo.md             # Project TODO list
+│
+├── 📂 public/                 # Static assets
+├── 📂 scripts/                # Utility scripts
+├── 📂 src/                    # Source utilities
+│
+├── 📜 middleware.ts           # Next.js middleware
+├── 📜 next.config.ts          # Next.js configuration
+├── 📜 package.json            # Dependencies
+├── 📜 tsconfig.json           # TypeScript config
+├── 📜 postcss.config.mjs      # PostCSS config
+└── 📜 README.md               # This file
+```
+
+---
+
+## 🏗️ Architecture Diagram
+
+### System Overview
+
+```mermaid
+flowchart TB
+    subgraph Clients["👥 Clients"]
+        Customer[👤 Customer<br/>ลูกค้าหน้าร้าน]
+        Staff[👨‍💼 Branch Staff<br/>พนักงาน]
+        Owner[👔 Branch Owner<br/>เจ้าของสาขา]
+    end
+
+    subgraph Portal["🌐 SmartShip Portal (Next.js 16)"]
+        Shop[🛒 Shop<br/>/shop/*]
+        Admin[⚙️ Admin<br/>/admin/*]
+        Shipments[📦 Shipments<br/>/shipments/*]
+        API[🔌 API Routes<br/>/api/*]
+    end
+
+    subgraph Backend["☁️ Backend Services"]
+        Supabase[(🗄️ Supabase<br/>PostgreSQL)]
+        Auth[🔐 Supabase Auth]
+        Storage[📁 Storage]
+    end
+
+    subgraph External["🔗 External Services"]
+        N8N[⚡ n8n<br/>Automation]
+        JT[📬 J&T System]
+        AI[🤖 AI Services]
+        LINE[💬 LINE]
+    end
+
+    Customer --> Shop
+    Staff --> Admin
+    Staff --> Shipments
+    Owner --> Admin
+
+    Shop --> API
+    Admin --> API
+    Shipments --> API
+
+    API --> Supabase
+    API --> Auth
+    API --> Storage
+
+    API <--> N8N
+    N8N --> JT
+    N8N --> AI
+    N8N --> LINE
+```
+
+### Request Flow: Create Shipment
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Staff
+    participant P as Portal
+    participant DB as Supabase
+    participant QR as QR Generator
+
+    S->>P: กรอกข้อมูลผู้ส่ง/ผู้รับ
+    P->>DB: INSERT shipment (status=draft)
+    DB-->>P: shipment_id
+    P->>QR: Generate QR Code
+    QR-->>P: QR Image
+    P-->>S: แสดง QR Code + รายละเอียด
+    S->>S: ปริ้น/ติด QR บนกล่อง
+```
+
+### Request Flow: Confirm Shipment
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Staff
+    participant P as Portal
+    participant DB as Supabase
+    participant JT as J&T System
+
+    S->>P: สแกน QR Code
+    P->>P: Decode QR → shipment_id
+    P->>DB: SELECT shipment WHERE id=?
+    DB-->>P: Shipment data
+    P-->>S: แสดงรายละเอียดพัสดุ
+    S->>P: ยืนยันข้อมูล + กรอกน้ำหนัก
+    P->>DB: UPDATE status=confirmed
+    P->>JT: ส่งข้อมูลเข้าระบบ J&T
+    JT-->>P: Tracking number
+    P->>DB: UPDATE jt_tracking
+    P-->>S: ✅ รับเข้าระบบสำเร็จ
+```
+
+### Database Entity Relationship
+
+```mermaid
+erDiagram
+    CATEGORIES ||--o{ BUNDLES : contains
+    BUNDLES ||--o{ BUNDLE_ITEMS : has
+    BUNDLES ||--o{ BUNDLE_OPTION_GROUPS : has
+    BUNDLE_OPTION_GROUPS ||--o{ BUNDLE_OPTIONS : contains
+    PRODUCTS ||--o{ BUNDLE_ITEMS : used_in
+    PRODUCTS ||--o{ BUNDLE_OPTIONS : referenced_by
+    CUSTOMERS ||--o{ ORDERS : places
+    ORDERS ||--o{ ORDER_ITEMS : contains
+    BUNDLES ||--o{ ORDER_ITEMS : included_in
+
+    CATEGORIES {
+        bigint id PK
+        text name
+        text slug UK
+        text image_url
+        int sort_order
+        boolean is_active
+    }
+
+    PRODUCTS {
+        bigint id PK
+        text name
+        text description
+        decimal price
+        text sku UK
+        text image_url
+        int stock_quantity
+        boolean is_active
+    }
+
+    BUNDLES {
+        bigint id PK
+        text name
+        text slug UK
+        decimal price
+        text type
+        bigint category_id FK
+    }
+
+    CUSTOMERS {
+        uuid id PK
+        text line_user_id UK
+        text name
+        text phone
+        text address
+    }
+
+    ORDERS {
+        bigint id PK
+        text order_no UK
+        uuid customer_id FK
+        decimal total_amount
+        text status
+        text payment_status
+    }
+```
+
+---
+
+## ✨ Features
+
+### 🛒 Shop (ฝั่งลูกค้า)
+- ✅ แสดงสินค้าและ Bundle
+- ✅ ตะกร้าสินค้า
+- ✅ ชำระเงินผ่าน PromptPay
+- ✅ ติดตามสถานะ Order
+
+### ⚙️ Admin Dashboard
+- ✅ จัดการ Products / Categories / Bundles
+- ✅ จัดการ Orders
+- ✅ จัดการ Stock
+- ✅ รายงานยอดขาย
+
+### 📦 Shipments
+- ✅ สร้าง Shipment Draft + QR Code
+- ✅ สแกน QR และยืนยัน Shipment
+- ✅ เชื่อมต่อระบบ J&T (จำลอง)
+
+### 🔐 Security
+- ✅ Supabase Auth (Google OAuth)
+- ✅ RBAC (Admin / Staff)
+- ✅ Row Level Security (RLS)
+- ✅ HTTPS + Security Headers
+
+---
+
+## 🔒 Security
+
+### Security Headers (next.config.ts)
+
+- ✅ Content-Security-Policy
+- ✅ X-Frame-Options: DENY
+- ✅ X-Content-Type-Options: nosniff
+- ✅ Strict-Transport-Security (HSTS)
+- ✅ Referrer-Policy
+
+### Role-Based Access Control
+
+| Role | Access |
 |------|--------|
-| `app/api/admin/upload/route.ts` | API endpoint สำหรับอัพโหลด |
-| `app/admin/(dashboard)/products/_components/ProductForm.tsx` | ฟอร์มสินค้าพร้อม image upload |
-| `app/admin/(dashboard)/bundles/BundleForm.tsx` | ฟอร์มชุดสินค้าพร้อม image upload |
+| **Admin** | Full access: Products, Bundles, Settings, Orders, Stock |
+| **Staff** | Limited: Dashboard, Orders only |
+| **Customer** | Shop, own Orders only |
 
 ---
 
-### 12.4 💳 การตั้งค่า QR Code Payment
+## ❓ Troubleshooting
 
-#### ขั้นตอน:
+### Common Issues
 
-1. **ไปที่** `/admin/settings`
-2. **เปิดส่วน** "การชำระเงิน (Payment)"
-3. **กรอกข้อมูล**:
-   - ชื่อธนาคาร
-   - เลขบัญชี
-   - ชื่อบัญชี
-   - หมายเลข PromptPay
-4. **อัพโหลด QR Code**:
-   - กดปุ่ม "📷 อัพโหลด QR Code"
-   - เลือกไฟล์ภาพ QR Code PromptPay
-5. **กดบันทึก**
-
-#### การแสดงผลในหน้า Checkout:
-
-QR Code จะแสดงอัตโนมัติในหน้า Checkout พร้อม:
-- 📱 รูป QR Code
-- 🏦 ข้อมูลบัญชีธนาคาร
-- 💳 หมายเลข PromptPay
-
----
-
-### 12.5 🔔 Toast Notification System
-
-#### การใช้งานใน Client Components:
-
-```tsx
-import { useToast } from '@app/admin/context/ToastContext';
-
-function MyComponent() {
-    const { showSuccess, showError, showInfo, showWarning } = useToast();
-    
-    const handleSave = async () => {
-        try {
-            await saveData();
-            showSuccess('บันทึกสำเร็จ');
-        } catch (error) {
-            showError('เกิดข้อผิดพลาด: ' + error.message);
-        }
-    };
-    
-    return <button onClick={handleSave}>บันทึก</button>;
-}
-```
-
-#### การใช้งานกับ Server Actions (redirect):
-
-```ts
-// ใน server action
-redirect('/admin/products?toast=success&message=' + encodeURIComponent('บันทึกสำเร็จ'));
-```
-
-#### ประเภท Toast ที่รองรับ:
-
-| Type | สี | Icon | ใช้เมื่อ |
-|------|-----|------|---------|
-| `success` | เขียว | ✅ | ทำงานสำเร็จ |
-| `error` | แดง | ❌ | เกิดข้อผิดพลาด |
-| `warning` | เหลือง | ⚠️ | คำเตือน |
-| `info` | ฟ้า | ℹ️ | ข้อมูลทั่วไป |
-
----
-
-### 12.6 📱 LINE Notification Enhancement
-
-#### ข้อมูลที่แสดงในการแจ้งเตือน Order ใหม่:
-
-```
-📦 คำสั่งซื้อใหม่!
-─────────────────────
-เลขที่:    ORD-20260118-001
-ลูกค้า:    คุณสมชาย ใจดี
-📞 เบอร์:  081-234-5678         ← ใหม่!
-ยอดรวม:   ฿1,500
-ชำระ:     🏦 โอนเงิน
-─────────────────────
-🛒 รายการสินค้า:                ← ใหม่!
-• กล่องไปรษณีย์ A3           x5
-• เทปใส 2 นิ้ว              x2
-• ซองพลาสติก Size M         x10
-
-[📋 ดูรายละเอียด]
-[✅ ยืนยัน] [❌ ปฏิเสธ]
-```
-
-#### Configuration ที่ต้องมี:
+#### 1. `npm install` fails
 
 ```bash
-# .env.local
-LINE_CHANNEL_ACCESS_TOKEN=your-line-channel-access-token
-LINE_ADMIN_USER_ID=Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-LINE_STAFF_USER_IDS=Uaaa,Ubbb,Uccc  # Optional: แยก comma
+# Clear npm cache and retry
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install
+```
+
+#### 2. Port 3000 already in use
+
+```bash
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+
+# macOS/Linux
+lsof -i :3000
+kill -9 <PID>
+```
+
+#### 3. Supabase connection error
+
+- ตรวจสอบ `NEXT_PUBLIC_SUPABASE_URL` และ `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- ตรวจสอบว่า Supabase project ยัง active อยู่
+
+#### 4. Build errors
+
+```bash
+# ลบ cache และ build ใหม่
+rm -rf .next
+npm run build
 ```
 
 ---
 
-### 12.7 🛡️ Cloudflare Turnstile Setup
+## 🎓 Skills Roadmap & Learning Resources
 
-#### ขั้นตอน:
+### 📊 Skills Required
 
-1. **สร้าง Site** ที่ [Cloudflare Turnstile Dashboard](https://dash.cloudflare.com/?to=/:account/turnstile)
-
-2. **เพิ่ม Environment Variables**:
-   ```bash
-   NEXT_PUBLIC_TURNSTILE_SITE_KEY=0x4AAAxxxxxxxxxxxxxxxx
-   TURNSTILE_SECRET_KEY=0x4AAAxxxxxxxxxxxxxxxx
-   ```
-
-3. การ verify จะทำงานอัตโนมัติใน `/admin/login`
-
----
-
-## 13. 📋 Remaining Tasks (งานที่เหลือ)
-
-### 13.1 ❗ ต้องทำก่อน Deploy
-
-| ลำดับ | งาน | รายละเอียด |
-|-------|-----|------------|
-| 1 | 🗄️ สร้าง Storage Bucket | Supabase → Storage → New bucket → `product-images` |
-| 2 | 🔐 สร้าง Password Hash | ใช้ bcrypt สร้าง hash แล้วใส่ใน `ADMIN_PASSWORD_HASH` |
-| 3 | 💳 อัพโหลด QR Code | `/admin/settings` → การชำระเงิน → อัพโหลด QR |
-| 4 | 📱 ตั้งค่า LINE Credentials | ใส่ `LINE_CHANNEL_ACCESS_TOKEN` และ `LINE_ADMIN_USER_ID` |
-
-### 13.2 🔧 Optional Improvements
-
-| งาน | ลำดับความสำคัญ | รายละเอียด |
-|-----|---------------|------------|
-| 📊 Dashboard Analytics | Medium | เพิ่มกราฟยอดขายรายวัน/รายเดือน |
-| 🎁 Promotions Page | Low | หน้าจัดการโปรโมชั่นแยก |
-| 📧 Email Templates | Low | เพิ่ม template email ใน n8n |
-| 🔐 2FA Login | Low | เพิ่ม Two-Factor Authentication |
-| 📱 PWA Support | Low | ทำเป็น Progressive Web App |
-
-### 13.3 🧪 Testing Checklist
-
-```
-Pre-Deploy Testing:
-[ ] npm run build สำเร็จ
-[ ] Admin login ใช้งานได้
-[ ] สร้าง/แก้ไขสินค้าได้
-[ ] อัพโหลดรูปภาพได้
-[ ] Toast notification แสดง
-[ ] Checkout แสดง QR Code
-[ ] LINE Notification ส่งได้
-[ ] Order flow ทำงานครบ
+```mermaid
+mindmap
+  root((SmartShip<br/>Skills))
+    Frontend
+      Next.js 16
+        App Router
+        Server Components
+        Server Actions
+      React 19
+        Hooks
+        Context API
+      TypeScript
+        Types
+        Interfaces
+      TailwindCSS 4
+        Utility Classes
+        Dark Mode
+    Backend
+      Supabase
+        Auth
+        Database
+        Storage
+        RLS
+      PostgreSQL
+        SQL
+        Migrations
+        Functions
+      API
+        REST
+        Webhooks
+    Automation
+      n8n
+        Workflows
+        Triggers
+      LINE API
+        Messaging
+        LIFF
+    Security
+      OAuth 2.0
+      WebAuthn
+      HTTPS/CSP
 ```
 
----
+### 🛤️ Learning Path (แนะนำเรียนตามลำดับ)
 
-## 14. 📁 Files Changed Summary
+#### Phase 1: Foundation (1-2 สัปดาห์)
 
-### 14.1 New Files Created
+| # | Skill | Level | Priority | Description |
+|---|-------|-------|----------|-------------|
+| 1 | **HTML/CSS/JavaScript** | Basic | 🔴 Required | พื้นฐานเว็บ |
+| 2 | **React Basics** | Basic | 🔴 Required | Components, Props, State, Hooks |
+| 3 | **TypeScript** | Basic | 🟡 High | Types, Interfaces, Generics |
 
-| File | Description |
-|------|-------------|
-| `app/admin/context/ToastContext.tsx` | Toast notification context and provider |
-| `app/admin/context/useToastFromUrl.tsx` | Hook to show toast from URL params |
-| `app/admin/components/ToastListener.tsx` | Component that listens for URL toast params |
-| `app/api/admin/upload/route.ts` | Image upload API endpoint |
-| `app/components/shop/PaymentInfo.tsx` | Payment info display with QR Code |
+#### Phase 2: Core Stack (2-4 สัปดาห์)
 
-### 14.2 Modified Files
+| # | Skill | Level | Priority | Description |
+|---|-------|-------|----------|-------------|
+| 4 | **Next.js App Router** | Intermediate | 🔴 Required | Server Components, Routing, API Routes |
+| 5 | **TailwindCSS** | Intermediate | 🟡 High | Utility-first CSS, Responsive Design |
+| 6 | **Supabase** | Intermediate | 🔴 Required | Auth, Database, Storage |
 
-| File | Changes |
-|------|---------|
-| `app/lib/line.ts` | เพิ่มเบอร์โทร + รายการสินค้าใน notification |
-| `app/actions/order.ts` | ส่ง order_items ไปกับ LINE notify |
-| `app/admin/(dashboard)/products/_components/ProductForm.tsx` | แปลไทย + image upload |
-| `app/admin/(dashboard)/bundles/BundleForm.tsx` | แปลไทย + image upload |
-| `app/admin/(dashboard)/settings/SettingsForm.tsx` | เพิ่ม QR Code upload |
-| `app/admin/(dashboard)/products/page.tsx` | เพิ่ม ToastListener |
-| `app/admin/(dashboard)/bundles/page.tsx` | เพิ่ม ToastListener |
-| `app/admin/(dashboard)/categories/page.tsx` | เพิ่ม ToastListener |
-| `app/admin/(dashboard)/orders/page.tsx` | เพิ่ม ToastListener |
-| `app/admin/(dashboard)/stock/page.tsx` | เพิ่ม ToastListener |
-| `app/admin/(dashboard)/AdminClientWrapper.tsx` | เพิ่ม ToastProvider |
-| `app/api/auth/admin-login/route.ts` | เพิ่ม bcrypt + Turnstile verification |
-| `app/components/shop/CheckoutForm.tsx` | เพิ่ม PaymentInfo component |
+#### Phase 3: Advanced (2-4 สัปดาห์)
 
----
+| # | Skill | Level | Priority | Description |
+|---|-------|-------|----------|-------------|
+| 7 | **PostgreSQL/SQL** | Intermediate | 🟡 High | Queries, Joins, Functions, RLS |
+| 8 | **Server Actions** | Intermediate | 🟡 High | Form handling, Mutations |
+| 9 | **Authentication** | Intermediate | 🟡 High | OAuth, Sessions, Middleware |
 
-## 15. 🔗 Related Documentation
+#### Phase 4: Integration (ตามความจำเป็น)
 
-- [Supabase Storage Docs](https://supabase.com/docs/guides/storage)
-- [Cloudflare Turnstile Docs](https://developers.cloudflare.com/turnstile/)
-- [LINE Messaging API Docs](https://developers.line.biz/en/docs/messaging-api/)
-- [bcryptjs on npm](https://www.npmjs.com/package/bcryptjs)
+| # | Skill | Level | Priority | Description |
+|---|-------|-------|----------|-------------|
+| 10 | **n8n Automation** | Basic | 🟢 Optional | Workflows, Webhooks |
+| 11 | **LINE API/LIFF** | Basic | 🟢 Optional | Messaging, Login |
+| 12 | **WebAuthn/Passkeys** | Basic | 🟢 Optional | Passwordless auth |
 
 ---
+
+### 📖 Learning Resources
+
+#### 🎯 Next.js 16 (App Router)
+
+| Resource | Type | Language | Link |
+|----------|------|----------|------|
+| **Next.js Official Docs** | Docs | EN | [nextjs.org/docs](https://nextjs.org/docs) |
+| **Next.js Learn Course** | Tutorial | EN | [nextjs.org/learn](https://nextjs.org/learn) |
+| **Lee Robinson YouTube** | Video | EN | [youtube.com/@leerob](https://www.youtube.com/@leerob) |
+| **Next.js Thai Tutorial** | Video | TH | ค้นหาใน YouTube |
+
+#### ⚛️ React 19
+
+| Resource | Type | Language | Link |
+|----------|------|----------|------|
+| **React Official Docs** | Docs | EN | [react.dev](https://react.dev) |
+| **React 19 What's New** | Article | EN | [react.dev/blog](https://react.dev/blog) |
+
+#### 🟦 TypeScript
+
+| Resource | Type | Language | Link |
+|----------|------|----------|------|
+| **TypeScript Handbook** | Docs | EN | [typescriptlang.org](https://www.typescriptlang.org/docs/) |
+| **Total TypeScript** | Course | EN | [totaltypescript.com](https://www.totaltypescript.com/) |
+
+#### 🗄️ Supabase
+
+| Resource | Type | Language | Link |
+|----------|------|----------|------|
+| **Supabase Docs** | Docs | EN | [supabase.com/docs](https://supabase.com/docs) |
+| **Supabase YouTube** | Video | EN | [youtube.com/@Supabase](https://www.youtube.com/@Supabase) |
+| **Next.js + Supabase** | Guide | EN | [supabase.com/docs/guides/auth/server-side/nextjs](https://supabase.com/docs/guides/auth/server-side/nextjs) |
+
+#### 🎨 TailwindCSS 4
+
+| Resource | Type | Language | Link |
+|----------|------|----------|------|
+| **Tailwind Docs** | Docs | EN | [tailwindcss.com](https://tailwindcss.com) |
+| **Tailwind v4 Beta** | Docs | EN | [tailwindcss.com/blog](https://tailwindcss.com/blog) |
+| **Tailwind UI** | Components | EN | [tailwindui.com](https://tailwindui.com) |
+
+#### 🔐 PostgreSQL & Security
+
+| Resource | Type | Language | Link |
+|----------|------|----------|------|
+| **PostgreSQL Tutorial** | Docs | EN | [postgresqltutorial.com](https://www.postgresqltutorial.com/) |
+| **Supabase RLS Guide** | Docs | EN | [supabase.com/docs/guides/auth/row-level-security](https://supabase.com/docs/guides/auth/row-level-security) |
+
+#### ⚡ n8n Automation
+
+| Resource | Type | Language | Link |
+|----------|------|----------|------|
+| **n8n Docs** | Docs | EN | [docs.n8n.io](https://docs.n8n.io) |
+| **n8n Community** | Forum | EN | [community.n8n.io](https://community.n8n.io) |
+
+---
+
+### 🏆 Skill Checklist (ใช้ตรวจสอบความพร้อม)
+
+#### Frontend Developer
+
+- [ ] สร้าง React Component ได้
+- [ ] ใช้ useState, useEffect, useContext ได้
+- [ ] เข้าใจ Next.js App Router (page.tsx, layout.tsx, loading.tsx)
+- [ ] สร้าง Server Components และ Client Components ได้
+- [ ] ใช้ TailwindCSS จัด Layout และ Responsive ได้
+- [ ] เขียน TypeScript พื้นฐานได้
+
+#### Backend Developer
+
+- [ ] เขียน SQL Query ได้ (SELECT, INSERT, UPDATE, JOIN)
+- [ ] ใช้ Supabase Client ดึง/บันทึกข้อมูลได้
+- [ ] ตั้งค่า Row Level Security (RLS) ได้
+- [ ] สร้าง API Routes ใน Next.js ได้
+- [ ] ใช้ Server Actions จัดการ Form ได้
+
+#### Full Stack Developer
+
+- [ ] ทำ Authentication ด้วย Supabase Auth ได้
+- [ ] สร้าง CRUD ครบวงจรได้
+- [ ] Deploy ขึ้น Vercel ได้
+- [ ] ตั้งค่า Environment Variables ได้
+- [ ] Debug และแก้ไขปัญหาได้
+
+---
+
+## 📚 Documentation
+
+- [Architecture](./docs/architecture.md) - System architecture
+- [Data Model](./docs/data-model.md) - Database design
+- [Security](./docs/security.md) - Security guidelines
+- [Use Cases](./docs/use-cases.md) - Use case documentation
+- [TODO](./docs/todo.md) - Project roadmap
+
+---
+
+## 📄 License
+
+This project is private and proprietary.
+
+---
+
+## 🙋‍♂️ Contact
+
+For questions or support, please contact the repository owner.
