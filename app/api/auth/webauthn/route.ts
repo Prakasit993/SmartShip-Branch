@@ -181,7 +181,14 @@ export async function POST(request: Request) {
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: 'strict',
-                    maxAge: 60 * 60 * 24,
+                    maxAge: 60 * 60,
+                    path: '/',
+                });
+                cookieStore.set('admin_role', 'admin', {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 60 * 60,
                     path: '/',
                 });
 

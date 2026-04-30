@@ -22,6 +22,13 @@ export async function middleware(request: NextRequest) {
         const adminSession = request.cookies.get('admin_session');
         if (adminSession?.value === 'true' || adminSession?.value === 'admin') {
             // Password-based login - allow full admin access
+            response.cookies.set('admin_role', 'admin', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 60 * 60,
+                path: '/',
+            });
             return response;
         }
 
@@ -78,6 +85,14 @@ export async function middleware(request: NextRequest) {
             url.searchParams.set('error', 'Unauthorized Account');
             return NextResponse.redirect(url);
         }
+
+        response.cookies.set('admin_role', role, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60,
+            path: '/',
+        });
 
         // RBAC: Staff Restrictions
         if (role === 'staff') {

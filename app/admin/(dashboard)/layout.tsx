@@ -10,7 +10,10 @@ export default async function AdminLayout({
     children: React.ReactNode;
 }) {
     const cookieStore = cookies();
-    const role = (await cookieStore).get('admin_session')?.value || 'staff';
+    const store = await cookieStore;
+    const roleCookie = store.get('admin_role')?.value;
+    const adminSession = store.get('admin_session')?.value;
+    const role = roleCookie || (adminSession === 'admin' || adminSession === 'true' ? 'admin' : 'staff');
 
     return (
         <AdminClientWrapper>

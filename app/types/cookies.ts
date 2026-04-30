@@ -37,7 +37,13 @@ export const COOKIES_LIST: CookieInfo[] = [
         name: 'admin_session',
         category: 'essential',
         purpose: 'Admin authentication session',
-        duration: '1 day',
+        duration: '1 hour',
+    },
+    {
+        name: 'admin_role',
+        category: 'essential',
+        purpose: 'Admin role authorization context',
+        duration: '1 hour',
     },
     {
         name: '_ga',
