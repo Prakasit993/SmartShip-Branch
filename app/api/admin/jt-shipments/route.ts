@@ -6,21 +6,34 @@ export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '50');
+        const requestedLimit = parseInt(searchParams.get('limit') || '20');
+        const limit = Number.isNaN(requestedLimit) ? 20 : Math.min(Math.max(requestedLimit, 5), 100);
         const search = searchParams.get('search') || '';
         const dateFrom = searchParams.get('date_from') || '';
         const dateTo = searchParams.get('date_to') || '';
+        const sortByParam = searchParams.get('sort_by') || 'booking_date';
+        const sortOrderParam = searchParams.get('sort_order') || 'desc';
         const offset = (page - 1) * limit;
+        const allowedSortFields = new Set([
+            'booking_date',
+            'awb_number',
+            'sender_name',
+            'receiver_name',
+            'shipping_fee',
+        ]);
+        const sortBy = allowedSortFields.has(sortByParam) ? sortByParam : 'booking_date';
+        const ascending = sortOrderParam === 'asc';
 
         let query = supabaseAdmin
             .from('jt_shipments')
             .select('*', { count: 'exact' })
-            .order('booking_date', { ascending: false })
+            .order(sortBy, { ascending, nullsFirst: false })
+            .order('id', { ascending: false })
             .range(offset, offset + limit - 1);
 
         if (search) {
             query = query.or(
-                `awb_number.ilike.%${search}%,sender_name.ilike.%${search}%,receiver_name.ilike.%${search}%`
+                `awb_number.ilike.%${search}%,sender_name.ilike.%${search}%,receiver_name.ilike.%${search}%,sender_phone.ilike.%${search}%,receiver_phone.ilike.%${search}%`
             );
         }
         if (dateFrom) query = query.gte('booking_date', dateFrom);

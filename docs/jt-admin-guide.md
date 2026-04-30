@@ -164,6 +164,21 @@ ALTER TABLE jt_shipments ADD COLUMN status text DEFAULT 'pending';
 | **COD Alert** | Real-time | ตรวจ COD สูงผิดปกติ → แจ้ง |
 | **Backup** | ทุกคืน | Supabase → Google Sheets backup |
 
+### 8. 📱 Mobile-Ready Improvements (แนะนำสำหรับทำงานผ่านสมาร์ตโฟน)
+
+- หน้า `shipments` ควรมีโหมด mobile list (card view) แทนตารางเต็ม
+- หน้า scan ควรมี fallback ช่องกรอกรหัส shipment/awb กรณีกล้องใช้งานไม่ได้
+- action สำคัญควรอยู่แถบล่างคงที่: `บันทึก`, `ยืนยัน`, `ส่งเข้า J&T`
+- ใส่ network badge (`ออนไลน์`, `รอเชื่อมต่อ`) เพื่อให้พนักงานรู้สถานะทันที
+- เพิ่ม queue สำหรับ draft save ตอนเน็ตไม่เสถียร และ sync อัตโนมัติเมื่อกลับมาออนไลน์
+
+```
+ไฟล์ที่แนะนำให้ปรับ:
+- app/admin/(dashboard)/shipments/page.tsx        ← ทำ responsive card layout
+- app/admin/(dashboard)/shipments/ShipmentModal.tsx ← ลด field บังคับบนมือถือ
+- app/(staff)/scan/page.tsx (หรือไฟล์ scan ปัจจุบัน) ← กล้อง + fallback input
+```
+
 ---
 
 ## 🔧 Environment Variables ที่ต้องใช้เพิ่ม
@@ -245,3 +260,4 @@ Phase 3 (เดือนหน้า)
 - **Import**: ใช้ `xlsx` library parse ไฟล์ client-side ก่อน ส่งเป็น JSON ไป API
 - **n8n Sync**: รับทั้ง `{ rows: [...] }` และ `[...]` array โดยตรง
 - **Pagination**: ทุกหน้าที่มีข้อมูลเยอะใช้ server-side pagination ขนาด 50 ต่อหน้า
+- **Mobile guideline**: อ้างอิงรายละเอียดเพิ่มเติมที่ `docs/mobile-operations-guide.md`

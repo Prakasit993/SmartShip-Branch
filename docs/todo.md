@@ -105,6 +105,15 @@
   - [ ] หน้าแสดงรายงานพื้นฐาน (ดึงจาก `branch_daily_report`)
 - [x] เชื่อมต่อ Backend / DB ผ่าน API หรือ Supabase client (สำหรับ UC-01/UC-02)
 
+### 3.3 Mobile Optimization (งานหน้าสาขาผ่านสมาร์ตโฟน)
+
+- [ ] ปรับหน้า UC-01/UC-02 เป็น mobile-first (single-column + sticky action bar)
+- [ ] ปรับขนาดปุ่มสำคัญให้กดง่าย (อย่างน้อย 44x44px)
+- [ ] เพิ่ม fallback ให้กรอกรหัสแทนการสแกนกรณีกล้องใช้งานไม่ได้
+- [ ] เพิ่ม network status (`ออนไลน์` / `รอเชื่อมต่อ`) ทุกหน้าที่มีการบันทึก
+- [ ] เพิ่ม local queue สำหรับบันทึก draft เมื่อ offline แล้ว sync อัตโนมัติ
+- [ ] ทดสอบจริงอย่างน้อย 2 อุปกรณ์ (Android + iPhone) พร้อม checklist
+
 ---
 
 ## 4. Automation & AI (n8n / Workflow Layer)

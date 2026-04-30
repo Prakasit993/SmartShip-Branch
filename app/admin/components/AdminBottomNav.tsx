@@ -57,6 +57,12 @@ export default function AdminBottomNav() {
             badge: newOrdersCount,
         },
         {
+            href: '/admin/shipments',
+            label: 'ขนส่ง',
+            icon: '🚚',
+            activeIcon: '🚚',
+        },
+        {
             href: '/admin/products',
             label: 'สินค้า',
             icon: '🏷️',
@@ -78,23 +84,25 @@ export default function AdminBottomNav() {
     };
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 md:hidden safe-area-bottom">
-            <div className="flex items-center justify-around h-16 px-2">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#070d1b]/95 backdrop-blur border-t border-zinc-800 md:hidden pb-[env(safe-area-inset-bottom)]">
+            <div className="grid grid-cols-5 h-16 px-1">
                 {navItems.map((item) => {
                     const active = isActive(item.href);
                     return (
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`relative flex flex-col items-center justify-center flex-1 h-full transition-all
+                            aria-label={item.label}
+                            aria-current={active ? 'page' : undefined}
+                            className={`relative flex flex-col items-center justify-center min-h-11 h-full transition-all rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
                                 ${active
-                                    ? 'text-blue-600 dark:text-blue-400'
-                                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                                    ? 'text-blue-400'
+                                    : 'text-zinc-400 hover:text-zinc-200'
                                 }`}
                         >
                             {/* Badge */}
                             {item.badge && item.badge > 0 && (
-                                <span className="absolute top-1 right-1/4 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
+                                <span className="absolute top-1 right-[18%] min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
                                     {item.badge > 99 ? '99+' : item.badge}
                                 </span>
                             )}
@@ -111,7 +119,7 @@ export default function AdminBottomNav() {
 
                             {/* Active Indicator */}
                             {active && (
-                                <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 dark:bg-blue-400 rounded-full" />
+                                <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-500 rounded-full" />
                             )}
                         </Link>
                     );

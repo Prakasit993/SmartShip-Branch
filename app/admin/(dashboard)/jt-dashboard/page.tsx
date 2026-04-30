@@ -20,6 +20,7 @@ interface Stats {
 export default function JTDashboardPage() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showAllTop, setShowAllTop] = useState(false);
 
     useEffect(() => {
         fetch('/api/admin/jt-shipments/stats')
@@ -31,6 +32,10 @@ export default function JTDashboardPage() {
     const maxDaily = stats ? Math.max(...stats.daily30.map(d => d.count), 1) : 1;
     const maxSender = stats?.topSenders[0]?.count || 1;
     const maxReceiver = stats?.topReceivers[0]?.count || 1;
+    const topLimit = showAllTop ? 10 : 5;
+    const senderRows = stats?.topSenders.slice(0, topLimit) || [];
+    const receiverRows = stats?.topReceivers.slice(0, topLimit) || [];
+    const recentRows = stats?.recent.slice(0, 5) || [];
 
     if (loading) return (
         <div className="flex items-center justify-center h-64">
@@ -43,15 +48,15 @@ export default function JTDashboardPage() {
     );
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-20">
+        <div className="space-y-6 max-w-7xl mx-auto pb-20 text-zinc-100">
             {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="rounded-2xl border border-zinc-800 bg-[#0a1326]/95 p-4 md:p-5 flex items-center justify-between flex-wrap gap-3 shadow-sm">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight">🚚 J&T Dashboard</h1>
-                    <p className="text-zinc-500 text-sm mt-1">ภาพรวมข้อมูลการจัดส่งทั้งหมด</p>
+                    <p className="text-zinc-500 text-sm mt-1">ภาพรวมข้อมูลการจัดส่งทั้งหมด (ย่อให้ดูเฉพาะที่จำเป็น)</p>
                 </div>
                 <Link href="/admin/shipments"
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition">
+                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-sm">
                     📋 จัดการข้อมูล →
                 </Link>
             </div>
@@ -74,7 +79,7 @@ export default function JTDashboardPage() {
             {/* Daily Chart + Top Senders */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Daily Bar Chart */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
+                <div className="bg-[#0a1326]/95 rounded-2xl p-6 border border-zinc-800 shadow-sm">
                     <h2 className="text-base font-bold mb-4 flex items-center gap-2">📈 จำนวนรายการ 30 วันล่าสุด</h2>
                     <div className="flex items-end gap-0.5 h-36 overflow-x-auto pb-1">
                         {stats?.daily30.map((d, i) => {
@@ -100,11 +105,19 @@ export default function JTDashboardPage() {
                 </div>
 
                 {/* Top Senders */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                    <h2 className="text-base font-bold mb-4 flex items-center gap-2">👤 Top 10 ผู้ส่งบ่อยสุด</h2>
+                <div className="bg-[#0a1326]/95 rounded-2xl p-6 border border-zinc-800 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-base font-bold flex items-center gap-2">👤 Top {topLimit} ผู้ส่งบ่อยสุด</h2>
+                        <button
+                            onClick={() => setShowAllTop(v => !v)}
+                            className="text-xs px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        >
+                            {showAllTop ? 'ดูย่อ' : 'ดูเพิ่ม'}
+                        </button>
+                    </div>
                     <div className="space-y-2">
-                        {stats?.topSenders.map((s, i) => (
-                            <div key={i} className="flex items-center gap-2">
+                        {senderRows.map((s, i) => (
+                            <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
                                 <span className={`w-5 text-xs font-bold ${i < 3 ? 'text-yellow-500' : 'text-zinc-400'}`}>{i + 1}</span>
                                 <span className="flex-1 text-sm truncate font-medium">{s.name || 'ไม่ระบุ'}</span>
                                 <div className="flex-1 h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
@@ -114,7 +127,7 @@ export default function JTDashboardPage() {
                                 <span className="text-xs font-bold text-zinc-500 w-8 text-right">{s.count}</span>
                             </div>
                         ))}
-                        {!stats?.topSenders.length && <p className="text-zinc-400 text-sm">ไม่มีข้อมูล</p>}
+                        {!senderRows.length && <p className="text-zinc-400 text-sm">ไม่มีข้อมูล</p>}
                     </div>
                 </div>
             </div>
@@ -122,11 +135,11 @@ export default function JTDashboardPage() {
             {/* Top Receivers + Fields Info */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Top Receivers */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                    <h2 className="text-base font-bold mb-4 flex items-center gap-2">📬 Top 10 ผู้รับบ่อยสุด</h2>
+                <div className="bg-[#0a1326]/95 rounded-2xl p-6 border border-zinc-800 shadow-sm">
+                    <h2 className="text-base font-bold mb-4 flex items-center gap-2">📬 Top {topLimit} ผู้รับบ่อยสุด</h2>
                     <div className="space-y-2">
-                        {stats?.topReceivers.map((r, i) => (
-                            <div key={i} className="flex items-center gap-2">
+                        {receiverRows.map((r, i) => (
+                            <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
                                 <span className={`w-5 text-xs font-bold ${i < 3 ? 'text-yellow-500' : 'text-zinc-400'}`}>{i + 1}</span>
                                 <span className="flex-1 text-sm truncate font-medium">{r.name || 'ไม่ระบุ'}</span>
                                 <div className="flex-1 h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
@@ -136,54 +149,44 @@ export default function JTDashboardPage() {
                                 <span className="text-xs font-bold text-zinc-500 w-8 text-right">{r.count}</span>
                             </div>
                         ))}
-                        {!stats?.topReceivers.length && <p className="text-zinc-400 text-sm">ไม่มีข้อมูล</p>}
+                        {!receiverRows.length && <p className="text-zinc-400 text-sm">ไม่มีข้อมูล</p>}
                     </div>
                 </div>
 
-                {/* Fields Info */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                    <h2 className="text-base font-bold mb-4 flex items-center gap-2">🗂️ ข้อมูลที่จัดการได้</h2>
-                    <div className="space-y-2 text-sm">
-                        {[
-                            { field: 'AWB Number', icon: '🔖', action: 'เพิ่ม/แก้ไข/ลบ', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' },
-                            { field: 'วันที่จอง', icon: '📅', action: 'เพิ่ม/แก้ไข', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' },
-                            { field: 'ชื่อ-เบอร์ผู้ส่ง', icon: '👤', action: 'เพิ่ม/แก้ไข', color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' },
-                            { field: 'ชื่อ-เบอร์ผู้รับ', icon: '📬', action: 'เพิ่ม/แก้ไข', color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' },
-                            { field: 'ค่าส่ง', icon: '💰', action: 'เพิ่ม/แก้ไข', color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' },
-                        ].map((item, i) => (
-                            <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                                <span className="flex items-center gap-2 font-medium">
-                                    <span>{item.icon}</span>{item.field}
-                                </span>
-                                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${item.color}`}>
-                                    {item.action}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                        <p className="text-xs text-zinc-500 font-medium mb-2">🔮 Field เพิ่มเติมที่ขอได้:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                            {['status สถานะ', 'น้ำหนัก', 'COD', 'หมายเหตุ', 'ที่อยู่ผู้รับ'].map(tag => (
-                                <span key={tag} className="text-xs px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500">
-                                    + {tag}
-                                </span>
-                            ))}
+                {/* Quick Scope */}
+                <div className="bg-[#0a1326]/95 rounded-2xl p-6 border border-zinc-800 shadow-sm">
+                    <h2 className="text-base font-bold mb-4 flex items-center gap-2">🎯 มุมมองข้อมูลที่แนะนำ</h2>
+                    <div className="space-y-3 text-sm">
+                        <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                            <p className="font-medium">แดชบอร์ดนี้แสดงเฉพาะข้อมูลสรุปที่สำคัญ</p>
+                            <p className="text-zinc-500 mt-1">Top ผู้ส่ง/ผู้รับ ใช้ค่าเริ่มต้น 5 รายการ เพื่อลดความหนาแน่นของจอ</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                            <p className="font-medium">ข้อมูลเชิงลึกเพิ่มเติม</p>
+                            <p className="text-zinc-500 mt-1">ไปที่หน้า "J&T Shipments" เพื่อค้นหา, เรียงลำดับ, และจัดการรายการแบบละเอียด</p>
+                        </div>
+                        <div className="pt-2">
+                            <Link
+                                href="/admin/shipments"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
+                            >
+                                เปิดหน้าจัดการรายการ ->
+                            </Link>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Recent Shipments */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="bg-[#0a1326]/95 rounded-2xl border border-zinc-800 overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800">
-                    <h2 className="text-base font-bold flex items-center gap-2">📋 รายการล่าสุด 10 รายการ</h2>
+                    <h2 className="text-base font-bold flex items-center gap-2">📋 รายการล่าสุด 5 รายการ</h2>
                     <Link href="/admin/shipments" className="text-sm text-blue-600 font-medium hover:underline">ดูทั้งหมด →</Link>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
-                            <tr className="bg-zinc-50 dark:bg-zinc-800/50">
+                            <tr className="bg-zinc-900/80">
                                 <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 text-xs">AWB</th>
                                 <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 text-xs">วันที่</th>
                                 <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 text-xs">ผู้ส่ง</th>
@@ -192,8 +195,8 @@ export default function JTDashboardPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {stats?.recent.map((r, i) => (
-                                <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition">
+                            {recentRows.map((r, i) => (
+                                <tr key={i} className="hover:bg-zinc-800/40 even:bg-zinc-900/40 transition">
                                     <td className="px-4 py-2.5 font-mono text-xs font-bold text-blue-600">{r.awb_number}</td>
                                     <td className="px-4 py-2.5 text-xs text-zinc-500">
                                         {r.booking_date ? new Date(r.booking_date).toLocaleDateString('th-TH') : '-'}
@@ -207,6 +210,11 @@ export default function JTDashboardPage() {
                                     </td>
                                 </tr>
                             ))}
+                            {!recentRows.length && (
+                                <tr>
+                                    <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">ไม่มีข้อมูลล่าสุด</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -217,10 +225,10 @@ export default function JTDashboardPage() {
 
 function StatCard({ label, value, icon, color, sub }: { label: string; value: string; icon: string; color: string; sub: string }) {
     return (
-        <div className="relative overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800">
+        <div className="relative overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <div className={`absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br ${color} rounded-full opacity-10`} />
             <p className="text-2xl mb-2">{icon}</p>
-            <p className="text-xs text-zinc-500 font-medium">{label}</p>
+            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide">{label}</p>
             <p className="text-2xl font-black mt-1">{value}</p>
             <p className="text-xs text-zinc-400 mt-0.5">{sub}</p>
         </div>
@@ -229,10 +237,10 @@ function StatCard({ label, value, icon, color, sub }: { label: string; value: st
 
 function FeeCard({ label, value, icon, color }: { label: string; value: string; icon: string; color: string }) {
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800 flex items-center gap-4">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800 flex items-center gap-4 shadow-sm">
             <span className="text-3xl">{icon}</span>
             <div>
-                <p className="text-xs text-zinc-500 font-medium">{label}</p>
+                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide">{label}</p>
                 <p className={`text-xl font-black ${color}`}>{value}</p>
             </div>
         </div>

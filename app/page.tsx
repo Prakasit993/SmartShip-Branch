@@ -1,18 +1,41 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import BusinessPackingSection from '@app/components/home/BusinessPackingSection';
 import { supabase } from '@/lib/supabaseClient';
 import Header from '@app/components/shop/Header';
 import { CartProvider } from '@app/context/CartContext';
-import CartDrawer from '@app/components/shop/CartDrawer';
 import HeroCarousel from '@app/components/home/HeroCarousel';
-import Footer from '@app/components/ui/Footer';
+import dynamic from 'next/dynamic';
+
+const BusinessPackingSection = dynamic(() => import('@app/components/home/BusinessPackingSection'), {
+  loading: () => <section className="py-16" aria-hidden="true" />,
+});
+
+const Footer = dynamic(() => import('@app/components/ui/Footer'), {
+  loading: () => <footer className="py-16" aria-hidden="true" />,
+});
+
+const CartDrawer = dynamic(() => import('@app/components/shop/CartDrawer'));
 
 export const revalidate = 20; // Revalidate every 20 seconds for better performance
 
 export default async function Home() {
-  // Fetch settings
-  const { data: settings } = await supabase.from('settings').select('*');
+  // Fetch homepage data in parallel to reduce server response time.
+  const [settingsResult, featuredBundlesResult, reviewsResult] = await Promise.all([
+    supabase.from('settings').select('*'),
+    supabase
+      .from('bundles')
+      .select('*, categories(name)')
+      .eq('is_active', true)
+      .limit(4),
+    supabase
+      .from('reviews')
+      .select('id, rating, comment, reviewer_name, created_at')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(6),
+  ]);
+
+  const settings = settingsResult.data;
   const getSetting = (key: string) => {
     const item = settings?.find(s => s.key === key);
     return item ? String(item.value).replace(/^"|"$/g, '') : null;
@@ -53,20 +76,8 @@ export default async function Home() {
     : ['/smartship-storefront.png'];
 
 
-  // Fetch a few active bundles for display
-  const { data: featuredBundles } = await supabase
-    .from('bundles')
-    .select('*, categories(name)')
-    .eq('is_active', true)
-    .limit(4);
-
-  // Fetch recent approved reviews for homepage
-  const { data: reviews } = await supabase
-    .from('reviews')
-    .select('id, rating, comment, reviewer_name, created_at')
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
-    .limit(6);
+  const featuredBundles = featuredBundlesResult.data;
+  const reviews = reviewsResult.data;
 
   return (
     <CartProvider>
@@ -148,15 +159,15 @@ export default async function Home() {
         <section className="relative py-24 overflow-hidden">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-red-50 dark:from-zinc-900 dark:via-black dark:to-zinc-900" />
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-400/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="hidden md:block absolute top-0 left-1/4 w-96 h-96 bg-orange-400/20 rounded-full blur-3xl animate-pulse" />
+          <div className="hidden md:block absolute bottom-0 right-1/4 w-96 h-96 bg-red-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
           <div className="container mx-auto px-4 relative z-10">
             <div className="text-center mb-16">
               <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold text-sm shadow-lg shadow-orange-500/30 mb-6">
-                <span className="animate-bounce">🔥</span>
+                <span className="md:animate-bounce">🔥</span>
                 สินค้าขายดี
-                <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>🔥</span>
+                <span className="md:animate-bounce" style={{ animationDelay: '0.2s' }}>🔥</span>
               </div>
               <h2 className="text-4xl md:text-6xl font-black mb-4 bg-gradient-to-r from-orange-600 via-red-600 to-orange-600 bg-clip-text text-transparent">
                 สินค้ายอดนิยม
@@ -240,8 +251,8 @@ export default async function Home() {
 
         {/* Services Section */}
         <section className="bg-zinc-900 text-white py-24 px-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+          <div className="hidden md:block absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="hidden md:block absolute bottom-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
           <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 text-center relative z-10">
             <div className="p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition duration-500">

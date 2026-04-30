@@ -11,6 +11,7 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
 
     const SLIDE_DURATION = 5000; // 5 seconds per slide
 
@@ -41,9 +42,16 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
         );
     }
 
+    useEffect(() => {
+        const updateViewport = () => setIsMobileViewport(window.innerWidth < 768);
+        updateViewport();
+        window.addEventListener('resize', updateViewport);
+        return () => window.removeEventListener('resize', updateViewport);
+    }, []);
+
     // Auto-advance with progress
     useEffect(() => {
-        if (images.length <= 1 || isHovered) return;
+        if (images.length <= 1 || isHovered || isMobileViewport) return;
 
         const progressInterval = setInterval(() => {
             setProgress((prev) => {
@@ -56,7 +64,7 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
         }, 50);
 
         return () => clearInterval(progressInterval);
-    }, [images.length, isHovered, goToNext]);
+    }, [images.length, isHovered, isMobileViewport, goToNext]);
 
     return (
         <div

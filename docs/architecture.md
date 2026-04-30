@@ -17,6 +17,7 @@ SmartShip Branch Assistant เป็นระบบเสริมสำหร�
 - **Branch Staff**
   - ใช้ Staff Portal เพื่อสร้าง/แก้ไข/ยืนยัน shipment
   - สแกน QR และส่งข้อมูลเข้าสู่ระบบ J&T
+  - ใช้งานผ่าน PC/Tablet/สมาร์ตโฟนตามบริบทของสาขา
 
 - **Branch Owner**
   - ดูรายงานยอดส่งพัสดุรายวัน/รายเดือน
@@ -50,6 +51,10 @@ SmartShip Branch Assistant เป็นระบบเสริมสำหร�
      - หน้าสแกน/ค้นหาจาก QR (ส่วนที่ 2)
      - หน้าแก้ไขข้อมูลลูกค้าประจำ
      - Dashboard / รายงานสรุปยอดส่ง
+   - แนวทางแนะนำ:
+     - ออกแบบแบบ mobile-first สำหรับ flow หน้างาน (UC-01, UC-02)
+     - รองรับกล้องมือถือ + fallback กรอกรหัสมือ
+     - ใช้ single-column และปุ่มขั้นต่ำ 44x44px สำหรับการกดด้วยนิ้ว
 
 2. **(Optional) LINE/LIFF Interface**
    - สำหรับเวอร์ชันที่ให้ลูกค้ากรอกข้อมูลพัสดุล่วงหน้าด้วยตนเอง
@@ -137,8 +142,9 @@ SmartShip Branch Assistant เป็นระบบเสริมสำหร�
 ### 3.1 Components
 
 - **Branch Site (ร้านสาขา)**
-  - อุปกรณ์พนักงาน: PC/Notebook/Tablet ที่เปิด Staff Portal ผ่าน Browser
+  - อุปกรณ์พนักงาน: PC/Notebook/Tablet/สมาร์ตโฟน ที่เปิด Staff Portal ผ่าน Browser
   - เครื่องสแกน QR (USB/กล้องเว็บแคม)
+  - กรณีมือถือ: ใช้กล้องหลังของอุปกรณ์แทนเครื่องสแกนได้
 
 - **Cloud Backend**
   - Web App (Staff Portal + API) รันบนบริการเช่น Vercel / Node Server
@@ -224,6 +230,12 @@ SmartShip Branch Assistant เป็นระบบเสริมสำหร�
 - **Scalability**
   - แยก Backend, n8n, Database เป็น Service ต่างหาก
   - สามารถรองรับหลายสาขาโดยเพิ่ม dimension `branch_id` ในทุก query/report
+
+- **Mobile-First Operations**
+  - ลดจำนวนฟิลด์ที่ต้องกรอกบนหน้าจอเล็ก โดยแยกเป็น step สั้น ๆ
+  - เพิ่มสถานะเครือข่าย (online/offline) และ retry flow สำหรับจุดที่เน็ตไม่เสถียร
+  - ออกแบบ scanner flow ให้ใช้มือเดียวได้ และมี feedback ทันทีเมื่อสแกนสำเร็จ
+  - action สำคัญ เช่น "ยืนยันเข้า J&T" ควรใช้ idempotency key กันการกดซ้ำ
 
 - **Security & Compliance**
   - ใช้ HTTPS ทุกจุด
