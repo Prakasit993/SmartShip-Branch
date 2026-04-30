@@ -170,7 +170,7 @@ export default function JTDashboardPage() {
                                 href="/admin/shipments"
                                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
                             >
-                                เปิดหน้าจัดการรายการ ->
+                                เปิดหน้าจัดการรายการ {'>'}
                             </Link>
                         </div>
                     </div>

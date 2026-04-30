@@ -64,6 +64,12 @@ export default function JTShipmentsPage() {
             .then(j => setTotalCount(j.count || 0));
     }, []);
 
+    const totalPages = Math.ceil(count / pageSize);
+    const visibleShipments = hideDuplicateAwb
+        ? shipments.filter((item, index, arr) => arr.findIndex(s => s.awb_number === item.awb_number) === index)
+        : shipments;
+    const hasFilters = Boolean(search || dateFrom || dateTo);
+
     useEffect(() => { fetchData(); }, [fetchData]);
 
     useEffect(() => {
@@ -77,12 +83,6 @@ export default function JTShipmentsPage() {
         if (res.ok) { showToast('🗑️ ลบรายการแล้ว'); setDeleteId(null); fetchData(); }
         else { const j = await res.json(); alert('Error: ' + j.error); }
     };
-
-    const totalPages = Math.ceil(count / pageSize);
-    const visibleShipments = hideDuplicateAwb
-        ? shipments.filter((item, index, arr) => arr.findIndex(s => s.awb_number === item.awb_number) === index)
-        : shipments;
-    const hasFilters = Boolean(search || dateFrom || dateTo);
 
     return (
         <div className="space-y-5 max-w-7xl mx-auto pb-20 text-zinc-100">
@@ -175,9 +175,10 @@ export default function JTShipmentsPage() {
                         onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
                         className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-sm"
                     >
-                        <option value={10}>10</option>
                         <option value={20}>20</option>
+                        <option value={30}>30</option>
                         <option value={50}>50</option>
+                        <option value={100}>100</option>
                     </select>
                 </div>
 

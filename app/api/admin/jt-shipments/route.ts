@@ -27,8 +27,8 @@ export async function GET(req: Request) {
         let query = supabaseAdmin
             .from('jt_shipments')
             .select('*', { count: 'exact' })
-            .order(sortBy, { ascending, nullsFirst: false })
-            .order('id', { ascending: false })
+            .order(sortBy, { ascending })
+            .order('awb_number', { ascending: true })
             .range(offset, offset + limit - 1);
 
         if (search) {
@@ -40,7 +40,10 @@ export async function GET(req: Request) {
         if (dateTo) query = query.lte('booking_date', dateTo + 'T23:59:59');
 
         const { data, count, error } = await query;
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        if (error) {
+            console.error('[api/admin/jt-shipments][GET]', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
 
         return NextResponse.json({ data, count, page, limit });
     } catch (e) {
