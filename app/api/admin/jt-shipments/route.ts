@@ -9,6 +9,7 @@ export async function GET(req: Request) {
         const requestedLimit = parseInt(searchParams.get('limit') || '20');
         const limit = Number.isNaN(requestedLimit) ? 20 : Math.min(Math.max(requestedLimit, 5), 100);
         const search = searchParams.get('search') || '';
+        const searchField = searchParams.get('search_field') || 'all';
         const dateFrom = searchParams.get('date_from') || '';
         const dateTo = searchParams.get('date_to') || '';
         const sortByParam = searchParams.get('sort_by') || 'booking_date';
@@ -32,9 +33,14 @@ export async function GET(req: Request) {
             .range(offset, offset + limit - 1);
 
         if (search) {
-            query = query.or(
-                `awb_number.ilike.%${search}%,sender_name.ilike.%${search}%,receiver_name.ilike.%${search}%,sender_phone.ilike.%${search}%,receiver_phone.ilike.%${search}%`
-            );
+            const validFields = ['awb_number', 'sender_name', 'receiver_name', 'sender_phone', 'receiver_phone'];
+            if (searchField !== 'all' && validFields.includes(searchField)) {
+                query = query.ilike(searchField, `%${search}%`);
+            } else {
+                query = query.or(
+                    `awb_number.ilike.%${search}%,sender_name.ilike.%${search}%,receiver_name.ilike.%${search}%,sender_phone.ilike.%${search}%,receiver_phone.ilike.%${search}%`
+                );
+            }
         }
         if (dateFrom) query = query.gte('booking_date', dateFrom);
         if (dateTo) query = query.lte('booking_date', dateTo + 'T23:59:59');
@@ -112,11 +118,31 @@ export async function PUT(req: Request) {
     }
 }
 
-// DELETE: delete shipment by id
+// DELETE: delete shipment by id or all
 export async function DELETE(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
+        const deleteAll = searchParams.get('delete_all') === 'true';
+        const dateFrom = searchParams.get('date_from');
+        const dateTo = searchParams.get('date_to');
+
+        if (deleteAll) {
+            let query = supabaseAdmin.from('jt_shipments').delete();
+
+            if (dateFrom) query = query.gte('booking_date', dateFrom);
+            if (dateTo) query = query.lte('booking_date', dateTo + 'T23:59:59');
+
+            // If no dates provided, we must use a dummy filter to delete all in Supabase JS
+            if (!dateFrom && !dateTo) {
+                query = query.not('id', 'is', null);
+            }
+
+            const { error } = await query;
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            return NextResponse.json({ success: true });
+        }
+
         if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
 
         const { error } = await supabaseAdmin

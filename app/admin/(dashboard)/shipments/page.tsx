@@ -23,6 +23,8 @@ export default function JTShipmentsPage() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
+    const [searchField, setSearchField] = useState('all');
+    const [searchFieldInput, setSearchFieldInput] = useState('all');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [loading, setLoading] = useState(true);
@@ -34,6 +36,7 @@ export default function JTShipmentsPage() {
     const [modal, setModal] = useState<null | { mode: 'add' | 'edit'; data?: Shipment }>(null);
     const [showImport, setShowImport] = useState(false);
     const [deleteId, setDeleteId] = useState<string | number | null>(null);
+    const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
     const [toast, setToast] = useState('');
 
     const showToast = (msg: string) => {
@@ -44,7 +47,10 @@ export default function JTShipmentsPage() {
     const fetchData = useCallback(async () => {
         setLoading(true);
         const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
-        if (search) params.set('search', search);
+        if (search) {
+            params.set('search', search);
+            params.set('search_field', searchField);
+        }
         if (dateFrom) params.set('date_from', dateFrom);
         if (dateTo) params.set('date_to', dateTo);
         params.set('sort_by', sortBy);
@@ -84,6 +90,22 @@ export default function JTShipmentsPage() {
         else { const j = await res.json(); alert('Error: ' + j.error); }
     };
 
+    const handleDeleteAll = async () => {
+        const params = new URLSearchParams({ delete_all: 'true' });
+        if (dateFrom) params.set('date_from', dateFrom);
+        if (dateTo) params.set('date_to', dateTo);
+
+        const res = await fetch(`/api/admin/jt-shipments?${params.toString()}`, { method: 'DELETE' });
+        if (res.ok) { 
+            showToast(dateFrom || dateTo ? '🗑️ ลบข้อมูลตามวันที่เลือกแล้ว' : '🗑️ ลบข้อมูลทั้งหมดแล้ว'); 
+            setConfirmDeleteAll(false); 
+            setPage(1);
+            fetchData(); 
+            fetch('/api/admin/jt-shipments?page=1&limit=1').then(r => r.json()).then(j => setTotalCount(j.count || 0));
+        }
+        else { const j = await res.json(); alert('Error: ' + j.error); }
+    };
+
     return (
         <div className="space-y-5 max-w-7xl mx-auto pb-20 text-zinc-100">
             {/* Toast */}
@@ -94,8 +116,8 @@ export default function JTShipmentsPage() {
             )}
 
             {/* Header */}
-            <div className="rounded-2xl border border-zinc-800 bg-[#0a1326]/95 p-4 md:p-5 flex items-center justify-between flex-wrap gap-3 shadow-sm">
-                <div>
+            <div className="rounded-2xl border border-zinc-800 bg-[#0a1326]/95 p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+                <div className="w-full md:w-auto">
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">🚚 J&T Shipments</h1>
                     <div className="text-zinc-500 text-xs md:text-sm mt-2 flex items-center flex-wrap gap-2">
                         <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-semibold">
@@ -111,94 +133,122 @@ export default function JTShipmentsPage() {
                         )}
                     </div>
                 </div>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap w-full md:w-auto">
+                    <button onClick={() => setConfirmDeleteAll(true)}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition shadow-sm">
+                        {dateFrom || dateTo ? '🗑️ ลบตามวันที่' : '🗑️ ลบทั้งหมด'}
+                    </button>
                     <button onClick={() => setShowImport(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition shadow-sm">
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition shadow-sm">
                         📥 Import Excel
                     </button>
                     <button onClick={() => setModal({ mode: 'add' })}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-sm">
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-sm">
                         ➕ เพิ่มรายการ
                     </button>
                 </div>
             </div>
 
             {/* Search */}
-            <div className="bg-[#0a1326]/95 rounded-2xl p-4 border border-zinc-800 flex flex-wrap gap-3 shadow-sm">
-                <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput); setPage(1); } }}
-                    placeholder="🔍 ค้นหา AWB, ผู้ส่ง, ผู้รับ..."
-                    className="flex-1 min-w-[220px] px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-                    className="px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <span className="self-center text-zinc-400 text-sm">ถึง</span>
-                <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }}
-                    className="px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <button onClick={() => { setSearch(searchInput); setPage(1); }}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition">ค้นหา</button>
-                {hasFilters && (
-                    <button onClick={() => { setSearch(''); setSearchInput(''); setDateFrom(''); setDateTo(''); setPage(1); }}
-                        className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-sm font-medium transition">
-                        ล้าง
-                    </button>
-                )}
+            <div className="bg-[#0a1326]/95 rounded-2xl p-4 border border-zinc-800 flex flex-col xl:flex-row flex-wrap gap-3 shadow-sm">
+                <div className="flex flex-col sm:flex-row flex-1 min-w-[280px] gap-2 w-full xl:w-auto">
+                    <select
+                        value={searchFieldInput}
+                        onChange={(e) => setSearchFieldInput(e.target.value)}
+                        className="w-full sm:w-[150px] px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="all">ค้นหาทั้งหมด</option>
+                        <option value="awb_number">AWB Number</option>
+                        <option value="sender_name">ชื่อผู้ส่ง</option>
+                        <option value="receiver_name">ชื่อผู้รับ</option>
+                        <option value="sender_phone">เบอร์ผู้ส่ง</option>
+                        <option value="receiver_phone">เบอร์ผู้รับ</option>
+                    </select>
+                    <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput); setSearchField(searchFieldInput); setPage(1); } }}
+                        placeholder="🔍 ค้นหาข้อมูล..."
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+                        className="flex-1 md:flex-none px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <span className="text-zinc-400 text-sm whitespace-nowrap">ถึง</span>
+                    <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }}
+                        className="flex-1 md:flex-none px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <button onClick={() => { setSearch(searchInput); setSearchField(searchFieldInput); setPage(1); }}
+                        className="flex-1 md:flex-none px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition">ค้นหา</button>
+                    {hasFilters && (
+                        <button onClick={() => { setSearch(''); setSearchInput(''); setSearchField('all'); setSearchFieldInput('all'); setDateFrom(''); setDateTo(''); setPage(1); }}
+                            className="flex-1 md:flex-none px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-sm font-medium transition">
+                            ล้าง
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* View Controls */}
-            <div className="bg-[#0a1326]/95 rounded-2xl p-4 border border-zinc-800 flex flex-wrap gap-3 items-center shadow-sm">
-                <div className="flex items-center gap-2">
-                    <label className="text-xs md:text-sm font-medium text-zinc-500">เรียงตาม</label>
-                    <select
-                        value={sortBy}
-                        onChange={(e) => { setSortBy(e.target.value as typeof sortBy); setPage(1); }}
-                        className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-sm"
+            <div className="bg-[#0a1326]/95 rounded-2xl p-4 border border-zinc-800 flex flex-col md:flex-row flex-wrap gap-4 md:gap-3 items-start md:items-center justify-between shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2 flex-1 md:flex-none">
+                        <label className="text-xs md:text-sm font-medium text-zinc-500 whitespace-nowrap">เรียงตาม</label>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => { setSortBy(e.target.value as typeof sortBy); setPage(1); }}
+                            className="w-full md:w-auto px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="booking_date">วันที่จอง</option>
+                            <option value="awb_number">AWB</option>
+                            <option value="sender_name">ชื่อผู้ส่ง</option>
+                            <option value="receiver_name">ชื่อผู้รับ</option>
+                            <option value="shipping_fee">ค่าส่ง</option>
+                        </select>
+                    </div>
+
+                    <button
+                        onClick={() => { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); setPage(1); }}
+                        className="flex-1 md:flex-none px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-sm font-medium hover:bg-zinc-800 transition whitespace-nowrap"
                     >
-                        <option value="booking_date">วันที่จอง</option>
-                        <option value="awb_number">AWB</option>
-                        <option value="sender_name">ชื่อผู้ส่ง</option>
-                        <option value="receiver_name">ชื่อผู้รับ</option>
-                        <option value="shipping_fee">ค่าส่ง</option>
-                    </select>
+                        {sortOrder === 'desc' ? 'มาก -> น้อย' : 'น้อย -> มาก'}
+                    </button>
                 </div>
 
-                <button
-                    onClick={() => { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); setPage(1); }}
-                    className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-sm font-medium hover:bg-zinc-800"
-                >
-                    {sortOrder === 'desc' ? 'มาก -> น้อย' : 'น้อย -> มาก'}
-                </button>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <label className="text-sm text-zinc-500 whitespace-nowrap">ต่อหน้า</label>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                            className="w-full sm:w-auto px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value={20}>20</option>
+                            <option value={30}>30</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                        </select>
+                    </div>
 
-                <div className="flex items-center gap-2">
-                    <label className="text-sm text-zinc-500">ต่อหน้า</label>
-                    <select
-                        value={pageSize}
-                        onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-                        className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-sm"
-                    >
-                        <option value={20}>20</option>
-                        <option value={30}>30</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </select>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                            onClick={() => setCompactView(v => !v)}
+                            className={`flex-1 sm:flex-none px-3 py-2 rounded-xl text-sm font-medium border transition whitespace-nowrap ${compactView
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-zinc-900 border-zinc-700 hover:bg-zinc-800'}`}
+                        >
+                            {compactView ? 'กระชับ: เปิด' : 'กระชับ: ปิด'}
+                        </button>
+
+                        <button
+                            onClick={() => setHideDuplicateAwb(v => !v)}
+                            className={`flex-1 sm:flex-none px-3 py-2 rounded-xl text-sm font-medium border transition whitespace-nowrap ${hideDuplicateAwb
+                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                : 'bg-zinc-900 border-zinc-700 hover:bg-zinc-800'}`}
+                        >
+                            {hideDuplicateAwb ? 'ซ่อนซ้ำ: เปิด' : 'ซ่อนซ้ำ: ปิด'}
+                        </button>
+                    </div>
                 </div>
-
-                <button
-                    onClick={() => setCompactView(v => !v)}
-                    className={`px-3 py-2 rounded-xl text-sm font-medium border transition ${compactView
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-zinc-900 border-zinc-700'}`}
-                >
-                    {compactView ? 'โหมดกระชับ: เปิด' : 'โหมดกระชับ: ปิด'}
-                </button>
-
-                <button
-                    onClick={() => setHideDuplicateAwb(v => !v)}
-                    className={`px-3 py-2 rounded-xl text-sm font-medium border transition ${hideDuplicateAwb
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-zinc-900 border-zinc-700'}`}
-                >
-                    {hideDuplicateAwb ? 'ซ่อน AWB ซ้ำ: เปิด' : 'ซ่อน AWB ซ้ำ: ปิด'}
-                </button>
             </div>
 
             {/* Table */}
@@ -263,17 +313,17 @@ export default function JTShipmentsPage() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="px-4 py-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between flex-wrap gap-2">
-                        <p className="text-sm text-zinc-500">
+                    <div className="px-4 py-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <p className="text-sm text-zinc-500 text-center md:text-left w-full md:w-auto">
                             หน้า {page}/{totalPages} — {Math.min((page - 1) * pageSize + 1, count)}–{Math.min(page * pageSize, count)} จาก {count.toLocaleString()}
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 w-full md:w-auto">
                             <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                                className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-sm font-medium disabled:opacity-40 transition">
+                                className="flex-1 md:flex-none px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-sm font-medium disabled:opacity-40 transition text-center whitespace-nowrap">
                                 ← ก่อนหน้า
                             </button>
                             <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg text-sm font-bold transition">
+                                className="flex-1 md:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg text-sm font-bold transition text-center whitespace-nowrap">
                                 ถัดไป →
                             </button>
                         </div>
@@ -292,6 +342,33 @@ export default function JTShipmentsPage() {
                                 className="flex-1 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">ยกเลิก</button>
                             <button onClick={() => deleteId !== null && handleDelete(deleteId)}
                                 className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition">ลบเลย</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete All Confirm */}
+            {confirmDeleteAll && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setConfirmDeleteAll(false)}>
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-2xl max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
+                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-2">⚠️</div>
+                        <p className="text-xl font-black text-center text-red-600">
+                            {dateFrom || dateTo ? 'ลบข้อมูลตามวันที่?' : 'ลบข้อมูลทั้งหมด?'}
+                        </p>
+                        <p className="text-sm text-zinc-500 text-center">
+                            {dateFrom || dateTo ? (
+                                <>คุณกำลังจะลบข้อมูล J&T Shipments <b>ตั้งแต่วันที่ {dateFrom || 'เริ่มต้น'} ถึง {dateTo || 'ล่าสุด'}</b> ข้อมูลนี้จะไม่สามารถกู้คืนได้ ยืนยันหรือไม่?</>
+                            ) : (
+                                <>คุณกำลังจะลบข้อมูล J&T Shipments <b>ทั้งหมดในระบบ</b> ข้อมูลนี้จะไม่สามารถกู้คืนได้ ยืนยันหรือไม่?</>
+                            )}
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <button onClick={() => setConfirmDeleteAll(false)}
+                                className="flex-1 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">ยกเลิก</button>
+                            <button onClick={handleDeleteAll}
+                                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition shadow-sm">
+                                {dateFrom || dateTo ? 'ลบข้อมูลเลย' : 'ลบทั้งหมดเลย'}
+                            </button>
                         </div>
                     </div>
                 </div>

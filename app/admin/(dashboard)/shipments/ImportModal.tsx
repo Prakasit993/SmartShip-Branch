@@ -116,8 +116,10 @@ export default function ImportModal({ onClose, onImported }: Props) {
 
                 {/* Column hint */}
                 <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-xs text-zinc-500">
-                    <p className="font-semibold mb-1">📋 คอลัมน์ที่รองรับ:</p>
-                    <p><span className="font-mono text-blue-500">awb_number</span> · <span className="font-mono">booking_date</span> · <span className="font-mono">sender_name</span> · <span className="font-mono">sender_phone</span> · <span className="font-mono">receiver_name</span> · <span className="font-mono">receiver_phone</span> · <span className="font-mono">shipping_fee</span></p>
+                    <p className="font-semibold mb-1">📋 คอลัมน์ที่รองรับ (อังกฤษ / ไทย):</p>
+                    <p className="leading-relaxed">
+                        <span className="font-mono text-blue-500">awb_number</span> (หมายเลข AWB) · <span className="font-mono">booking_date</span> (เวลาที่ส่งพัสดุ) · <span className="font-mono">sender_name</span> (ชื่อลูกค้า/ผู้ส่ง) · <span className="font-mono">sender_phone</span> (เบอร์ผู้ส่ง) · <span className="font-mono">receiver_name</span> (ผู้รับ) · <span className="font-mono">receiver_phone</span> (เบอร์ผู้รับ) · <span className="font-mono">shipping_fee</span> (ค่าส่ง)
+                    </p>
                 </div>
 
                 {/* Preview */}
@@ -126,16 +128,16 @@ export default function ImportModal({ onClose, onImported }: Props) {
                         <table className="text-xs w-full">
                             <thead>
                                 <tr className="bg-zinc-50 dark:bg-zinc-800">
-                                    {Object.keys(preview[0]).slice(0, 5).map(k => (
-                                        <th key={k} className="px-3 py-2 text-left font-semibold text-zinc-500">{k}</th>
+                                    {Object.keys(preview[0]).map(k => (
+                                        <th key={k} className="px-3 py-2 text-left font-semibold text-zinc-500 whitespace-nowrap">{k}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {preview.map((row, i) => (
                                     <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
-                                        {Object.values(row).slice(0, 5).map((v, j) => (
-                                            <td key={j} className="px-3 py-1.5 max-w-[120px] truncate">{String(v)}</td>
+                                        {Object.values(row).map((v, j) => (
+                                            <td key={j} className="px-3 py-1.5 max-w-[150px] truncate">{String(v)}</td>
                                         ))}
                                     </tr>
                                 ))}

@@ -19,13 +19,13 @@ export async function POST(req: Request) {
             });
 
             return {
-                awb_number: r['awb_number'] || r['awb'] || r['tracking'] || r['หมายเลข'] || '',
-                booking_date: r['booking_date'] || r['date'] || r['วันที่'] || null,
-                sender_name: r['sender_name'] || r['sender'] || r['ผู้ส่ง'] || null,
-                sender_phone: r['sender_phone'] || r['sender_tel'] || r['เบอร์ผู้ส่ง'] || null,
-                receiver_name: r['receiver_name'] || r['receiver'] || r['ผู้รับ'] || null,
-                receiver_phone: r['receiver_phone'] || r['receiver_tel'] || r['เบอร์ผู้รับ'] || null,
-                shipping_fee: parseFloat(r['shipping_fee'] || r['fee'] || r['ค่าส่ง'] || '0') || 0,
+                awb_number: r['awb_number'] || r['awb'] || r['tracking'] || r['หมายเลข'] || r['หมายเลข_awb'] || r['หมายเลข_tracking'] || '',
+                booking_date: r['booking_date'] || r['date'] || r['วันที่'] || r['เวลาที่ส่งพัสดุ'] || r['วันที่จอง'] || null,
+                sender_name: r['sender_name'] || r['sender'] || r['ผู้ส่ง'] || r['ชื่อลูกค้า'] || r['ชื่อผู้ส่ง'] || null,
+                sender_phone: r['sender_phone'] || r['sender_tel'] || r['เบอร์ผู้ส่ง'] || r['เบอร์โทรผู้ส่ง'] || null,
+                receiver_name: r['receiver_name'] || r['receiver'] || r['ผู้รับ'] || r['ชื่อผู้รับ'] || null,
+                receiver_phone: r['receiver_phone'] || r['receiver_tel'] || r['เบอร์ผู้รับ'] || r['เบอร์โทรผู้รับ'] || null,
+                shipping_fee: parseFloat(r['shipping_fee'] || r['fee'] || r['ค่าส่ง'] || r['ราคา'] || '0') || 0,
             };
         }).filter(r => r.awb_number); // skip rows without AWB
 
