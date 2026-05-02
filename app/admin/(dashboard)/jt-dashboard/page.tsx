@@ -4,6 +4,14 @@ import Link from 'next/link';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { sanitizeJtChannelPriority } from '@/lib/jtChannelSettings';
+import {
+    buildJtStatsSearchParams,
+    defaultUtcMonthRange,
+    defaultUtcMonthYm,
+    JT_CHART_WINDOW_OPTIONS,
+    type JtChartPeriod,
+} from './jtChartPeriod';
+import type { DailyChartWidthMode } from './buildOrderedDashboardBlocks';
 import { buildOrderedDashboardBlocks } from './buildOrderedDashboardBlocks';
 import {
     anyJtSectionVisible,
@@ -60,7 +68,9 @@ export interface Stats {
     channelFieldPriority?: string[];
     /** อธิบายช่วงกราฟรายวัน (UTC) — ทำไมยอดในตารางอาจไม่เท่าแท่ง */
     chartWindow?: {
+        mode?: 'rolling' | 'month' | 'range';
         windowDays: number;
+        rollingWindowDays?: number;
         utcStart: string;
         utcEnd: string;
         distinctDaysWithData: number;
@@ -147,8 +157,16 @@ function normalizeStatsPayload(d: Record<string, unknown>): Stats {
             d.chartWindow != null && typeof d.chartWindow === 'object'
                 ? (() => {
                       const c = d.chartWindow as Record<string, unknown>;
+                      const m = c.mode;
+                      const mode =
+                          m === 'rolling' || m === 'month' || m === 'range'
+                              ? m
+                              : undefined;
                       return {
-                          windowDays: Math.min(365, Math.max(7, Number(c.windowDays) || 30)),
+                          mode,
+                          windowDays: Math.min(400, Math.max(1, Number(c.windowDays) || 30)),
+                          rollingWindowDays:
+                              c.rollingWindowDays != null ? Math.min(365, Math.max(7, Number(c.rollingWindowDays))) : undefined,
                           utcStart: String(c.utcStart ?? ''),
                           utcEnd: String(c.utcEnd ?? ''),
                           distinctDaysWithData: Math.max(0, Number(c.distinctDaysWithData) || 0),
@@ -165,19 +183,75 @@ const panel =
     'rounded-2xl border border-zinc-800/90 bg-[#0a1326]/95 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] backdrop-blur-sm';
 
 const CHART_WINDOW_LS = 'smartship_jt_chart_window_days';
-const CHART_WINDOW_OPTIONS = [30, 90, 180, 365] as const;
+const CHART_PERIOD_LS = 'smartship_jt_chart_period_v2';
+const CHART_WIDTH_LS = 'smartship_jt_daily_chart_width';
 
-function readChartWindowDaysFromLs(): (typeof CHART_WINDOW_OPTIONS)[number] {
+function readDailyChartWidthFromLs(): DailyChartWidthMode {
+    if (typeof window === 'undefined') return 'fit';
+    try {
+        const v = localStorage.getItem(CHART_WIDTH_LS);
+        if (v === 'fit' || v === 'detail') return v;
+    } catch {
+        /* ignore */
+    }
+    return 'fit';
+}
+
+function readChartWindowDaysFromLs(): (typeof JT_CHART_WINDOW_OPTIONS)[number] {
     if (typeof window === 'undefined') return 30;
     try {
         const n = parseInt(localStorage.getItem(CHART_WINDOW_LS) || '30', 10);
-        if (CHART_WINDOW_OPTIONS.includes(n as (typeof CHART_WINDOW_OPTIONS)[number])) {
-            return n as (typeof CHART_WINDOW_OPTIONS)[number];
+        if (JT_CHART_WINDOW_OPTIONS.includes(n as (typeof JT_CHART_WINDOW_OPTIONS)[number])) {
+            return n as (typeof JT_CHART_WINDOW_OPTIONS)[number];
         }
     } catch {
         /* ignore */
     }
     return 30;
+}
+
+function readChartPeriodFromLs(): JtChartPeriod {
+    if (typeof window === 'undefined') {
+        return { kind: 'rolling', days: 30 };
+    }
+    try {
+        const raw = localStorage.getItem(CHART_PERIOD_LS);
+        if (raw) {
+            const j = JSON.parse(raw) as Partial<JtChartPeriod>;
+            if (j?.kind === 'rolling' && j.days != null) {
+                const d = Number(j.days);
+                if (JT_CHART_WINDOW_OPTIONS.includes(d as (typeof JT_CHART_WINDOW_OPTIONS)[number])) {
+                    return { kind: 'rolling', days: d as (typeof JT_CHART_WINDOW_OPTIONS)[number] };
+                }
+            }
+            if (j?.kind === 'month' && typeof j.ym === 'string' && /^\d{4}-\d{2}$/.test(j.ym)) {
+                return { kind: 'month', ym: j.ym };
+            }
+            if (
+                j?.kind === 'range' &&
+                typeof j.from === 'string' &&
+                typeof j.to === 'string' &&
+                /^\d{4}-\d{2}-\d{2}$/.test(j.from) &&
+                /^\d{4}-\d{2}-\d{2}$/.test(j.to)
+            ) {
+                return { kind: 'range', from: j.from, to: j.to };
+            }
+        }
+    } catch {
+        /* ignore */
+    }
+    return { kind: 'rolling', days: readChartWindowDaysFromLs() };
+}
+
+function persistChartPeriod(p: JtChartPeriod) {
+    try {
+        localStorage.setItem(CHART_PERIOD_LS, JSON.stringify(p));
+        if (p.kind === 'rolling') {
+            localStorage.setItem(CHART_WINDOW_LS, String(p.days));
+        }
+    } catch {
+        /* ignore */
+    }
 }
 
 export default function JTDashboardPage() {
@@ -192,16 +266,37 @@ export default function JTDashboardPage() {
     const [dailyChartScale, setDailyChartScale] = useState<'linear' | 'sqrt'>('sqrt');
     const [pickBlocksOpen, setPickBlocksOpen] = useState(true);
     const [orderBlocksOpen, setOrderBlocksOpen] = useState(true);
-    const [chartWindowDays, setChartWindowDays] = useState<(typeof CHART_WINDOW_OPTIONS)[number]>(30);
+    const [chartPeriod, setChartPeriodState] = useState<JtChartPeriod>({ kind: 'rolling', days: 30 });
+    const [rangeDraft, setRangeDraft] = useState(defaultUtcMonthRange);
+    const [monthDraft, setMonthDraft] = useState(defaultUtcMonthYm);
+    const [dailyChartWidthMode, setDailyChartWidthModeState] = useState<DailyChartWidthMode>('fit');
 
     useEffect(() => {
-        setChartWindowDays(readChartWindowDaysFromLs());
+        const p = readChartPeriodFromLs();
+        setChartPeriodState(p);
+        if (p.kind === 'month') setMonthDraft(p.ym);
+        if (p.kind === 'range') setRangeDraft({ from: p.from, to: p.to });
+        setDailyChartWidthModeState(readDailyChartWidthFromLs());
+    }, []);
+
+    const setChartPeriod = useCallback((p: JtChartPeriod) => {
+        setChartPeriodState(p);
+        persistChartPeriod(p);
+    }, []);
+
+    const setDailyChartWidthMode = useCallback((m: DailyChartWidthMode) => {
+        setDailyChartWidthModeState(m);
+        try {
+            localStorage.setItem(CHART_WIDTH_LS, m);
+        } catch {
+            /* ignore */
+        }
     }, []);
 
     const fetchStats = useCallback(() => {
         setLoading(true);
         setLoadError(false);
-        fetch(`/api/admin/jt-shipments/stats?window_days=${chartWindowDays}`)
+        fetch(`/api/admin/jt-shipments/stats?${buildJtStatsSearchParams(chartPeriod)}`)
             .then((r) => {
                 if (!r.ok) throw new Error(String(r.status));
                 return r.json();
@@ -223,16 +318,7 @@ export default function JTDashboardPage() {
                 setStats(null);
             })
             .finally(() => setLoading(false));
-    }, [chartWindowDays]);
-
-    const setChartWindowDaysPersist = useCallback((n: (typeof CHART_WINDOW_OPTIONS)[number]) => {
-        setChartWindowDays(n);
-        try {
-            localStorage.setItem(CHART_WINDOW_LS, String(n));
-        } catch {
-            /* ignore */
-        }
-    }, []);
+    }, [chartPeriod]);
 
     useEffect(() => {
         fetchStats();
@@ -547,8 +633,14 @@ export default function JTDashboardPage() {
                       daysWithFeeData,
                       maxSender,
                       maxReceiver,
-                      chartWindowDays,
-                      setChartWindowDays: setChartWindowDaysPersist,
+                      chartPeriod,
+                      setChartPeriod,
+                      monthDraft,
+                      setMonthDraft,
+                      rangeDraft,
+                      setRangeDraft,
+                      dailyChartWidthMode,
+                      setDailyChartWidthMode,
                   })
                 : null}
         </div>

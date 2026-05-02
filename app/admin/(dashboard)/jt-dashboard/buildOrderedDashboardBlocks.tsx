@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import { useId } from 'react';
+import { useCallback, useId, useMemo, useRef } from 'react';
+import { defaultUtcMonthRange, JT_CHART_WINDOW_OPTIONS, type JtChartPeriod } from './jtChartPeriod';
 import {
     nextVisibleSectionIndex,
     prevVisibleSectionIndex,
@@ -35,6 +36,36 @@ function formatDayLabel(ymd: string): string {
     if (Number.isNaN(t)) return ymd.slice(5);
     return new Date(t).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 }
+
+function formatMonthYearThai(ymd: string): string {
+    const prefix = ymd.length >= 7 ? ymd.slice(0, 7) : ymd;
+    const t = Date.parse(`${prefix}-01T12:00:00.000Z`);
+    if (Number.isNaN(t)) return prefix;
+    return new Date(t).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+}
+
+/** Enough px so many narrow bars stay visible; outer wrapper scrolls horizontally. */
+function dailyChartPlotMinWidthPx(dayCount: number): number {
+    return Math.max(280, Math.min(3600, dayCount * 3));
+}
+
+export type DailyChartWidthMode = 'fit' | 'detail';
+
+function ChartGridLines() {
+    return (
+        <div
+            className="pointer-events-none absolute left-1 right-1 top-0 h-56 min-h-[14rem] flex flex-col justify-between"
+            aria-hidden
+        >
+            <div className="border-t border-dashed border-zinc-700/35" />
+            <div className="border-t border-dashed border-zinc-700/35" />
+            <div className="border-t border-dashed border-zinc-700/35" />
+        </div>
+    );
+}
+
+const DAILY_BAR_ROW_CLASS =
+    'relative flex h-56 min-h-[14rem] w-full items-end justify-between gap-px sm:gap-0.5 px-0.5';
 
 function platformPillClass(name: string): string {
     const n = name.toLowerCase();
@@ -74,7 +105,9 @@ export type JtDashboardStatsShape = {
     bookingDateNullCount: number;
     platformCounts: { name: string; count: number }[];
     chartWindow?: {
+        mode?: 'rolling' | 'month' | 'range';
         windowDays: number;
+        rollingWindowDays?: number;
         utcStart: string;
         utcEnd: string;
         distinctDaysWithData: number;
@@ -83,8 +116,6 @@ export type JtDashboardStatsShape = {
         anchorHint: string;
     };
 };
-
-const JT_CHART_WINDOW_OPTIONS = [30, 90, 180, 365] as const;
 
 export type JtOrderedBlocksInput = {
     stats: JtDashboardStatsShape;
@@ -110,8 +141,14 @@ export type JtOrderedBlocksInput = {
     daysWithFeeData: number;
     maxSender: number;
     maxReceiver: number;
-    chartWindowDays: (typeof JT_CHART_WINDOW_OPTIONS)[number];
-    setChartWindowDays: (n: (typeof JT_CHART_WINDOW_OPTIONS)[number]) => void;
+    chartPeriod: JtChartPeriod;
+    setChartPeriod: (p: JtChartPeriod) => void;
+    monthDraft: string;
+    setMonthDraft: Dispatch<SetStateAction<string>>;
+    rangeDraft: { from: string; to: string };
+    setRangeDraft: Dispatch<SetStateAction<{ from: string; to: string }>>;
+    dailyChartWidthMode: DailyChartWidthMode;
+    setDailyChartWidthMode: (m: DailyChartWidthMode) => void;
 };
 
 function DailyChartsSection({
@@ -127,8 +164,14 @@ function DailyChartsSection({
     maxDailyFeeSafe,
     sumDailyFee30,
     daysWithFeeData,
-    chartWindowDays,
-    setChartWindowDays,
+    chartPeriod,
+    setChartPeriod,
+    monthDraft,
+    setMonthDraft,
+    rangeDraft,
+    setRangeDraft,
+    dailyChartWidthMode,
+    setDailyChartWidthMode,
 }: Pick<
     JtOrderedBlocksInput,
     | 'panel'
@@ -143,14 +186,38 @@ function DailyChartsSection({
     | 'maxDailyFeeSafe'
     | 'sumDailyFee30'
     | 'daysWithFeeData'
-    | 'chartWindowDays'
-    | 'setChartWindowDays'
+    | 'chartPeriod'
+    | 'setChartPeriod'
+    | 'monthDraft'
+    | 'setMonthDraft'
+    | 'rangeDraft'
+    | 'setRangeDraft'
+    | 'dailyChartWidthMode'
+    | 'setDailyChartWidthMode'
 >) {
     const chartHintId = useId();
+    const countPlotScrollRef = useRef<HTMLDivElement>(null);
+    const feePlotScrollRef = useRef<HTMLDivElement>(null);
+    const scrollPairLockRef = useRef(false);
+
+    const handlePlotScrollPair = useCallback((source: 'count' | 'fee', scrollLeft: number) => {
+        if (dailyChartWidthMode !== 'detail') return;
+        if (scrollPairLockRef.current) return;
+        const otherEl = source === 'count' ? feePlotScrollRef.current : countPlotScrollRef.current;
+        if (!otherEl || otherEl.scrollLeft === scrollLeft) return;
+        scrollPairLockRef.current = true;
+        otherEl.scrollLeft = scrollLeft;
+        requestAnimationFrame(() => {
+            scrollPairLockRef.current = false;
+        });
+    }, [dailyChartWidthMode]);
     const outsideWindow =
         stats.chartWindow?.rowsOutsideWindowApprox ??
         Math.max(0, stats.total - (stats.bookingDateNullCount ?? 0) - sumDaily30);
-    const windowN = stats.chartWindow?.windowDays ?? chartWindowDays;
+    const cwMode = stats.chartWindow?.mode;
+    const windowN =
+        stats.chartWindow?.windowDays ??
+        (chartPeriod.kind === 'rolling' ? chartPeriod.days : stats.daily30.length || 30);
     const utcStart = stats.chartWindow?.utcStart;
     const utcEnd = stats.chartWindow?.utcEnd;
     const distinctDays =
@@ -158,62 +225,277 @@ function DailyChartsSection({
             ? stats.chartWindow.distinctDaysWithData
             : daysWithData;
 
+    const chartTitle =
+        cwMode === 'month' && utcStart
+            ? `กราฟรายวัน — ${formatMonthYearThai(utcStart)}`
+            : cwMode === 'range'
+              ? 'กราฟรายวัน — ช่วงวันที่กำหนด (UTC)'
+              : `กราฟรายวัน — ${windowN} วัน (จากจองล่าสุด)`;
+
+    const rangeOk =
+        /^\d{4}-\d{2}-\d{2}$/.test(rangeDraft.from) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(rangeDraft.to) &&
+        rangeDraft.from <= rangeDraft.to;
+
+    const countBarElements = useMemo(
+        () =>
+            stats.daily30.map((d, i) => {
+                const rawPct = dailyBarHeightPct(d.count, maxDailySafe, dailyChartScale);
+                const barPct =
+                    dailyChartScale === 'sqrt'
+                        ? Math.max(rawPct, d.count > 0 ? 5 : 0)
+                        : Math.max(rawPct, d.count > 0 ? 2.5 : 0);
+                const isLatest = i === stats.daily30.length - 1;
+                const label = `${formatDayLabel(d.date)} ${d.count.toLocaleString()} รายการ`;
+                return (
+                    <div
+                        key={d.date}
+                        className="group relative flex min-w-[2px] min-h-0 flex-1 flex-col justify-end"
+                        style={{ height: '100%' }}
+                    >
+                        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 hidden w-max max-w-[min(92vw,15rem)] -translate-x-1/2 rounded-lg bg-zinc-800/95 px-2.5 py-2 text-center text-[10px] leading-snug text-white shadow-xl ring-1 ring-zinc-600/50 sm:block sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                            <span className="font-semibold text-sky-200">{formatDayLabel(d.date)}</span>
+                            <br />
+                            <span className="tabular-nums text-zinc-100">{d.count.toLocaleString()} รายการ</span>
+                        </div>
+                        <button
+                            type="button"
+                            tabIndex={0}
+                            aria-label={label}
+                            className="relative flex w-full flex-1 flex-col justify-end rounded-t-[3px] border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-sky-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                        >
+                            <span
+                                className={`block w-full rounded-t-[3px] transition-all ${isLatest ? 'bg-gradient-to-t from-blue-600 to-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.35)]' : 'bg-gradient-to-t from-blue-700/90 to-blue-500/70 group-hover:from-blue-500 group-hover:to-sky-400/90'}`}
+                                style={{
+                                    height: `${Math.min(barPct, 100)}%`,
+                                    minHeight: d.count > 0 ? '4px' : '2px',
+                                    opacity: d.count > 0 ? 1 : 0.22,
+                                }}
+                            />
+                        </button>
+                    </div>
+                );
+            }),
+        [stats.daily30, maxDailySafe, dailyChartScale],
+    );
+
+    const feeBarElements = useMemo(
+        () =>
+            stats.dailyFee30.map((d, i) => {
+                const rawPct = dailyBarHeightPct(d.feeTotal, maxDailyFeeSafe, dailyChartScale);
+                const barPct =
+                    dailyChartScale === 'sqrt'
+                        ? Math.max(rawPct, d.feeTotal > 0 ? 5 : 0)
+                        : Math.max(rawPct, d.feeTotal > 0 ? 2.5 : 0);
+                const isLatest = i === stats.dailyFee30.length - 1;
+                const label = `${formatDayLabel(d.date)} ฿${d.feeTotal.toLocaleString()}`;
+                return (
+                    <div
+                        key={d.date}
+                        className="group relative flex min-w-[2px] min-h-0 flex-1 flex-col justify-end"
+                        style={{ height: '100%' }}
+                    >
+                        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 hidden w-max max-w-[min(92vw,15rem)] -translate-x-1/2 rounded-lg bg-zinc-800/95 px-2.5 py-2 text-center text-[10px] leading-snug text-white shadow-xl ring-1 ring-zinc-600/50 sm:block sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                            <span className="font-semibold text-amber-200">{formatDayLabel(d.date)}</span>
+                            <br />
+                            <span className="tabular-nums">
+                                ฿
+                                {d.feeTotal.toLocaleString(undefined, {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                })}
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            tabIndex={0}
+                            aria-label={label}
+                            className="relative flex w-full flex-1 flex-col justify-end rounded-t-[3px] border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                        >
+                            <span
+                                className={`block w-full rounded-t-[3px] transition-all ${isLatest ? 'bg-gradient-to-t from-amber-600 to-yellow-400 shadow-[0_0_14px_rgba(251,191,36,0.28)]' : 'bg-gradient-to-t from-amber-800/95 to-amber-600/75 group-hover:from-amber-600 group-hover:to-yellow-400/85'}`}
+                                style={{
+                                    height: `${Math.min(barPct, 100)}%`,
+                                    minHeight: d.feeTotal > 0 ? '4px' : '2px',
+                                    opacity: d.feeTotal > 0 ? 1 : 0.22,
+                                }}
+                            />
+                        </button>
+                    </div>
+                );
+            }),
+        [stats.dailyFee30, maxDailyFeeSafe, dailyChartScale],
+    );
+
     return (
-        <section className={`${panel} overflow-hidden`} aria-labelledby={`jt-daily-h-${chartHintId}`}>
+        <section className={`${panel} min-w-0 overflow-hidden`} aria-labelledby={`jt-daily-h-${chartHintId}`}>
             {/* Header */}
             <div className="border-b border-zinc-800/80 bg-gradient-to-br from-zinc-900/50 via-zinc-950/80 to-[#0a1326]/90 px-4 py-4 md:px-6 md:py-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-                    <div className="min-w-0 flex-1 space-y-1">
-                        <h2 id={`jt-daily-h-${chartHintId}`} className="text-lg md:text-xl font-bold tracking-tight text-zinc-50">
-                            กราฟรายวัน — {windowN} วันล่าสุด
+                <div className="flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(17.5rem,22rem)] xl:items-start xl:gap-8">
+                    <div className="min-w-0 space-y-2">
+                        <h2
+                            id={`jt-daily-h-${chartHintId}`}
+                            className="text-base sm:text-lg xl:text-xl font-bold tracking-tight text-zinc-50 break-words"
+                        >
+                            {chartTitle}
                         </h2>
-                        <p className="text-xs text-zinc-500 leading-relaxed max-w-2xl">
-                            แกนเวลาเดียวกัน (<strong className="text-zinc-400">UTC</strong> ต่อวัน) ·{' '}
-                            <span className="text-sky-400/90 font-medium">ซ้าย</span> จำนวนจาก{' '}
-                            <code className="rounded bg-zinc-900/90 px-1 py-0.5 text-[10px] text-sky-300">booking_date</code>{' '}
-                            · <span className="text-amber-400/90 font-medium">ขวา</span> รวมค่าส่ง{' '}
-                            <code className="rounded bg-zinc-900/90 px-1 py-0.5 text-[10px] text-amber-300">shipping_fee</code>{' '}
-                            — จอใหญ่: ชี้ที่แท่งเพื่อดู tooltip · มือถือ: ใช้ปุ่มโฟกัสที่แท่งหรือดูยอดรวมที่ป้ายด้านบน
+                        <p className="text-xs text-zinc-400 leading-snug">
+                            <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                                <span className="rounded-md bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-200/95 ring-1 ring-sky-500/20">
+                                    ซ้าย · จำนวน
+                                </span>
+                                <code className="rounded bg-zinc-900/90 px-1.5 py-0.5 text-[10px] text-sky-300">booking_date</code>
+                                <span className="text-zinc-600">·</span>
+                                <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200/95 ring-1 ring-amber-500/20">
+                                    ขวา · ค่าส่ง
+                                </span>
+                                <code className="rounded bg-zinc-900/90 px-1.5 py-0.5 text-[10px] text-amber-300">shipping_fee</code>
+                                <span className="text-zinc-500">ทั้งคู่แยกตามวัน UTC</span>
+                            </span>
                         </p>
                         {utcStart && utcEnd ? (
-                            <p className="text-[11px] text-zinc-500 tabular-nums">
-                                ช่วงบนแกน: {formatDayLabel(utcStart)} — {formatDayLabel(utcEnd)} · แยกตามวัน UTC (ไม่ใช่ “ย้อนหลังจากวันนี้”)
+                            <p className="text-xs text-zinc-500 tabular-nums leading-snug">
+                                <span className="font-medium text-zinc-400">ช่วงแกน:</span>{' '}
+                                {formatDayLabel(utcStart)} — {formatDayLabel(utcEnd)}
+                                {cwMode === 'rolling'
+                                    ? ' · โหมดย้อนหลังชิดวันจองล่าสุด'
+                                    : ' · ตามปฏิทินที่เลือก'}
                             </p>
                         ) : null}
+                        <p className="text-[11px] text-zinc-600 xl:hidden">
+                            ชี้ที่แท่งเพื่อดูรายละเอียด · แท่งเยอะให้เลื่อนแนวนอน
+                        </p>
                     </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center shrink-0">
-                        <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">ช่วงแกน</span>
-                            <select
-                                value={chartWindowDays}
-                                onChange={(e) => {
-                                    const n = parseInt(e.target.value, 10);
-                                    if (JT_CHART_WINDOW_OPTIONS.includes(n as (typeof JT_CHART_WINDOW_OPTIONS)[number])) {
-                                        setChartWindowDays(n as (typeof JT_CHART_WINDOW_OPTIONS)[number]);
+                    <div className="flex min-w-0 w-full flex-col gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 sm:p-4 xl:shrink-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">ช่วงเวลาบนแกน</p>
+                        <div
+                            className="flex flex-wrap rounded-xl border border-zinc-700/90 bg-zinc-950/80 p-0.5 text-[11px] font-semibold shadow-inner gap-0.5"
+                            role="group"
+                            aria-label="โหมดช่วงเวลากราฟ"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setChartPeriod({ kind: 'rolling', days: chartPeriod.kind === 'rolling' ? chartPeriod.days : 30 })}
+                                className={`rounded-lg px-2.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 ${
+                                    chartPeriod.kind === 'rolling'
+                                        ? 'bg-sky-600 text-white shadow-md'
+                                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
+                                }`}
+                            >
+                                ย้อนหลัง N วัน
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setChartPeriod({ kind: 'month', ym: monthDraft })}
+                                className={`rounded-lg px-2.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 ${
+                                    chartPeriod.kind === 'month'
+                                        ? 'bg-sky-600 text-white shadow-md'
+                                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
+                                }`}
+                            >
+                                เดือน (UTC)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (rangeOk) {
+                                        setChartPeriod({ kind: 'range', from: rangeDraft.from, to: rangeDraft.to });
+                                    } else {
+                                        const d = defaultUtcMonthRange();
+                                        setRangeDraft(d);
+                                        setChartPeriod({ kind: 'range', from: d.from, to: d.to });
                                     }
                                 }}
-                                className="rounded-lg border border-zinc-700/90 bg-zinc-950/90 px-2.5 py-2 text-[11px] font-semibold text-zinc-200 shadow-inner focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 min-h-[40px] sm:min-h-[36px]"
-                                aria-label="จำนวนวันบนแกนกราฟรายวัน"
+                                className={`rounded-lg px-2.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 ${
+                                    chartPeriod.kind === 'range'
+                                        ? 'bg-sky-600 text-white shadow-md'
+                                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
+                                }`}
                             >
-                                {JT_CHART_WINDOW_OPTIONS.map((n) => (
-                                    <option key={n} value={n}>
-                                        {n} วัน
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 hidden sm:block">
-                            ความสูงแท่ง
-                        </span>
+                                ช่วงวันที่
+                            </button>
+                        </div>
+                        {chartPeriod.kind === 'rolling' ? (
+                            <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">จำนวนวัน</span>
+                                <select
+                                    value={chartPeriod.days}
+                                    onChange={(e) => {
+                                        const n = parseInt(e.target.value, 10);
+                                        if (JT_CHART_WINDOW_OPTIONS.includes(n as (typeof JT_CHART_WINDOW_OPTIONS)[number])) {
+                                            setChartPeriod({ kind: 'rolling', days: n as (typeof JT_CHART_WINDOW_OPTIONS)[number] });
+                                        }
+                                    }}
+                                    className="rounded-lg border border-zinc-700/90 bg-zinc-950/90 px-2.5 py-2 text-[11px] font-semibold text-zinc-200 shadow-inner focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 min-h-[40px] sm:min-h-[36px] w-full sm:w-auto"
+                                    aria-label="จำนวนวันย้อนหลังจากวันจองล่าสุด"
+                                >
+                                    {JT_CHART_WINDOW_OPTIONS.map((n) => (
+                                        <option key={n} value={n}>
+                                            {n} วัน
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        ) : null}
+                        {chartPeriod.kind === 'month' ? (
+                            <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">เดือน</span>
+                                <input
+                                    type="month"
+                                    value={monthDraft}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setMonthDraft(v);
+                                        if (/^\d{4}-\d{2}$/.test(v)) {
+                                            setChartPeriod({ kind: 'month', ym: v });
+                                        }
+                                    }}
+                                    className="rounded-lg border border-zinc-700/90 bg-zinc-950/90 px-2.5 py-2 text-[11px] font-semibold text-zinc-200 shadow-inner focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 min-h-[40px] sm:min-h-[36px] w-full sm:w-auto"
+                                />
+                            </label>
+                        ) : null}
+                        {chartPeriod.kind === 'range' ? (
+                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">ตั้งแต่ (UTC)</span>
+                                    <input
+                                        type="date"
+                                        value={rangeDraft.from}
+                                        onChange={(e) => setRangeDraft((prev) => ({ ...prev, from: e.target.value }))}
+                                        className="rounded-lg border border-zinc-700/90 bg-zinc-950/90 px-2 py-2 text-[11px] text-zinc-200 min-h-[40px]"
+                                    />
+                                </label>
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">ถึง (UTC)</span>
+                                    <input
+                                        type="date"
+                                        value={rangeDraft.to}
+                                        onChange={(e) => setRangeDraft((prev) => ({ ...prev, to: e.target.value }))}
+                                        className="rounded-lg border border-zinc-700/90 bg-zinc-950/90 px-2 py-2 text-[11px] text-zinc-200 min-h-[40px]"
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    disabled={!rangeOk}
+                                    onClick={() => {
+                                        if (rangeOk) setChartPeriod({ kind: 'range', from: rangeDraft.from, to: rangeDraft.to });
+                                    }}
+                                    className="rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2 text-[11px] font-bold text-white min-h-[40px]"
+                                >
+                                    โหลดช่วงนี้
+                                </button>
+                            </div>
+                        ) : null}
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 pt-1">ความสูงแท่ง</p>
                         <div
-                            className="inline-flex rounded-xl border border-zinc-700/90 bg-zinc-950/80 p-0.5 text-[11px] font-semibold shadow-inner"
+                            className="inline-flex w-full sm:w-auto rounded-xl border border-zinc-700/90 bg-zinc-950/80 p-0.5 text-[11px] font-semibold shadow-inner"
                             role="group"
                             aria-label="โหมดสเกลกราฟทั้งสอง"
                         >
                             <button
                                 type="button"
                                 onClick={() => setDailyChartScale('sqrt')}
-                                className={`rounded-lg px-3.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+                                className={`min-w-0 flex-1 sm:flex-initial rounded-lg px-3.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                                     dailyChartScale === 'sqrt'
                                         ? 'bg-sky-600 text-white shadow-md'
                                         : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
@@ -224,7 +506,7 @@ function DailyChartsSection({
                             <button
                                 type="button"
                                 onClick={() => setDailyChartScale('linear')}
-                                className={`rounded-lg px-3.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+                                className={`min-w-0 flex-1 sm:flex-initial rounded-lg px-3.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                                     dailyChartScale === 'linear'
                                         ? 'bg-sky-600 text-white shadow-md'
                                         : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
@@ -233,6 +515,40 @@ function DailyChartsSection({
                                 ตามจริง
                             </button>
                         </div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 pt-2">ความกว้างแกน</p>
+                        <div
+                            className="flex w-full flex-wrap gap-1 rounded-xl border border-zinc-700/90 bg-zinc-950/80 p-0.5 text-[11px] font-semibold shadow-inner"
+                            role="group"
+                            aria-label="โหมดความกว้างแท่งบนแกนเวลา"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setDailyChartWidthMode('fit')}
+                                className={`min-w-0 flex-1 rounded-lg px-2.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+                                    dailyChartWidthMode === 'fit'
+                                        ? 'bg-emerald-600 text-white shadow-md'
+                                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
+                                }`}
+                            >
+                                ย่อเต็มจอ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDailyChartWidthMode('detail')}
+                                className={`min-w-0 flex-1 rounded-lg px-2.5 py-2 min-h-[40px] sm:min-h-[36px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+                                    dailyChartWidthMode === 'detail'
+                                        ? 'bg-emerald-600 text-white shadow-md'
+                                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
+                                }`}
+                            >
+                                ขยายแท่ง (เลื่อน)
+                            </button>
+                        </div>
+                        <p className="text-[10px] leading-snug text-zinc-600">
+                            {dailyChartWidthMode === 'fit'
+                                ? 'เห็นทั้งแกนในหนึ่งหน้าจอ — แท่งอาจบางเมื่อช่วงยาว'
+                                : 'แท่งกว้างขึ้น เลื่อนซ้าย–ขวาได้ · สองกราฟเลื่อนพร้อมกัน'}
+                        </p>
                     </div>
                 </div>
 
@@ -261,12 +577,16 @@ function DailyChartsSection({
                             โหมด <strong className="text-zinc-500">สมดุล</strong> เหมาะเมื่อบางวันมีจำนวนสูงมากโดด ·{' '}
                             <strong className="text-zinc-500">ตามจริง</strong> ใช้สัดส่วนจริงจากค่าสูงสุดในกราฟ
                         </p>
+                        <p className="text-zinc-600">
+                            <strong className="text-zinc-500">ย่อเต็มจอ</strong>: แท่งยืดตามความกว้างการ์ด เห็นภาพรวมช่วงทั้งหมด ·{' '}
+                            <strong className="text-zinc-500">ขยายแท่ง</strong>: แท่งกว้างขั้นต่ำ ~3px/วัน เลื่อนแนวนอนได้ (สองกราฟเลื่อนพร้อมกัน)
+                        </p>
                     </div>
                 </details>
             </div>
 
             {/* Two charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 [&>*]:min-w-0">
                 {/* Count */}
                 <div className="border-b border-zinc-800/70 lg:border-b-0 lg:border-r lg:border-zinc-800/70 p-4 md:p-5 bg-zinc-950/20">
                     <div className="flex items-start gap-3 mb-3">
@@ -304,53 +624,28 @@ function DailyChartsSection({
                         role="img"
                         aria-label={`กราฟจำนวนรายการ ${windowN} วัน รวม ${sumDaily30.toLocaleString()} รายการ`}
                     >
-                        <div
-                            className="pointer-events-none absolute left-2 right-2 top-3 h-52 flex flex-col justify-between"
-                            aria-hidden
-                        >
-                            <div className="border-t border-dashed border-zinc-700/35" />
-                            <div className="border-t border-dashed border-zinc-700/35" />
-                            <div className="border-t border-dashed border-zinc-700/35" />
-                        </div>
-                        <div className="relative flex h-52 w-full min-w-0 items-end justify-between gap-px sm:gap-0.5">
-                            {stats.daily30.map((d, i) => {
-                                const rawPct = dailyBarHeightPct(d.count, maxDailySafe, dailyChartScale);
-                                const barPct =
-                                    dailyChartScale === 'sqrt'
-                                        ? Math.max(rawPct, d.count > 0 ? 5 : 0)
-                                        : Math.max(rawPct, d.count > 0 ? 2.5 : 0);
-                                const isLatest = i === stats.daily30.length - 1;
-                                const label = `${formatDayLabel(d.date)} ${d.count.toLocaleString()} รายการ`;
-                                return (
-                                    <div
-                                        key={d.date}
-                                        className="group relative flex min-w-[2px] min-h-0 flex-1 flex-col justify-end"
-                                        style={{ height: '100%' }}
-                                    >
-                                        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 hidden w-max max-w-[min(92vw,15rem)] -translate-x-1/2 rounded-lg bg-zinc-800/95 px-2.5 py-2 text-center text-[10px] leading-snug text-white shadow-xl ring-1 ring-zinc-600/50 sm:block sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                                            <span className="font-semibold text-sky-200">{formatDayLabel(d.date)}</span>
-                                            <br />
-                                            <span className="tabular-nums text-zinc-100">{d.count.toLocaleString()} รายการ</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            tabIndex={0}
-                                            aria-label={label}
-                                            className="relative flex w-full flex-1 flex-col justify-end rounded-t-[3px] border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-sky-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-                                        >
-                                            <span
-                                                className={`block w-full rounded-t-[3px] transition-all ${isLatest ? 'bg-gradient-to-t from-blue-600 to-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.35)]' : 'bg-gradient-to-t from-blue-700/90 to-blue-500/70 group-hover:from-blue-500 group-hover:to-sky-400/90'}`}
-                                                style={{
-                                                    height: `${Math.min(barPct, 100)}%`,
-                                                    minHeight: d.count > 0 ? '4px' : '2px',
-                                                    opacity: d.count > 0 ? 1 : 0.22,
-                                                }}
-                                            />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        {dailyChartWidthMode === 'fit' ? (
+                            <div className="relative w-full">
+                                <ChartGridLines />
+                                <div className={DAILY_BAR_ROW_CLASS}>{countBarElements}</div>
+                            </div>
+                        ) : (
+                            <div
+                                ref={countPlotScrollRef}
+                                onScroll={(e) => handlePlotScrollPair('count', e.currentTarget.scrollLeft)}
+                                className="overflow-x-auto overflow-y-hidden overscroll-x-contain"
+                            >
+                                <div
+                                    className="relative mx-auto"
+                                    style={{
+                                        width: `max(100%, ${dailyChartPlotMinWidthPx(stats.daily30.length)}px)`,
+                                    }}
+                                >
+                                    <ChartGridLines />
+                                    <div className={DAILY_BAR_ROW_CLASS}>{countBarElements}</div>
+                                </div>
+                            </div>
+                        )}
                         <div className="mt-2 flex justify-between px-0.5 text-[10px] text-zinc-500">
                             <span>{stats.daily30[0] ? formatDayLabel(stats.daily30[0].date) : ''}</span>
                             <span className="font-medium text-sky-400/95 tabular-nums">
@@ -360,6 +655,14 @@ function DailyChartsSection({
                                     : ''}
                             </span>
                         </div>
+                        {dailyChartWidthMode === 'detail' && windowN > 60 ? (
+                            <p className="mt-1.5 text-center text-[10px] text-zinc-600">เลื่อนแนวนอนเพื่อดูทุกวันในแกน · กราฟซ้าย–ขวาเลื่อนพร้อมกัน</p>
+                        ) : null}
+                        {dailyChartWidthMode === 'fit' && windowN > 90 ? (
+                            <p className="mt-1.5 text-center text-[10px] text-amber-500/90">
+                                ช่วงยาว: แท่งจะบาง — สลับเป็น «ขยายแท่ง» ถ้าต้องการชี้ดูทีละวัน
+                            </p>
+                        ) : null}
                     </div>
                 </div>
 
@@ -411,59 +714,28 @@ function DailyChartsSection({
                         role="img"
                         aria-label={`กราฟยอดค่าส่ง ${windowN} วัน รวม ${sumDailyFee30.toLocaleString()} บาท`}
                     >
-                        <div
-                            className="pointer-events-none absolute left-2 right-2 top-3 h-52 flex flex-col justify-between"
-                            aria-hidden
-                        >
-                            <div className="border-t border-dashed border-zinc-700/35" />
-                            <div className="border-t border-dashed border-zinc-700/35" />
-                            <div className="border-t border-dashed border-zinc-700/35" />
-                        </div>
-                        <div className="relative flex h-52 w-full min-w-0 items-end justify-between gap-px sm:gap-0.5">
-                            {stats.dailyFee30.map((d, i) => {
-                                const rawPct = dailyBarHeightPct(d.feeTotal, maxDailyFeeSafe, dailyChartScale);
-                                const barPct =
-                                    dailyChartScale === 'sqrt'
-                                        ? Math.max(rawPct, d.feeTotal > 0 ? 5 : 0)
-                                        : Math.max(rawPct, d.feeTotal > 0 ? 2.5 : 0);
-                                const isLatest = i === stats.dailyFee30.length - 1;
-                                const label = `${formatDayLabel(d.date)} ฿${d.feeTotal.toLocaleString()}`;
-                                return (
-                                    <div
-                                        key={d.date}
-                                        className="group relative flex min-w-[2px] min-h-0 flex-1 flex-col justify-end"
-                                        style={{ height: '100%' }}
-                                    >
-                                        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 hidden w-max max-w-[min(92vw,15rem)] -translate-x-1/2 rounded-lg bg-zinc-800/95 px-2.5 py-2 text-center text-[10px] leading-snug text-white shadow-xl ring-1 ring-zinc-600/50 sm:block sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                                            <span className="font-semibold text-amber-200">{formatDayLabel(d.date)}</span>
-                                            <br />
-                                            <span className="tabular-nums">
-                                                ฿
-                                                {d.feeTotal.toLocaleString(undefined, {
-                                                    minimumFractionDigits: 0,
-                                                    maximumFractionDigits: 2,
-                                                })}
-                                            </span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            tabIndex={0}
-                                            aria-label={label}
-                                            className="relative flex w-full flex-1 flex-col justify-end rounded-t-[3px] border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-                                        >
-                                            <span
-                                                className={`block w-full rounded-t-[3px] transition-all ${isLatest ? 'bg-gradient-to-t from-amber-600 to-yellow-400 shadow-[0_0_14px_rgba(251,191,36,0.28)]' : 'bg-gradient-to-t from-amber-800/95 to-amber-600/75 group-hover:from-amber-600 group-hover:to-yellow-400/85'}`}
-                                                style={{
-                                                    height: `${Math.min(barPct, 100)}%`,
-                                                    minHeight: d.feeTotal > 0 ? '4px' : '2px',
-                                                    opacity: d.feeTotal > 0 ? 1 : 0.22,
-                                                }}
-                                            />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        {dailyChartWidthMode === 'fit' ? (
+                            <div className="relative w-full">
+                                <ChartGridLines />
+                                <div className={DAILY_BAR_ROW_CLASS}>{feeBarElements}</div>
+                            </div>
+                        ) : (
+                            <div
+                                ref={feePlotScrollRef}
+                                onScroll={(e) => handlePlotScrollPair('fee', e.currentTarget.scrollLeft)}
+                                className="overflow-x-auto overflow-y-hidden overscroll-x-contain"
+                            >
+                                <div
+                                    className="relative mx-auto"
+                                    style={{
+                                        width: `max(100%, ${dailyChartPlotMinWidthPx(stats.dailyFee30.length)}px)`,
+                                    }}
+                                >
+                                    <ChartGridLines />
+                                    <div className={DAILY_BAR_ROW_CLASS}>{feeBarElements}</div>
+                                </div>
+                            </div>
+                        )}
                         <div className="mt-2 flex justify-between px-0.5 text-[10px] text-zinc-500">
                             <span>{stats.dailyFee30[0] ? formatDayLabel(stats.dailyFee30[0].date) : ''}</span>
                             <span className="font-medium text-amber-400/95 tabular-nums">
@@ -473,6 +745,14 @@ function DailyChartsSection({
                                     : ''}
                             </span>
                         </div>
+                        {dailyChartWidthMode === 'detail' && windowN > 60 ? (
+                            <p className="mt-1.5 text-center text-[10px] text-zinc-600">เลื่อนแนวนอนเพื่อดูทุกวันในแกน · กราฟซ้าย–ขวาเลื่อนพร้อมกัน</p>
+                        ) : null}
+                        {dailyChartWidthMode === 'fit' && windowN > 90 ? (
+                            <p className="mt-1.5 text-center text-[10px] text-amber-500/90">
+                                ช่วงยาว: แท่งจะบาง — สลับเป็น «ขยายแท่ง» ถ้าต้องการชี้ดูทีละวัน
+                            </p>
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -584,8 +864,14 @@ export function buildOrderedDashboardBlocks(ctx: JtOrderedBlocksInput): ReactNod
         daysWithFeeData,
         maxSender,
         maxReceiver,
-        chartWindowDays,
-        setChartWindowDays,
+        chartPeriod,
+        setChartPeriod,
+        monthDraft,
+        setMonthDraft,
+        rangeDraft,
+        setRangeDraft,
+        dailyChartWidthMode,
+        setDailyChartWidthMode,
     } = ctx;
 
     const nodes: ReactNode[] = [];
@@ -602,7 +888,10 @@ export function buildOrderedDashboardBlocks(ctx: JtOrderedBlocksInput): ReactNod
             const nv = nextVisibleSectionIndex(order, i, v);
             if (nv !== null && order[nv] === 'topSenders') {
                 nodes.push(
-                    <div key="jt-pair-daily-senders" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div
+                        key="jt-pair-daily-senders"
+                        className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] lg:items-start [&>*]:min-w-0"
+                    >
                         <DailyChartsSection
                             panel={panel}
                             stats={stats}
@@ -616,8 +905,14 @@ export function buildOrderedDashboardBlocks(ctx: JtOrderedBlocksInput): ReactNod
                             maxDailyFeeSafe={maxDailyFeeSafe}
                             sumDailyFee30={sumDailyFee30}
                             daysWithFeeData={daysWithFeeData}
-                            chartWindowDays={chartWindowDays}
-                            setChartWindowDays={setChartWindowDays}
+                            chartPeriod={chartPeriod}
+                            setChartPeriod={setChartPeriod}
+                            monthDraft={monthDraft}
+                            setMonthDraft={setMonthDraft}
+                            rangeDraft={rangeDraft}
+                            setRangeDraft={setRangeDraft}
+                            dailyChartWidthMode={dailyChartWidthMode}
+                            setDailyChartWidthMode={setDailyChartWidthMode}
                         />
                         <TopSendersPanel
                             panel={panel}
@@ -745,8 +1040,14 @@ export function buildOrderedDashboardBlocks(ctx: JtOrderedBlocksInput): ReactNod
                     maxDailyFeeSafe={maxDailyFeeSafe}
                     sumDailyFee30={sumDailyFee30}
                     daysWithFeeData={daysWithFeeData}
-                    chartWindowDays={chartWindowDays}
-                    setChartWindowDays={setChartWindowDays}
+                    chartPeriod={chartPeriod}
+                    setChartPeriod={setChartPeriod}
+                    monthDraft={monthDraft}
+                    setMonthDraft={setMonthDraft}
+                    rangeDraft={rangeDraft}
+                    setRangeDraft={setRangeDraft}
+                    dailyChartWidthMode={dailyChartWidthMode}
+                    setDailyChartWidthMode={setDailyChartWidthMode}
                 />,
             );
         } else if (k === 'topSenders') {

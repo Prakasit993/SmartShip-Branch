@@ -4,7 +4,14 @@ import { channelBucketLabelFromRow } from '@/lib/jtChannel';
 import { parseJtChannelPriorityFromSettingValue, uniqueFieldsForSelect } from '@/lib/jtChannelSettings';
 import { classifyShippingFeeBucket } from '@/lib/jtFeeBuckets';
 import { parseJtDashboardSectionsJson } from '@/lib/jtDashboardSections';
-import { buildUtcDayWindow, utcDayKeyFromIso } from '@/lib/utcDayKey';
+import {
+    buildUtcDayKeysForMonth,
+    buildUtcDayKeysInclusiveRange,
+    buildUtcDayWindow,
+    utcDayKeyFromIso,
+} from '@/lib/utcDayKey';
+
+type ChartAxisMode = 'rolling' | 'month' | 'range';
 
 type RpcDailyStatsRow = { day: string; cnt: number | string; fee_sum: number | string };
 
@@ -89,10 +96,83 @@ function clampChartWindowDays(raw: string | null): number {
     return Math.min(365, Math.max(7, n));
 }
 
+function resolveChartAxis(
+    searchParams: URLSearchParams,
+    anchorSafe: number,
+): {
+    dayKeysWindow: string[];
+    rangeStartIso: string;
+    rangeEndIso: string;
+    startDateWindow: string;
+    endDateWindow: string;
+    axisDayCount: number;
+    mode: ChartAxisMode;
+    rollingWindowDays: number;
+    anchorHint: string;
+} {
+    const chartFrom = searchParams.get('chart_from')?.trim() ?? '';
+    const chartTo = searchParams.get('chart_to')?.trim() ?? '';
+    const chartMonth = searchParams.get('chart_month')?.trim() ?? '';
+
+    const rangeKeys =
+        chartFrom && chartTo ? buildUtcDayKeysInclusiveRange(chartFrom, chartTo, 400) : null;
+    if (rangeKeys && rangeKeys.length > 0) {
+        const startDateWindow = rangeKeys[0];
+        const endDateWindow = rangeKeys[rangeKeys.length - 1];
+        return {
+            dayKeysWindow: rangeKeys,
+            rangeStartIso: `${startDateWindow}T00:00:00.000Z`,
+            rangeEndIso: `${endDateWindow}T23:59:59.999Z`,
+            startDateWindow,
+            endDateWindow,
+            axisDayCount: rangeKeys.length,
+            mode: 'range',
+            rollingWindowDays: clampChartWindowDays(searchParams.get('window_days')),
+            anchorHint:
+                'ช่วงบนกราฟ = วันที่ปฏิทิน UTC ต่อเนื่องตาม chart_from / chart_to (สอดคล้องกับการแยก booking_date เป็นวัน UTC)',
+        };
+    }
+
+    const monthKeys = chartMonth ? buildUtcDayKeysForMonth(chartMonth) : null;
+    if (monthKeys && monthKeys.length > 0) {
+        const startDateWindow = monthKeys[0];
+        const endDateWindow = monthKeys[monthKeys.length - 1];
+        return {
+            dayKeysWindow: monthKeys,
+            rangeStartIso: `${startDateWindow}T00:00:00.000Z`,
+            rangeEndIso: `${endDateWindow}T23:59:59.999Z`,
+            startDateWindow,
+            endDateWindow,
+            axisDayCount: monthKeys.length,
+            mode: 'month',
+            rollingWindowDays: clampChartWindowDays(searchParams.get('window_days')),
+            anchorHint:
+                'ช่วงบนกราฟ = เต็มเดือนปฏิทิน UTC ตาม chart_month (เช่น 2026-01 = 1–31 ม.ค. UTC)',
+        };
+    }
+
+    const rollingWindowDays = clampChartWindowDays(searchParams.get('window_days'));
+    const { keys: dayKeysWindow, startIso: rangeStartIso } = buildUtcDayWindow(anchorSafe, rollingWindowDays);
+    const rangeEndIso = `${dayKeysWindow[dayKeysWindow.length - 1]}T23:59:59.999Z`;
+    const startDateWindow = dayKeysWindow[0];
+    const endDateWindow = dayKeysWindow[dayKeysWindow.length - 1];
+    return {
+        dayKeysWindow,
+        rangeStartIso,
+        rangeEndIso,
+        startDateWindow,
+        endDateWindow,
+        axisDayCount: rollingWindowDays,
+        mode: 'rolling',
+        rollingWindowDays,
+        anchorHint:
+            'ช่วงวันที่บนกราฟ = วัน UTC ต่อเนื่องจำนวน window_days วัน โดยให้วันสุดท้ายตรงกับวันที่จองล่าสุดในตาราง (ไม่ใช่วันนี้ของปฏิทิน)',
+    };
+}
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const windowDays = clampChartWindowDays(searchParams.get('window_days'));
 
         const [{ data: latestRow }, settingsRes] = await Promise.all([
             supabaseAdmin.from('jt_shipments').select('booking_date').order('booking_date', { ascending: false }).limit(1).maybeSingle(),
@@ -120,10 +200,8 @@ export async function GET(request: Request) {
         monthStart.setDate(1);
         monthStart.setHours(0, 0, 0, 0);
 
-        const { keys: dayKeysWindow, startIso: rangeStartIso } = buildUtcDayWindow(anchorSafe, windowDays);
-        const rangeEndIso = `${dayKeysWindow[dayKeysWindow.length - 1]}T23:59:59.999Z`;
-        const startDateWindow = dayKeysWindow[0];
-        const endDateWindow = dayKeysWindow[dayKeysWindow.length - 1];
+        const axis = resolveChartAxis(searchParams, anchorSafe);
+        const { dayKeysWindow, rangeStartIso, rangeEndIso, startDateWindow, endDateWindow } = axis;
 
         const [
             totalRes,
@@ -260,15 +338,16 @@ export async function GET(request: Request) {
             sumDailyFee30,
             bookingDateNullCount: bookingNull,
             chartWindow: {
-                windowDays,
+                mode: axis.mode,
+                windowDays: axis.axisDayCount,
+                rollingWindowDays: axis.rollingWindowDays,
                 utcStart: startDateWindow,
                 utcEnd: endDateWindow,
                 /** จำนวนวันบนแกนที่มีอย่างน้อย 1 รายการ (จำนวนแท่งที่เห็นมีข้อมูล) */
                 distinctDaysWithData: distinctDaysWithCount,
                 rowsInWindow: sumDaily30,
                 rowsOutsideWindowApprox,
-                anchorHint:
-                    'ช่วงวันที่บนกราฟ = วัน UTC ต่อเนื่องจำนวน windowDays วัน โดยให้วันสุดท้ายตรงกับวันที่จองล่าสุดในตาราง (ไม่ใช่วันนี้ของปฏิทิน)',
+                anchorHint: axis.anchorHint,
             },
             platformCounts,
             channelFieldPriority: priority,
