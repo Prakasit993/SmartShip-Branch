@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+    DEFAULT_JT_CHANNEL_PRIORITY,
     JT_CHANNEL_FIELD_OPTIONS,
     parseJtChannelPriorityFromSettingValue,
 } from '@/lib/jtChannelSettings';
@@ -52,6 +53,34 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
             next[index] = value;
             return next;
         });
+    };
+
+    /** ชื่อคอลัมน์จริงในตาราง jt_shipments (จาก API) — null = กำลังโหลด */
+    const [jtTableColumnNames, setJtTableColumnNames] = useState<string[] | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/admin/jt-shipments/columns');
+                const data = (await res.json()) as { names?: string[] };
+                if (!cancelled && Array.isArray(data.names)) {
+                    setJtTableColumnNames(data.names);
+                } else if (!cancelled) {
+                    setJtTableColumnNames([]);
+                }
+            } catch {
+                if (!cancelled) setJtTableColumnNames([]);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const applyChannelPreset = (fields: string[]) => {
+        const padded = [...fields, '', '', '', '', ''].slice(0, 5);
+        setChannelSlots(padded);
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -304,9 +333,68 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
 
                         <div id="jt-channel-fields" className="mt-6 pt-6 border-t border-zinc-700/80">
                             <h4 className="text-sm font-semibold text-zinc-100 mb-1">ฟิลด์แพลตฟอร์ม / ช่องทาง</h4>
-                            <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+                            <p className="text-xs text-zinc-500 mb-3 leading-relaxed">
                                 กำหนดลำดับความสำคัญว่าจะอ่านค่าจากคอลัมน์ไหนก่อน (ใช้ค่าจากฟิลด์แรกที่ไม่ว่าง) — ใช้กับแดชบอร์ด J&amp;T และตาราง Shipments
                             </p>
+
+                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                                <span className="text-[11px] text-zinc-500 shrink-0">ชุดลำดับด่วน:</span>
+                                <button
+                                    type="button"
+                                    onClick={() => applyChannelPreset([...DEFAULT_JT_CHANNEL_PRIORITY])}
+                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/60 text-zinc-200 hover:bg-zinc-700/80"
+                                >
+                                    ค่าเริ่มต้น (platform → order_source)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => applyChannelPreset(['platform'])}
+                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/60 text-zinc-200 hover:bg-zinc-700/80"
+                                >
+                                    เฉพาะ platform
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => applyChannelPreset(['order_source'])}
+                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/60 text-zinc-200 hover:bg-zinc-700/80"
+                                >
+                                    เฉพาะ order_source
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => applyChannelPreset([])}
+                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/40 text-zinc-400 hover:bg-zinc-800/70"
+                                    title="ล้างช่องทั้งหมด — ตอนบันทึกระบบจะใช้ค่าเริ่มต้นเดียวกับปุ่มแรก"
+                                >
+                                    ล้างช่อง (ใช้ค่าเริ่มต้นของระบบ)
+                                </button>
+                            </div>
+
+                            {jtTableColumnNames === null ? (
+                                <p className="text-[11px] text-zinc-600 mb-3">กำลังโหลดรายชื่อคอลัมน์ในตาราง…</p>
+                            ) : jtTableColumnNames.length === 0 ? (
+                                <p className="text-[11px] text-amber-600/90 mb-3">
+                                    โหลดรายชื่อคอลัมน์ไม่ได้ — เช็ค RPC ในฐานข้อมูลหรือสิทธิ์ API แต่ยังตั้งลำดับฟิลด์ได้ตามปกติ
+                                </p>
+                            ) : (
+                                <p className="text-[11px] text-zinc-500 mb-3 leading-relaxed">
+                                    <span className="text-zinc-400">คอลัมน์ที่เลือกได้ซึ่งมีในตารางตอนนี้:</span>{' '}
+                                    {JT_CHANNEL_FIELD_OPTIONS.filter((opt) => jtTableColumnNames.includes(opt)).length >
+                                    0 ? (
+                                        JT_CHANNEL_FIELD_OPTIONS.filter((opt) => jtTableColumnNames.includes(opt)).map(
+                                            (opt, i, arr) => (
+                                                <span key={opt}>
+                                                    <code className="text-emerald-400/90">{opt}</code>
+                                                    {i < arr.length - 1 ? ', ' : ''}
+                                                </span>
+                                            )
+                                        )
+                                    ) : (
+                                        <span className="text-zinc-500">ไม่มีชื่อตรงกับตัวเลือกด้านล่าง — อาจต้องเพิ่มคอลัมน์ในฐานข้อมูล</span>
+                                    )}
+                                </p>
+                            )}
+
                             <div className="space-y-2 max-w-md">
                                 {[0, 1, 2, 3, 4].map((i) => (
                                     <div key={i} className="flex items-center gap-3">

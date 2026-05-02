@@ -187,7 +187,6 @@ export default function JTShipmentsPage() {
 
             {/* Unified Data Card */}
             <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-3xl shadow-xl overflow-hidden backdrop-blur-sm flex flex-col">
-                
                 {/* Toolbar (Search & Filters) */}
                 <div className="p-4 border-b border-zinc-800/60 bg-zinc-900/60 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
                     {/* Left: Search & Date */}
@@ -261,16 +260,34 @@ export default function JTShipmentsPage() {
                     <table className="w-full text-sm text-left whitespace-nowrap">
                         <thead>
                             <tr className="bg-zinc-950/80 border-b border-zinc-800/80 text-zinc-400 uppercase tracking-wider text-xs">
-                                <th className="px-5 py-4 font-semibold">AWB Number</th>
-                                <th className="px-5 py-4 font-semibold">วันที่จอง</th>
-                                <th className="px-3 sm:px-4 md:px-5 py-4 font-semibold min-w-[8.5rem] w-[10rem] md:w-[12rem] lg:w-[13rem] whitespace-normal">
+                                <th className="px-5 py-4 font-semibold transition-colors">
+                                    AWB Number
+                                </th>
+                                <th className="px-5 py-4 font-semibold transition-colors">
+                                    วันที่จอง
+                                </th>
+                                <th className="px-3 sm:px-4 md:px-5 py-4 font-semibold min-w-[8.5rem] w-[10rem] md:w-[12rem] lg:w-[13rem] whitespace-normal transition-colors">
                                     แพลตฟอร์ม
                                 </th>
-                                <th className="px-5 py-4 font-semibold">ผู้ส่ง</th>
-                                {!compactView && <th className="px-5 py-4 font-semibold">เบอร์ผู้ส่ง</th>}
-                                <th className="px-5 py-4 font-semibold">ผู้รับ</th>
-                                {!compactView && <th className="px-5 py-4 font-semibold">เบอร์ผู้รับ</th>}
-                                <th className="px-5 py-4 font-semibold text-right">ค่าส่ง</th>
+                                <th className="px-5 py-4 font-semibold transition-colors">
+                                    ผู้ส่ง
+                                </th>
+                                {!compactView && (
+                                    <th className="px-5 py-4 font-semibold transition-colors">
+                                        เบอร์ผู้ส่ง
+                                    </th>
+                                )}
+                                <th className="px-5 py-4 font-semibold transition-colors">
+                                    ผู้รับ
+                                </th>
+                                {!compactView && (
+                                    <th className="px-5 py-4 font-semibold transition-colors">
+                                        เบอร์ผู้รับ
+                                    </th>
+                                )}
+                                <th className="px-5 py-4 font-semibold text-right transition-colors">
+                                    ค่าส่ง
+                                </th>
                                 <th className="px-5 py-4 font-semibold text-center">จัดการ</th>
                             </tr>
                         </thead>
@@ -322,11 +339,19 @@ export default function JTShipmentsPage() {
                                     <td className="px-5 py-3.5">
                                         <div className="font-medium text-zinc-200 max-w-[160px] truncate" title={s.sender_name}>{s.sender_name || '-'}</div>
                                     </td>
-                                    {!compactView && <td className="px-5 py-3.5 text-zinc-500 font-mono text-xs">{s.sender_phone || '-'}</td>}
+                                    {!compactView && (
+                                        <td className="px-5 py-3.5 text-zinc-500 font-mono text-xs">
+                                            {s.sender_phone || '-'}
+                                        </td>
+                                    )}
                                     <td className="px-5 py-3.5">
                                         <div className="font-medium text-zinc-200 max-w-[160px] truncate" title={s.receiver_name}>{s.receiver_name || '-'}</div>
                                     </td>
-                                    {!compactView && <td className="px-5 py-3.5 text-zinc-500 font-mono text-xs">{s.receiver_phone || '-'}</td>}
+                                    {!compactView && (
+                                        <td className="px-5 py-3.5 text-zinc-500 font-mono text-xs">
+                                            {s.receiver_phone || '-'}
+                                        </td>
+                                    )}
                                     <td className="px-5 py-3.5 text-right">
                                         {s.shipping_fee != null
                                             ? <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold border ${Number(s.shipping_fee) > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-800/50 text-zinc-400 border-zinc-700/50'}`}>฿{Number(s.shipping_fee).toLocaleString()}</span>
