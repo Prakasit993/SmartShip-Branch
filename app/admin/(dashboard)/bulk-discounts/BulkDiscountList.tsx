@@ -1,7 +1,7 @@
 'use client';
 
+import { AdminTablePanel } from '@app/admin/components/AdminTablePanel';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 interface BulkDiscount {
     id: number;
@@ -23,7 +23,6 @@ interface BulkDiscountListProps {
 }
 
 export default function BulkDiscountList({ discounts }: BulkDiscountListProps) {
-    const router = useRouter();
     const [items, setItems] = useState<BulkDiscount[]>(discounts);
     const [loading, setLoading] = useState<number | null>(null);
 
@@ -96,17 +95,17 @@ export default function BulkDiscountList({ discounts }: BulkDiscountListProps) {
 
     if (items.length === 0) {
         return (
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
+            <div className="rounded-2xl border border-zinc-800/90 bg-zinc-950/45 p-12 text-center shadow-sm">
                 <div className="text-4xl mb-4">💰</div>
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                <h3 className="text-lg font-semibold text-white mb-2">
                     ยังไม่มีส่วนลดซื้อเยอะ
                 </h3>
-                <p className="text-zinc-500 mb-4">
+                <p className="text-zinc-400 mb-4">
                     เริ่มสร้างส่วนลดเมื่อลูกค้าซื้อครบจำนวนที่กำหนด
                 </p>
                 <a
                     href="/admin/bulk-discounts/new"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition text-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition text-sm shadow-sm"
                 >
                     + เพิ่มส่วนลดใหม่
                 </a>
@@ -115,10 +114,9 @@ export default function BulkDiscountList({ discounts }: BulkDiscountListProps) {
     }
 
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+        <AdminTablePanel>
+                <table className="min-w-full">
+                    <thead className="bg-zinc-900/90">
                         <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">
                                 ชื่อ
@@ -140,11 +138,11 @@ export default function BulkDiscountList({ discounts }: BulkDiscountListProps) {
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <tbody className="bg-zinc-950/40 divide-y divide-zinc-800">
                         {items.map((discount) => (
-                            <tr key={discount.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition">
+                            <tr key={discount.id} className="hover:bg-zinc-800/35 transition">
                                 <td className="px-4 py-4">
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                                    <div className="font-medium text-zinc-100">
                                         {discount.name}
                                     </div>
                                     {discount.description && (
@@ -207,7 +205,6 @@ export default function BulkDiscountList({ discounts }: BulkDiscountListProps) {
                         ))}
                     </tbody>
                 </table>
-            </div>
-        </div>
+        </AdminTablePanel>
     );
 }

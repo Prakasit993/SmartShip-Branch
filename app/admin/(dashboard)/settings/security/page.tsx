@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { FingerprintRegisterButton } from '@app/admin/components/FingerprintButtons';
-import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 
 type LoginLog = {
     id: number;
@@ -37,11 +37,13 @@ export default function SecurityPage() {
     };
 
     return (
-        <div className="p-6">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">🔒 Security Settings</h1>
-                <p className="text-zinc-500 mt-1">ดูประวัติการเข้าสู่ระบบและจัดการความปลอดภัย</p>
-            </div>
+        <div className="w-full max-w-4xl mx-auto py-1 pb-20">
+            <AdminPageHeader
+                className="mb-8"
+                title="ความปลอดภัย"
+                description="ดูประวัติการเข้าสู่ระบบและจัดการความปลอดภัย"
+                titleLeft={<span aria-hidden>🔒</span>}
+            />
 
             {/* WebAuthn Devices Section */}
             <div className="mb-8 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">

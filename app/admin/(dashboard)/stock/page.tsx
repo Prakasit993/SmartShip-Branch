@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import Link from 'next/link';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
+import { AdminTablePanel } from '@app/admin/components/AdminTablePanel';
 import ToastListener from '@app/admin/components/ToastListener';
 
 export const dynamic = 'force-dynamic';
@@ -22,12 +24,11 @@ export default async function StockPage() {
     return (
         <div className="space-y-6 pb-20">
             <ToastListener />
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-bold">📋 จัดการสต๊อก</h1>
-                    <p className="text-zinc-500 text-sm">ตรวจสอบและจัดการสินค้าคงคลัง</p>
-                </div>
-            </div>
+            <AdminPageHeader
+                title="จัดการสต๊อก"
+                description="ตรวจสอบและจัดการสินค้าคงคลัง"
+                titleLeft={<span aria-hidden>📋</span>}
+            />
 
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-3 md:gap-4">
@@ -66,9 +67,9 @@ export default async function StockPage() {
             )}
 
             {/* Stock Table */}
-            <div className="bg-white dark:bg-zinc-900 shadow rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
-                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800">
+            <AdminTablePanel>
+                <table className="min-w-full divide-y divide-zinc-800">
+                    <thead className="bg-zinc-900/90">
                         <tr>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">สินค้า</th>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider hidden sm:table-cell">SKU</th>
@@ -77,9 +78,9 @@ export default async function StockPage() {
                             <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">จัดการ</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-black divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <tbody className="bg-zinc-950/40 divide-y divide-zinc-800">
                         {products?.map((product) => (
-                            <tr key={product.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
+                            <tr key={product.id} className="hover:bg-zinc-800/35 transition">
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">{product.name}</td>
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-zinc-500 font-mono hidden sm:table-cell">{product.sku || '-'}</td>
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm">
@@ -119,7 +120,7 @@ export default async function StockPage() {
                         )}
                     </tbody>
                 </table>
-            </div>
+            </AdminTablePanel>
         </div>
     );
 }

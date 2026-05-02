@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import BundleForm from '../BundleForm';
 import { notFound } from 'next/navigation';
 
@@ -42,8 +43,12 @@ export default async function EditBundlePage({ params }: { params: Promise<{ id:
     };
 
     return (
-        <div>
-            <h1 className="text-2xl font-bold mb-6">Edit Bundle</h1>
+        <div className="space-y-6 pb-20">
+            <AdminPageHeader
+                title="แก้ไขชุดสินค้า"
+                description={bundle.name}
+                titleLeft={<span aria-hidden>✏️</span>}
+            />
             <BundleForm
                 categories={categories || []}
                 products={products || []}

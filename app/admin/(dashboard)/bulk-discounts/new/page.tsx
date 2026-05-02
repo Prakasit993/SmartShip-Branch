@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 
 export default function NewBulkDiscountPage() {
     const router = useRouter();
@@ -54,22 +55,18 @@ export default function NewBulkDiscountPage() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/admin/bulk-discounts"
-                    className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition"
-                >
-                    ←
-                </Link>
-                <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                        เพิ่มส่วนลดซื้อเยอะ
-                    </h1>
-                    <p className="text-sm text-zinc-500">สร้างส่วนลดใหม่เมื่อซื้อครบจำนวน</p>
-                </div>
-            </div>
+        <div className="max-w-2xl mx-auto space-y-6 pb-20">
+            <Link
+                href="/admin/bulk-discounts"
+                className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            >
+                ← กลับ
+            </Link>
+            <AdminPageHeader
+                title="เพิ่มส่วนลดซื้อเยอะ"
+                description="สร้างส่วนลดใหม่เมื่อซื้อครบจำนวน"
+                titleLeft={<span aria-hidden>💰</span>}
+            />
 
             {error && (
                 <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">

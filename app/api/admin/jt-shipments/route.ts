@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { parseJtChannelPriorityFromSettingValue } from '@/lib/jtChannelSettings';
 
 // GET: list with pagination + search
 export async function GET(req: Request) {
@@ -45,13 +46,19 @@ export async function GET(req: Request) {
         if (dateFrom) query = query.gte('booking_date', dateFrom);
         if (dateTo) query = query.lte('booking_date', dateTo + 'T23:59:59');
 
-        const { data, count, error } = await query;
+        const [listRes, prioRes] = await Promise.all([
+            query,
+            supabaseAdmin.from('settings').select('value').eq('key', 'jt_channel_field_priority').maybeSingle(),
+        ]);
+        const { data, count, error } = listRes;
         if (error) {
             console.error('[api/admin/jt-shipments][GET]', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ data, count, page, limit });
+        const channelFieldPriority = parseJtChannelPriorityFromSettingValue(prioRes.data?.value);
+
+        return NextResponse.json({ data, count, page, limit, channelFieldPriority });
     } catch (e) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -61,7 +68,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { awb_number, booking_date, sender_name, sender_phone, receiver_name, receiver_phone, shipping_fee } = body;
+        const { awb_number, booking_date, sender_name, sender_phone, receiver_name, receiver_phone, shipping_fee, platform } = body;
 
         if (!awb_number) {
             return NextResponse.json({ error: 'AWB Number is required' }, { status: 400 });
@@ -77,6 +84,7 @@ export async function POST(req: Request) {
                 receiver_name: receiver_name?.trim() || null,
                 receiver_phone: receiver_phone?.trim() || null,
                 shipping_fee: shipping_fee != null ? Number(shipping_fee) : 0,
+                platform: typeof platform === 'string' && platform.trim() ? platform.trim() : null,
             })
             .select()
             .single();
@@ -92,7 +100,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
     try {
         const body = await req.json();
-        const { id, awb_number, booking_date, sender_name, sender_phone, receiver_name, receiver_phone, shipping_fee } = body;
+        const { id, awb_number, booking_date, sender_name, sender_phone, receiver_name, receiver_phone, shipping_fee, platform } = body;
 
         if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
 
@@ -106,6 +114,7 @@ export async function PUT(req: Request) {
                 receiver_name: receiver_name?.trim() || null,
                 receiver_phone: receiver_phone?.trim() || null,
                 shipping_fee: shipping_fee != null ? Number(shipping_fee) : 0,
+                platform: typeof platform === 'string' && platform.trim() ? platform.trim() : null,
             })
             .eq('id', id)
             .select()

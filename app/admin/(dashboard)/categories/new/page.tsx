@@ -1,11 +1,16 @@
 'use client';
 
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { createCategory } from '../actions';
 
 export default function NewCategoryPage() {
     return (
-        <div className="max-w-2xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">Add New Category</h1>
+        <div className="max-w-2xl mx-auto space-y-6 pb-20">
+            <AdminPageHeader
+                title="เพิ่มหมวดหมู่"
+                description="สร้างหมวดหมู่สินค้าใหม่"
+                titleLeft={<span aria-hidden>📂</span>}
+            />
 
             <form action={createCategory} className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-lg shadow border border-zinc-200 dark:border-zinc-800">
                 <div>

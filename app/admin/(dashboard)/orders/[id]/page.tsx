@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { updateOrderStatus, updatePaymentStatus } from '../actions';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -54,21 +55,21 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
             {/* Header */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl md:text-2xl font-bold">📦 {order.order_no}</h1>
-                        <p className="text-zinc-500 text-sm mt-1">
-                            สั่งเมื่อ {new Date(order.created_at).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' })}
-                        </p>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-3xl font-black text-blue-600">฿{order.total_amount?.toLocaleString()}</div>
-                        <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium mt-1 ${payMethod.color}`}>
-                            <span>{payMethod.icon}</span>
-                            {payMethod.label}
+                <AdminPageHeader
+                    tone="light"
+                    title={order.order_no}
+                    description={`สั่งเมื่อ ${new Date(order.created_at).toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' })}`}
+                    titleLeft={<span aria-hidden>📦</span>}
+                    actions={
+                        <div className="text-right w-full sm:w-auto">
+                            <div className="text-3xl font-black text-blue-600">฿{order.total_amount?.toLocaleString()}</div>
+                            <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium mt-1 ${payMethod.color}`}>
+                                <span>{payMethod.icon}</span>
+                                {payMethod.label}
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    }
+                />
             </div>
 
             {/* Quick Status Buttons */}

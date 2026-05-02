@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 
 interface ImportResult {
@@ -22,6 +22,20 @@ export default function ImportModal({ onClose, onImported }: Props) {
     const [result, setResult] = useState<ImportResult | null>(null);
     const [errorMsg, setErrorMsg] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
+    const [dbColumns, setDbColumns] = useState<{ count: number; names: string[]; hint?: string } | null>(null);
+
+    useEffect(() => {
+        fetch('/api/admin/jt-shipments/columns')
+            .then((r) => r.json())
+            .then((d: { count?: number; names?: string[]; hint?: string; error?: string }) => {
+                if (d.names && Array.isArray(d.names)) {
+                    setDbColumns({ count: d.count ?? d.names.length, names: d.names, hint: d.hint });
+                } else {
+                    setDbColumns({ count: 0, names: [], hint: d.hint || d.error });
+                }
+            })
+            .catch(() => setDbColumns({ count: 0, names: [] }));
+    }, []);
 
     const parseFile = useCallback((file: File) => {
         setFileName(file.name);
@@ -115,10 +129,45 @@ export default function ImportModal({ onClose, onImported }: Props) {
                 </div>
 
                 {/* Column hint */}
-                <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-xs text-zinc-500">
-                    <p className="font-semibold mb-1">📋 คอลัมน์ที่รองรับ (อังกฤษ / ไทย):</p>
-                    <p className="leading-relaxed">
-                        <span className="font-mono text-blue-500">awb_number</span> (หมายเลข AWB) · <span className="font-mono">booking_date</span> (เวลาที่ส่งพัสดุ) · <span className="font-mono">sender_name</span> (ชื่อลูกค้า/ผู้ส่ง) · <span className="font-mono">sender_phone</span> (เบอร์ผู้ส่ง) · <span className="font-mono">receiver_name</span> (ผู้รับ) · <span className="font-mono">receiver_phone</span> (เบอร์ผู้รับ) · <span className="font-mono">shipping_fee</span> (ค่าส่ง)
+                <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-xs text-zinc-500 space-y-2">
+                    <p className="font-semibold text-zinc-300">📋 หัวคอลัมน์ในระบบ (ตาราง jt_shipments)</p>
+                    {dbColumns && dbColumns.count > 0 ? (
+                        <>
+                            <p className="text-[11px] leading-relaxed text-zinc-400">
+                                พบ <strong className="text-zinc-200">{dbColumns.count}</strong> ฟิลด์ — ถ้าชื่อคอลัมน์ในไฟล์ตรงกับชื่อด้านล่าง (หรือแปลงเป็น snake_case ได้ เช่น &quot;AWB Number&quot;
+                                → awb_number) ระบบจะบันทึกค่าลงฟิลด์นั้นได้ ฟิลด์ที่ไม่มีในตารางจะถูกข้าม
+                            </p>
+                            <div className="max-h-28 overflow-y-auto rounded-lg bg-zinc-900/80 border border-zinc-700 px-2 py-1.5 font-mono text-[10px] text-emerald-400/95 leading-relaxed">
+                                {dbColumns.names.join(' · ')}
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-[11px] text-amber-400/90">
+                            {dbColumns?.hint ||
+                                'กำลังโหลดรายชื่อฟิลด์… หากไม่ขึ้น ให้รัน SQL migration `jt_shipments_import_columns` ใน Supabase (ไฟล์ 20260503_jt_shipments_columns_rpc.sql)'}
+                        </p>
+                    )}
+                    <p className="font-semibold text-zinc-400 pt-1 border-t border-zinc-700/80">แมปชื่อไทย / คีย์สำรอง (ฟิลด์หลัก)</p>
+                    <p className="leading-relaxed text-[11px]">
+                        <span className="font-mono text-blue-400">awb_number</span> (หมายเลข AWB) ·{' '}
+                        <span className="font-mono">booking_date</span> (เวลาที่ส่งพัสดุ) ·{' '}
+                        <span className="font-mono">sender_name</span> (ชื่อลูกค้า/ผู้ส่ง) ·{' '}
+                        <span className="font-mono">sender_phone</span> (เบอร์ผู้ส่ง) ·{' '}
+                        <span className="font-mono">receiver_name</span> (ผู้รับ) ·{' '}
+                        <span className="font-mono">receiver_phone</span> (เบอร์ผู้รับ) ·{' '}
+                        <span className="font-mono">shipping_fee</span> (ค่าส่ง) ·{' '}
+                        <span className="font-mono">platform</span> / <span className="font-mono">order_source</span> (แพลตฟอร์ม — รายงาน J&amp;T มักใช้ order_source)
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-amber-400/90 pt-2 border-t border-zinc-700/60">
+                        <strong className="text-amber-300">ทำไมบางช่องว่างใน Supabase?</strong>
+                        <br />
+                        ① แถวแรกของไฟล์ต้องเป็นชื่อคอลัมน์ — ถ้าไม่มีหัวตาราง ระบบจะอ่านผิดทั้งไฟล์
+                        <br />
+                        ② ชื่อคอลัมน์ใน Excel ต้องตรงหรือใกล้เคียงกับรายการด้านบน — ชื่ออื่นจะไม่ถูกบันทึกลงคอลัมน์ที่ไม่มีในระบบ
+                        <br />
+                        ③ รายงาน J&amp;T บางแบบใส่รหัส Shopee/TikTok ในคอลัมน์ &quot;ชื่อลูกค้า&quot; — ระบบจะแยกไปที่แพลตฟอร์ม (ถ้ามีคอลัมน์ชื่อผู้ส่ง/ร้านแยก)
+                        <br />
+                        ④ ค่าส่ง — ถ้าไฟล์ใช้ชื่ออื่น (เช่น ค่าขนส่ง / รวมค่าจัดส่ง) โปรดตรวจว่ามีคอลัมน์ตัวเลขจริง ไม่ใช่คอลัมน์ว่าง
                     </p>
                 </div>
 

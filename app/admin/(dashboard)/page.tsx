@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import Link from 'next/link';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,19 +67,22 @@ export default async function AdminDashboard() {
     };
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-20">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-zinc-900 dark:text-white">📊 Dashboard</h1>
-                    <p className="text-zinc-500 text-sm mt-1">ภาพรวมร้านค้าของคุณ</p>
-                </div>
-                <div className="hidden md:block text-right">
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white">
-                        {new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
-                </div>
-            </div>
+        <div className="space-y-6 pb-20">
+            <AdminPageHeader
+                title="Dashboard"
+                description="ภาพรวมร้านค้าของคุณ"
+                titleLeft={<span aria-hidden>📊</span>}
+                actions={
+                    <div className="hidden md:block text-right text-sm font-medium text-white">
+                        {new Date().toLocaleDateString('th-TH', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                        })}
+                    </div>
+                }
+            />
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">

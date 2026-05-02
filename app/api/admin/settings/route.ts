@@ -39,6 +39,7 @@ export async function POST(request: Request) {
 
         // Revalidate paths
         revalidatePath('/admin/settings');
+        revalidatePath('/admin/jt-dashboard');
         revalidatePath('/');
         revalidatePath('/contact');
 

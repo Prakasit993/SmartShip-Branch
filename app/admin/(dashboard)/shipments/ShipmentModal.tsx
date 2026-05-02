@@ -9,6 +9,7 @@ interface Shipment {
     receiver_name?: string;
     receiver_phone?: string;
     shipping_fee?: number;
+    platform?: string | null;
 }
 
 interface Props {
@@ -30,6 +31,7 @@ export default function ShipmentModal({ mode, data, onClose, onSaved }: Props) {
             receiver_name: String(fd.get('receiver_name') || '').trim() || null,
             receiver_phone: String(fd.get('receiver_phone') || '').trim() || null,
             shipping_fee: parseFloat(String(fd.get('shipping_fee') || '0')) || 0,
+            platform: String(fd.get('platform') || '').trim() || null,
         };
         if (mode === 'edit' && data?.id) body.id = String(data.id);
 
@@ -92,6 +94,22 @@ export default function ShipmentModal({ mode, data, onClose, onSaved }: Props) {
                             <label className="block text-xs font-semibold text-zinc-500 mb-1">เบอร์ผู้รับ</label>
                             <input name="receiver_phone" defaultValue={data?.receiver_phone || ''} placeholder="0xx-xxx-xxxx"
                                 className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="block text-xs font-semibold text-zinc-500 mb-1">แพลตฟอร์ม / ช่องทาง</label>
+                            <input
+                                name="platform"
+                                list="jt-shipment-platform-suggestions"
+                                defaultValue={data?.platform ?? ''}
+                                placeholder="เช่น Shopee, Lazada, TikTok Shop"
+                                className="w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <datalist id="jt-shipment-platform-suggestions">
+                                {['Shopee', 'Lazada', 'TikTok Shop', 'Facebook', 'LINE', 'Website', 'อื่นๆ'].map((p) => (
+                                    <option key={p} value={p} />
+                                ))}
+                            </datalist>
+                            <p className="text-[11px] text-zinc-500 mt-1">ใช้จัดกลุ่มใน J&T Dashboard — เว้นว่าง = &quot;ไม่ระบุ&quot;</p>
                         </div>
                         <div className="col-span-2">
                             <label className="block text-xs font-semibold text-zinc-500 mb-1">ค่าส่ง (บาท)</label>

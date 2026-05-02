@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import Link from 'next/link';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import BulkDiscountList from './BulkDiscountList';
 
 export const dynamic = 'force-dynamic';
@@ -31,24 +33,20 @@ export default async function BulkDiscountsPage() {
     const activeCount = discounts?.filter(d => d.is_active).length || 0;
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                        💰 ส่วนลดซื้อเยอะ
-                    </h1>
-                    <p className="text-sm text-zinc-500 mt-1">
-                        จัดการส่วนลดเมื่อซื้อครบจำนวนที่กำหนด
-                    </p>
-                </div>
-                <a
-                    href="/admin/bulk-discounts/new"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition text-sm"
-                >
-                    + เพิ่มส่วนลดใหม่
-                </a>
-            </div>
+        <div className="space-y-6 pb-20">
+            <AdminPageHeader
+                title="ส่วนลดซื้อเยอะ"
+                description="จัดการส่วนลดเมื่อซื้อครบจำนวนที่กำหนด"
+                titleLeft={<span aria-hidden>💰</span>}
+                actions={
+                    <Link
+                        href="/admin/bulk-discounts/new"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition text-sm shadow-sm"
+                    >
+                        + เพิ่มส่วนลดใหม่
+                    </Link>
+                }
+            />
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

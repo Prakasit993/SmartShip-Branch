@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import Link from 'next/link';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import ToastListener from '@app/admin/components/ToastListener';
 
 export const dynamic = 'force-dynamic';
@@ -69,11 +70,12 @@ export default async function OrdersPage({
     return (
         <div className="space-y-4 pb-20">
             <ToastListener />
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-xl md:text-2xl font-bold">📦 คำสั่งซื้อ</h1>
-                <span className="text-sm text-zinc-500">{orders?.length || 0} รายการ</span>
-            </div>
+            <AdminPageHeader
+                title="คำสั่งซื้อ"
+                description="ค้นหาและกรองตามสถานะออเดอร์"
+                titleLeft={<span aria-hidden>📦</span>}
+                meta={<span>{orders?.length || 0} รายการ</span>}
+            />
 
             {/* Search Box */}
             <form className="relative">

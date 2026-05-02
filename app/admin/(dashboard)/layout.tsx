@@ -23,8 +23,8 @@ export default async function AdminLayout({
 
                 {/* Main Content */}
                 <div className="flex-1 flex flex-col md:ml-64 transition-all duration-300">
-                    <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 pb-24 md:pb-8 overflow-y-auto">
-                        {children}
+                    <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 pt-14 sm:pt-16 md:pt-8 pb-24 md:pb-10 overflow-y-auto">
+                        <div className="mx-auto w-full max-w-[1600px] min-w-0">{children}</div>
                     </main>
                 </div>
 

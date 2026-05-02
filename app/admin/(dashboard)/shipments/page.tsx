@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import ImportModal from './ImportModal';
+import { channelOrNullFromRow } from '@/lib/jtChannel';
+import { sanitizeJtChannelPriority } from '@/lib/jtChannelSettings';
 import ShipmentModal from './ShipmentModal';
 
 interface Shipment {
@@ -13,10 +16,13 @@ interface Shipment {
     receiver_name?: string;
     receiver_phone?: string;
     shipping_fee?: number;
+    platform?: string | null;
+    order_source?: string | null;
 }
 
 export default function JTShipmentsPage() {
     const [pageSize, setPageSize] = useState(20);
+    const [channelFieldPriority, setChannelFieldPriority] = useState<string[]>(() => sanitizeJtChannelPriority(null));
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [count, setCount] = useState(0);
     const [totalCount, setTotalCount] = useState(0);
@@ -60,6 +66,9 @@ export default function JTShipmentsPage() {
         const json = await res.json();
         setShipments(json.data || []);
         setCount(json.count || 0);
+        if (Array.isArray(json.channelFieldPriority)) {
+            setChannelFieldPriority(sanitizeJtChannelPriority(json.channelFieldPriority));
+        }
         setLoading(false);
     }, [page, pageSize, search, dateFrom, dateTo, sortBy, sortOrder]);
 
@@ -107,7 +116,7 @@ export default function JTShipmentsPage() {
     };
 
     return (
-        <div className="space-y-6 max-w-[1600px] mx-auto pb-20 text-zinc-100">
+        <div className="space-y-6 w-full pb-20 text-zinc-100">
             {/* Toast */}
             {toast && (
                 <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-2xl font-medium text-sm animate-bounce flex items-center gap-2">
@@ -115,30 +124,40 @@ export default function JTShipmentsPage() {
                 </div>
             )}
 
-            {/* Page Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-3">
-                        <span className="p-2.5 bg-blue-500/10 text-blue-500 rounded-2xl">📦</span>
-                        J&T Shipments
-                    </h1>
-                    <p className="text-zinc-400 mt-2 text-sm">จัดการข้อมูลการจัดส่งและนำเข้าข้อมูลจากระบบ J&T Express</p>
-                </div>
-                <div className="flex gap-2 flex-wrap w-full md:w-auto">
-                    <button onClick={() => setConfirmDeleteAll(true)}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-sm font-bold transition shadow-sm border border-red-500/20 hover:border-red-500">
-                        {dateFrom || dateTo ? '🗑️ ลบตามวันที่' : '🗑️ ลบทั้งหมด'}
-                    </button>
-                    <button onClick={() => setShowImport(true)}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition shadow-sm">
-                        📥 Import Excel
-                    </button>
-                    <button onClick={() => setModal({ mode: 'add' })}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-sm">
-                        ➕ เพิ่มรายการ
-                    </button>
-                </div>
-            </div>
+            <AdminPageHeader
+                title="J&T Shipments"
+                description="จัดการข้อมูลการจัดส่งและนำเข้าข้อมูลจากระบบ J&T Express"
+                titleLeft={
+                    <span className="p-2.5 bg-blue-500/10 text-blue-500 rounded-2xl text-2xl leading-none" aria-hidden>
+                        📦
+                    </span>
+                }
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setConfirmDeleteAll(true)}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-sm font-bold transition shadow-sm border border-red-500/20 hover:border-red-500"
+                        >
+                            {dateFrom || dateTo ? '🗑️ ลบตามวันที่' : '🗑️ ลบทั้งหมด'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowImport(true)}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition shadow-sm"
+                        >
+                            📥 Import Excel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setModal({ mode: 'add' })}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition shadow-sm"
+                        >
+                            ➕ เพิ่มรายการ
+                        </button>
+                    </>
+                }
+            />
 
             {/* KPI Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -244,6 +263,9 @@ export default function JTShipmentsPage() {
                             <tr className="bg-zinc-950/80 border-b border-zinc-800/80 text-zinc-400 uppercase tracking-wider text-xs">
                                 <th className="px-5 py-4 font-semibold">AWB Number</th>
                                 <th className="px-5 py-4 font-semibold">วันที่จอง</th>
+                                <th className="px-3 sm:px-4 md:px-5 py-4 font-semibold min-w-[8.5rem] w-[10rem] md:w-[12rem] lg:w-[13rem] whitespace-normal">
+                                    แพลตฟอร์ม
+                                </th>
                                 <th className="px-5 py-4 font-semibold">ผู้ส่ง</th>
                                 {!compactView && <th className="px-5 py-4 font-semibold">เบอร์ผู้ส่ง</th>}
                                 <th className="px-5 py-4 font-semibold">ผู้รับ</th>
@@ -256,7 +278,7 @@ export default function JTShipmentsPage() {
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i}>
-                                        {Array.from({ length: compactView ? 6 : 8 }).map((_, j) => (
+                                        {Array.from({ length: compactView ? 7 : 9 }).map((_, j) => (
                                             <td key={j} className="px-5 py-4">
                                                 <div className="h-5 bg-zinc-800/50 rounded-lg animate-pulse" />
                                             </td>
@@ -265,7 +287,7 @@ export default function JTShipmentsPage() {
                                 ))
                             ) : visibleShipments.length === 0 ? (
                                 <tr>
-                                    <td colSpan={compactView ? 6 : 8} className="px-5 py-24 text-center">
+                                    <td colSpan={compactView ? 7 : 9} className="px-5 py-24 text-center">
                                         <div className="inline-flex flex-col items-center justify-center text-zinc-500">
                                             <span className="text-4xl mb-3 opacity-50">📂</span>
                                             <p className="font-medium">ไม่พบข้อมูลการจัดส่ง</p>
@@ -279,6 +301,23 @@ export default function JTShipmentsPage() {
                                     </td>
                                     <td className="px-5 py-3.5 text-zinc-400 text-xs">
                                         {s.booking_date ? new Date(s.booking_date).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                                    </td>
+                                    <td className="px-3 sm:px-4 md:px-5 py-3.5 align-top md:align-middle max-w-[13rem] md:max-w-[15rem] lg:max-w-[17rem]">
+                                        {(() => {
+                                            const ch = channelOrNullFromRow(s as Record<string, unknown>, channelFieldPriority);
+                                            return ch ? (
+                                            <span
+                                                className="platform-badge inline-flex items-center max-w-full px-2.5 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold leading-snug bg-violet-500/15 text-violet-200 border border-violet-500/35 shadow-sm break-words [overflow-wrap:anywhere]"
+                                                title={ch}
+                                            >
+                                                {ch}
+                                            </span>
+                                            ) : (
+                                            <span className="inline-flex min-h-[2.25rem] items-center text-zinc-600 text-xs sm:text-sm tabular-nums">
+                                                —
+                                            </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-5 py-3.5">
                                         <div className="font-medium text-zinc-200 max-w-[160px] truncate" title={s.sender_name}>{s.sender_name || '-'}</div>

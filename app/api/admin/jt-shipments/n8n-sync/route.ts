@@ -50,6 +50,14 @@ export async function POST(req: Request) {
                     r['receiver_phone'] || r['receiver phone'] || r['เบอร์ผู้รับ'] || r['โทรผู้รับ'] || null,
                 shipping_fee:
                     parseFloat(r['shipping_fee'] || r['shipping fee'] || r['ค่าส่ง'] || r['ราคา'] || '0') || 0,
+                platform:
+                    r['platform'] ||
+                    r['order_source'] ||
+                    r['แพลตฟอร์ม'] ||
+                    r['channel'] ||
+                    r['marketplace'] ||
+                    r['ตลาด'] ||
+                    null,
             };
         }).filter(r => r.awb_number.length > 0);
 

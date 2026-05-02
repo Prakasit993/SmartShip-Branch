@@ -1,21 +1,38 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { channelBucketLabelFromRow } from '@/lib/jtChannel';
+import { parseJtChannelPriorityFromSettingValue, uniqueFieldsForSelect } from '@/lib/jtChannelSettings';
+import { parseJtDashboardSectionsJson } from '@/lib/jtDashboardSections';
+import { buildUtcDayWindow, utcDayKeyFromIso } from '@/lib/utcDayKey';
 
 export async function GET() {
     try {
-        // Fetch latest date to base stats on
-        const { data: latestRow } = await supabaseAdmin.from('jt_shipments')
-            .select('booking_date')
-            .order('booking_date', { ascending: false })
-            .limit(1)
-            .single();
+        const [{ data: latestRow }, settingsRes] = await Promise.all([
+            supabaseAdmin.from('jt_shipments').select('booking_date').order('booking_date', { ascending: false }).limit(1).maybeSingle(),
+            supabaseAdmin.from('settings').select('key, value').in('key', ['jt_dashboard_sections', 'jt_channel_field_priority']),
+        ]);
 
-        const now = latestRow?.booking_date ? new Date(latestRow.booking_date) : new Date();
-        
-        const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-        const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
-        const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-        const day30Start = new Date(now); day30Start.setDate(now.getDate() - 29); day30Start.setHours(0, 0, 0, 0);
+        const settingsRows = (settingsRes.data || []) as { key: string; value: unknown }[];
+        const priority = parseJtChannelPriorityFromSettingValue(
+            settingsRows.find((r) => r.key === 'jt_channel_field_priority')?.value,
+        );
+        const channelFields = uniqueFieldsForSelect(priority);
+        const platformSelect = channelFields.length ? channelFields.join(',') : 'platform,order_source';
+        const recentSelect = [...new Set(['awb_number', 'booking_date', 'sender_name', 'receiver_name', 'shipping_fee', ...channelFields])].join(',');
+
+        const anchorMs = latestRow?.booking_date ? Date.parse(String(latestRow.booking_date)) : Date.now();
+        const anchorSafe = Number.isNaN(anchorMs) ? Date.now() : anchorMs;
+        const now = new Date(anchorSafe);
+
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - 7);
+        const monthStart = new Date(now);
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const { keys: dayKeys, startIso: rangeStartIso } = buildUtcDayWindow(anchorSafe, 30);
 
         const [
             totalRes,
@@ -27,70 +44,86 @@ export async function GET() {
             topSendersRes,
             topReceiversRes,
             daily30Res,
+            platformRes,
         ] = await Promise.all([
-            // Total count
             supabaseAdmin.from('jt_shipments').select('*', { count: 'exact', head: true }),
-            // Today
-            supabaseAdmin.from('jt_shipments').select('*', { count: 'exact', head: true })
+            supabaseAdmin
+                .from('jt_shipments')
+                .select('*', { count: 'exact', head: true })
                 .gte('booking_date', todayStart.toISOString()),
-            // This week
-            supabaseAdmin.from('jt_shipments').select('*', { count: 'exact', head: true })
+            supabaseAdmin
+                .from('jt_shipments')
+                .select('*', { count: 'exact', head: true })
                 .gte('booking_date', weekStart.toISOString()),
-            // This month
-            supabaseAdmin.from('jt_shipments').select('*', { count: 'exact', head: true })
+            supabaseAdmin
+                .from('jt_shipments')
+                .select('*', { count: 'exact', head: true })
                 .gte('booking_date', monthStart.toISOString()),
-            // Fee stats
             supabaseAdmin.from('jt_shipments').select('shipping_fee'),
-            // Recent 10
-            supabaseAdmin.from('jt_shipments').select('awb_number,booking_date,sender_name,receiver_name,shipping_fee')
-                .order('booking_date', { ascending: false }).limit(10),
-            // Top senders (RPC optional - fallback handled below)
+            supabaseAdmin
+                .from('jt_shipments')
+                .select(recentSelect)
+                .order('booking_date', { ascending: false })
+                .limit(10),
             supabaseAdmin.from('jt_shipments').select('sender_name').not('sender_name', 'is', null),
-            // Top receivers
             supabaseAdmin.from('jt_shipments').select('receiver_name').not('receiver_name', 'is', null),
-            // Daily 30 days - get all records in range and aggregate in JS
-            supabaseAdmin.from('jt_shipments').select('booking_date')
-                .gte('booking_date', day30Start.toISOString())
+            supabaseAdmin
+                .from('jt_shipments')
+                .select('booking_date')
+                .gte('booking_date', rangeStartIso)
                 .order('booking_date', { ascending: true }),
+            supabaseAdmin.from('jt_shipments').select(platformSelect),
         ]);
 
-        // Fee calculations
         const fees = (feeRes.data || []).map((r: { shipping_fee: string | number }) => Number(r.shipping_fee) || 0);
         const totalFee = fees.reduce((a, b) => a + b, 0);
         const avgFee = fees.length ? totalFee / fees.length : 0;
         const maxFee = fees.length ? Math.max(...fees) : 0;
 
-        // Daily aggregation (last 30 days)
+        const dayKeySet = new Set(dayKeys);
         const dailyMap: Record<string, number> = {};
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(now);
-            d.setDate(now.getDate() - i);
-            const key = d.toISOString().slice(0, 10);
-            dailyMap[key] = 0;
-        }
+        dayKeys.forEach((k) => {
+            dailyMap[k] = 0;
+        });
         (daily30Res.data || []).forEach((row: Record<string, string>) => {
-            const key = row.booking_date?.slice(0, 10);
-            if (key && dailyMap[key] !== undefined) {
+            const key = utcDayKeyFromIso(row.booking_date);
+            if (key && dayKeySet.has(key)) {
                 dailyMap[key] = (dailyMap[key] || 0) + 1;
             }
         });
-        const daily30 = Object.entries(dailyMap).map(([date, count]) => ({ date, count }));
+        const daily30 = dayKeys.map((date) => ({ date, count: dailyMap[date] ?? 0 }));
 
-        // Aggregate top senders from query result
+        const platformCounts: { name: string; count: number }[] = [];
+        if (!platformRes.error && platformRes.data) {
+            const pMap: Record<string, number> = {};
+            const rows = platformRes.data as unknown as Record<string, unknown>[];
+            rows.forEach((row) => {
+                const name = channelBucketLabelFromRow(row, priority);
+                pMap[name] = (pMap[name] || 0) + 1;
+            });
+            const entries = Object.entries(pMap).sort((a, b) => b[1] - a[1]);
+            platformCounts.push(...entries.map(([name, count]) => ({ name, count })));
+        }
+
         const sMap: Record<string, number> = {};
         (topSendersRes.data || []).forEach((r: Record<string, string>) => {
             if (r.sender_name) sMap[r.sender_name] = (sMap[r.sender_name] || 0) + 1;
         });
-        const topSenders = Object.entries(sMap).sort((a, b) => b[1] - a[1]).slice(0, 10)
+        const topSenders = Object.entries(sMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
             .map(([name, count]) => ({ name, count }));
 
-        // Aggregate top receivers
         const rMap: Record<string, number> = {};
         (topReceiversRes.data || []).forEach((r: Record<string, string>) => {
             if (r.receiver_name) rMap[r.receiver_name] = (rMap[r.receiver_name] || 0) + 1;
         });
-        const topReceivers = Object.entries(rMap).sort((a, b) => b[1] - a[1]).slice(0, 10)
+        const topReceivers = Object.entries(rMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
             .map(([name, count]) => ({ name, count }));
+
+        const sectionsVal = settingsRows.find((r) => r.key === 'jt_dashboard_sections')?.value;
 
         return NextResponse.json({
             total: totalRes.count || 0,
@@ -104,6 +137,11 @@ export async function GET() {
             topSenders,
             topReceivers,
             daily30,
+            platformCounts,
+            channelFieldPriority: priority,
+            ui: {
+                sections: parseJtDashboardSectionsJson(sectionsVal),
+            },
         });
     } catch (e) {
         console.error('[jt-stats]', e);

@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import Link from 'next/link';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
+import { AdminTablePanel } from '@app/admin/components/AdminTablePanel';
 import { deleteCategory } from './actions';
 import ToastListener from '@app/admin/components/ToastListener';
 
@@ -18,22 +20,23 @@ export default async function CategoriesPage() {
     return (
         <div className="space-y-6 pb-20">
             <ToastListener />
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-bold">📂 หมวดหมู่</h1>
-                    <p className="text-zinc-500 text-sm">จัดการหมวดหมู่สินค้า</p>
-                </div>
-                <Link
-                    href="/admin/categories/new"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-medium"
-                >
-                    ➕ เพิ่มหมวดหมู่
-                </Link>
-            </div>
+            <AdminPageHeader
+                title="หมวดหมู่"
+                description="จัดการหมวดหมู่สินค้า"
+                titleLeft={<span aria-hidden>📂</span>}
+                actions={
+                    <Link
+                        href="/admin/categories/new"
+                        className="inline-flex justify-center px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-bold shadow-sm"
+                    >
+                        ➕ เพิ่มหมวดหมู่
+                    </Link>
+                }
+            />
 
-            <div className="bg-white dark:bg-zinc-900 shadow rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
-                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800">
+            <AdminTablePanel>
+                <table className="min-w-full divide-y divide-zinc-800">
+                    <thead className="bg-zinc-900/90">
                         <tr>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">ลำดับ</th>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">ชื่อ</th>
@@ -42,9 +45,9 @@ export default async function CategoriesPage() {
                             <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">จัดการ</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-black divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <tbody className="bg-zinc-950/40 divide-y divide-zinc-800">
                         {categories?.map((category) => (
-                            <tr key={category.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
+                            <tr key={category.id} className="hover:bg-zinc-800/35 transition">
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-center">
                                     <span className="w-8 h-8 inline-flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full font-bold">
                                         {category.sort_order}
@@ -82,7 +85,7 @@ export default async function CategoriesPage() {
                         )}
                     </tbody>
                 </table>
-            </div>
+            </AdminTablePanel>
         </div>
     );
 }

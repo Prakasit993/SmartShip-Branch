@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { notFound } from 'next/navigation';
 import ProductForm from '../_components/ProductForm';
 
@@ -16,8 +17,12 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     }
 
     return (
-        <div className="max-w-2xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">Edit Product</h1>
+        <div className="max-w-2xl mx-auto space-y-6 pb-20">
+            <AdminPageHeader
+                title="แก้ไขสินค้า"
+                description={product.name}
+                titleLeft={<span aria-hidden>✏️</span>}
+            />
             <ProductForm product={product} />
         </div>
     );

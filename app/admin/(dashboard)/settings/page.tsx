@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import SettingsForm from './SettingsForm';
 
 export const dynamic = 'force-dynamic';
@@ -19,11 +20,13 @@ export default async function SettingsPage({
     });
 
     return (
-        <div className="max-w-3xl mx-auto p-6">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white">⚙️ ตั้งค่าเว็บไซต์</h1>
-                <p className="text-zinc-400 mt-1">จัดการข้อมูลหน้าแรก, ข้อมูลติดต่อ, และการตั้งค่าอื่นๆ</p>
-            </div>
+        <div className="w-full max-w-3xl mx-auto py-1">
+            <AdminPageHeader
+                className="mb-8"
+                title="ตั้งค่าเว็บไซต์"
+                description="จัดการข้อมูลหน้าแรก, ข้อมูลติดต่อ, และการตั้งค่าอื่นๆ"
+                titleLeft={<span aria-hidden>⚙️</span>}
+            />
 
             <SettingsForm
                 initialSettings={settingsMap}
