@@ -84,14 +84,14 @@ export default function JTDashboardPage() {
                     <div className="flex items-end gap-0.5 h-36 overflow-x-auto pb-1">
                         {stats?.daily30.map((d, i) => {
                             const height = Math.max((d.count / maxDaily) * 100, d.count > 0 ? 4 : 1);
-                            const isToday = d.date === new Date().toISOString().slice(0, 10);
+                            const isLatest = i === stats.daily30.length - 1;
                             return (
                                 <div key={i} className="flex-1 min-w-[6px] flex flex-col items-center gap-0.5 group relative">
                                     <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-zinc-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">
                                         {d.date.slice(5)}: {d.count}
                                     </div>
                                     <div
-                                        className={`w-full rounded-t transition-all ${isToday ? 'bg-blue-500' : 'bg-blue-200 dark:bg-blue-900 group-hover:bg-blue-400 dark:group-hover:bg-blue-700'}`}
+                                        className={`w-full rounded-t transition-all ${isLatest ? 'bg-blue-500' : 'bg-blue-200 dark:bg-blue-900 group-hover:bg-blue-400 dark:group-hover:bg-blue-700'}`}
                                         style={{ height: `${height}%` }}
                                     />
                                 </div>
@@ -100,7 +100,7 @@ export default function JTDashboardPage() {
                     </div>
                     <div className="flex justify-between mt-2 text-[10px] text-zinc-400">
                         <span>{stats?.daily30[0]?.date.slice(5)}</span>
-                        <span className="text-blue-500 font-bold">วันนี้</span>
+                        <span className="text-blue-500 font-bold">ล่าสุด ({stats?.daily30[stats.daily30.length - 1]?.date.slice(5)})</span>
                     </div>
                 </div>
 

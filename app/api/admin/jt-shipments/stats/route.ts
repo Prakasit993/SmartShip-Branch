@@ -3,7 +3,15 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function GET() {
     try {
-        const now = new Date();
+        // Fetch latest date to base stats on
+        const { data: latestRow } = await supabaseAdmin.from('jt_shipments')
+            .select('booking_date')
+            .order('booking_date', { ascending: false })
+            .limit(1)
+            .single();
+
+        const now = latestRow?.booking_date ? new Date(latestRow.booking_date) : new Date();
+        
         const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
         const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
         const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
