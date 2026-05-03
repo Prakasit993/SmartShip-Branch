@@ -108,6 +108,13 @@ export default function JtDashboardPage() {
                 sumCod?: number;
                 avgShippingFee?: number;
                 returnCount?: number;
+                sumTotalFeeJms?: number;
+                codPaidCount?: number;
+                codPaidAmount?: number;
+                codPendingCount?: number;
+                codPendingAmount?: number;
+                codNoCollectionCount?: number;
+                codCollectionRate?: number;
                 recent?: JtDashboardShipmentRow[];
                 custom_metric_definitions?: JtCustomMetricCardDefinition[];
                 custom_metrics?: CustomMetricRow[];
@@ -191,6 +198,13 @@ export default function JtDashboardPage() {
                     sumCod: json.sumCod ?? 0,
                     avgShippingFee: json.avgShippingFee ?? 0,
                     returnCount: json.returnCount ?? 0,
+                    sumTotalFeeJms: json.sumTotalFeeJms ?? 0,
+                    codPaidCount: json.codPaidCount ?? 0,
+                    codPaidAmount: json.codPaidAmount ?? 0,
+                    codPendingCount: json.codPendingCount ?? 0,
+                    codPendingAmount: json.codPendingAmount ?? 0,
+                    codNoCollectionCount: json.codNoCollectionCount ?? 0,
+                    codCollectionRate: json.codCollectionRate ?? 0,
                 },
                 previousMetrics: json.previous ?? null,
                 recent: json.recent ?? [],
@@ -237,6 +251,13 @@ export default function JtDashboardPage() {
         sumCod: 0,
         avgShippingFee: 0,
         returnCount: 0,
+        sumTotalFeeJms: 0,
+        codPaidCount: 0,
+        codPaidAmount: 0,
+        codPendingCount: 0,
+        codPendingAmount: 0,
+        codNoCollectionCount: 0,
+        codCollectionRate: 0,
     };
 
     const saveCustomMetricCards = useCallback(

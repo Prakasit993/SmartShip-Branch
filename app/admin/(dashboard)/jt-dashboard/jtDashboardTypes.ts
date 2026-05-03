@@ -19,6 +19,17 @@ export type JtDashboardMetrics = {
     sumCod: number;
     avgShippingFee: number;
     returnCount: number;
+    /**
+     * Business KPIs (P6) — derived per channel/COD status in the RPC so the UI does not
+     * double-parse text money columns. See `jt_dashboard_fixed_totals` in Supabase.
+     */
+    sumTotalFeeJms: number;        // รายได้ค่าส่งจาก JMS (bucket=jms → collects shipping fee)
+    codPaidCount: number;          // จำนวนเคสที่ cod_status = 'ชำระเงินแล้ว' และ cod_amount > 0
+    codPaidAmount: number;
+    codPendingCount: number;       // cod_amount > 0 แต่ cod_status != 'ชำระเงินแล้ว'
+    codPendingAmount: number;
+    codNoCollectionCount: number;  // cod_amount = 0 (ส่งแบบไม่เก็บเงินปลายทาง)
+    codCollectionRate: number;     // paid / (paid + pending) × 100  (percent, 2 dp)
 };
 
 /** Previous-period totals used to render delta badges on KPI cards. */
@@ -28,6 +39,13 @@ export type JtDashboardPreviousMetrics = {
     sumCod: number;
     avgShippingFee: number;
     returnCount: number;
+    sumTotalFeeJms: number;
+    codPaidCount: number;
+    codPaidAmount: number;
+    codPendingCount: number;
+    codPendingAmount: number;
+    codNoCollectionCount: number;
+    codCollectionRate: number;
 };
 
 export type JtDashboardShipmentRow = {

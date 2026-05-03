@@ -26,6 +26,13 @@ type FixedTotalsRow = {
     sum_fee_positive: number | string;
     count_fee_positive: number | string;
     return_count: number | string;
+    // Business KPIs (P6) — optional because older RPC versions may not include them
+    sum_total_fee_jms?: number | string;
+    cod_paid_count?: number | string;
+    cod_paid_amount?: number | string;
+    cod_pending_count?: number | string;
+    cod_pending_amount?: number | string;
+    cod_no_collection_count?: number | string;
 };
 
 type FixedTotals = {
@@ -34,6 +41,12 @@ type FixedTotals = {
     sumFeePositive: number;
     countFeePositive: number;
     returnCount: number;
+    sumTotalFeeJms: number;
+    codPaidCount: number;
+    codPaidAmount: number;
+    codPendingCount: number;
+    codPendingAmount: number;
+    codNoCollectionCount: number;
 };
 
 /**
@@ -64,6 +77,12 @@ async function fetchFixedTotalsViaRpc(
         sumFeePositive: Number(row.sum_fee_positive) || 0,
         countFeePositive: Number(row.count_fee_positive) || 0,
         returnCount: Number(row.return_count) || 0,
+        sumTotalFeeJms: Number(row.sum_total_fee_jms) || 0,
+        codPaidCount: Number(row.cod_paid_count) || 0,
+        codPaidAmount: Number(row.cod_paid_amount) || 0,
+        codPendingCount: Number(row.cod_pending_count) || 0,
+        codPendingAmount: Number(row.cod_pending_amount) || 0,
+        codNoCollectionCount: Number(row.cod_no_collection_count) || 0,
     };
 }
 
@@ -217,6 +236,17 @@ export async function GET(req: Request) {
             display: formatMetricDisplay(m.raw, m.format),
         }));
 
+        // Business KPIs (P6) — only populated when RPC is available (cold path returns 0).
+        const sumTotalFeeJms = rpcTotals?.sumTotalFeeJms ?? 0;
+        const codPaidCount = rpcTotals?.codPaidCount ?? 0;
+        const codPaidAmount = rpcTotals?.codPaidAmount ?? 0;
+        const codPendingCount = rpcTotals?.codPendingCount ?? 0;
+        const codPendingAmount = rpcTotals?.codPendingAmount ?? 0;
+        const codNoCollectionCount = rpcTotals?.codNoCollectionCount ?? 0;
+        const codTotalCollectable = codPaidCount + codPendingCount;
+        const codCollectionRate =
+            codTotalCollectable > 0 ? Math.round((codPaidCount / codTotalCollectable) * 10000) / 100 : 0;
+
         // Previous-period payload for KPI delta badges (shown only when both dates are set).
         const previous =
             prevRange && previousTotals
@@ -232,6 +262,20 @@ export async function GET(req: Request) {
                                 ) / 100
                               : 0,
                       returnCount: previousTotals.returnCount,
+                      sumTotalFeeJms: previousTotals.sumTotalFeeJms,
+                      codPaidCount: previousTotals.codPaidCount,
+                      codPaidAmount: previousTotals.codPaidAmount,
+                      codPendingCount: previousTotals.codPendingCount,
+                      codPendingAmount: previousTotals.codPendingAmount,
+                      codNoCollectionCount: previousTotals.codNoCollectionCount,
+                      codCollectionRate:
+                          previousTotals.codPaidCount + previousTotals.codPendingCount > 0
+                              ? Math.round(
+                                    (previousTotals.codPaidCount /
+                                        (previousTotals.codPaidCount + previousTotals.codPendingCount)) *
+                                        10000,
+                                ) / 100
+                              : 0,
                   }
                 : null;
 
@@ -244,6 +288,13 @@ export async function GET(req: Request) {
             sumCod,
             avgShippingFee,
             returnCount,
+            sumTotalFeeJms,
+            codPaidCount,
+            codPaidAmount,
+            codPendingCount,
+            codPendingAmount,
+            codNoCollectionCount,
+            codCollectionRate,
             recent: recent ?? [],
             date_from: dateFrom.trim() || null,
             date_to: dateTo.trim() || null,

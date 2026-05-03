@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, Clock, Minus, Package, RefreshCw, RotateCcw, Scale, Search } from 'lucide-react';
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Scale, Search } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
@@ -506,6 +506,133 @@ export function JtDashboardView({
                         </>
                     ) : null}
                 </div>
+
+                {/* ─── Row 2: Business KPIs (P6) — แยกตาม channel/COD status ─── */}
+                {!mockMode && !loading && showContent ? (
+                    <div className="mt-5 sm:mt-6">
+                        <div className="mb-3 flex items-center gap-2 px-1">
+                            <span
+                                className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
+                                aria-hidden
+                            />
+                            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                สรุปรายได้ &amp; สถานะ COD
+                            </h3>
+                            <span className="text-[10px] text-slate-600">
+                                (แยก JMS / Marketplace / Other อัตโนมัติ)
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+                            <AnimatedKpiCard
+                                index={4}
+                                icon={<HandCoins className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-emerald-500/15"
+                                iconRing="ring-emerald-500/25"
+                                iconFg="text-emerald-400"
+                                glowColor="bg-emerald-500/40"
+                                label="รายได้ค่าส่ง (JMS)"
+                                value={metrics.sumTotalFeeJms}
+                                prefix="฿"
+                                decimals={2}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.sumTotalFeeJms,
+                                              previousRangeDays: previousMetrics.range.days,
+                                          }
+                                        : undefined
+                                }
+                                hint="total_shipping_fee เฉพาะ bucket=jms (เราเก็บเอง)"
+                            />
+
+                            <AnimatedKpiCard
+                                index={5}
+                                icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-teal-500/15"
+                                iconRing="ring-teal-500/25"
+                                iconFg="text-teal-400"
+                                glowColor="bg-teal-500/40"
+                                label="COD เก็บแล้ว"
+                                value={metrics.codPaidAmount}
+                                prefix="฿"
+                                decimals={2}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.codPaidAmount,
+                                              previousRangeDays: previousMetrics.range.days,
+                                          }
+                                        : undefined
+                                }
+                                hint={
+                                    <span>
+                                        {metrics.codPaidCount.toLocaleString('th-TH')} เคส ·
+                                        สถานะ &ldquo;ชำระเงินแล้ว&rdquo;
+                                    </span>
+                                }
+                            />
+
+                            <AnimatedKpiCard
+                                index={6}
+                                icon={<Hourglass className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-orange-500/15"
+                                iconRing="ring-orange-500/25"
+                                iconFg="text-orange-400"
+                                glowColor="bg-orange-500/40"
+                                label="COD รอเก็บ"
+                                value={metrics.codPendingAmount}
+                                prefix="฿"
+                                decimals={2}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.codPendingAmount,
+                                              previousRangeDays: previousMetrics.range.days,
+                                              inverseGood: true,
+                                          }
+                                        : undefined
+                                }
+                                hint={
+                                    <span>
+                                        {metrics.codPendingCount.toLocaleString('th-TH')} เคสค้าง ·
+                                        ยังไม่จ่าย
+                                    </span>
+                                }
+                            />
+
+                            <AnimatedKpiCard
+                                index={7}
+                                icon={<Percent className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-indigo-500/15"
+                                iconRing="ring-indigo-500/25"
+                                iconFg="text-indigo-400"
+                                glowColor="bg-indigo-500/40"
+                                label="อัตราเก็บ COD"
+                                value={metrics.codCollectionRate}
+                                suffix="%"
+                                decimals={2}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.codCollectionRate,
+                                              previousRangeDays: previousMetrics.range.days,
+                                          }
+                                        : undefined
+                                }
+                                hint={
+                                    <span>
+                                        {metrics.codPaidCount.toLocaleString('th-TH')} /{' '}
+                                        {(
+                                            metrics.codPaidCount + metrics.codPendingCount
+                                        ).toLocaleString('th-TH')}{' '}
+                                        เคส · ไม่เก็บ COD อีก{' '}
+                                        {metrics.codNoCollectionCount.toLocaleString('th-TH')}
+                                    </span>
+                                }
+                            />
+                        </div>
+                    </div>
+                ) : null}
             </section>
 
             {!mockMode ? (

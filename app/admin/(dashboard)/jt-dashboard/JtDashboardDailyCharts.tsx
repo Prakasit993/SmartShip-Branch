@@ -17,8 +17,82 @@ function formatDayLabel(ymd: string): string {
     return new Date(t).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 }
 
+/** คืนชื่อวันในสัปดาห์ภาษาไทยแบบย่อ (จ.|อ.|...|อา.) และธงว่าเป็นวันหยุดสุดสัปดาห์ไหม */
+function dayOfWeekInfo(ymd: string): { label: string; isWeekend: boolean } {
+    if (!ymd || ymd.length < 10) return { label: '', isWeekend: false };
+    const t = Date.parse(`${ymd}T12:00:00.000Z`);
+    if (Number.isNaN(t)) return { label: '', isWeekend: false };
+    const day = new Date(t).getUTCDay(); // 0=Sun ... 6=Sat
+    const labels = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+    return { label: labels[day] ?? '', isWeekend: day === 0 || day === 6 };
+}
+
 function chartPlotMinWidthPx(dayCount: number): number {
     return Math.max(320, Math.min(4200, dayCount * 4));
+}
+
+/**
+ * เลือก "ช่วง tick" ของแกน X ให้เหมาะกับจำนวนวัน และคืนตำแหน่ง tick เป็น %
+ * กติกา:
+ *  - ≤7 วัน  → ทุกวัน
+ *  - ≤14 วัน → ทุก 2 วัน
+ *  - ≤31 วัน → ทุก 7 วัน (สัปดาห์)
+ *  - ≤90 วัน → ทุก 14 วัน (ปักษ์)
+ *  - >90 วัน → ~6 จุดเท่า ๆ กัน
+ * วันแรก/วันสุดท้ายถูกบังคับรวมเสมอ
+ */
+function computeAxisTicks(days: { date: string }[]): Array<{ date: string; pct: number; index: number }> {
+    const n = days.length;
+    if (n === 0) return [];
+    if (n === 1) return [{ date: days[0].date, pct: 50, index: 0 }];
+    let step: number;
+    if (n <= 7) step = 1;
+    else if (n <= 14) step = 2;
+    else if (n <= 31) step = 7;
+    else if (n <= 90) step = 14;
+    else step = Math.max(1, Math.ceil(n / 6));
+    const positionPct = (i: number) => ((i + 0.5) / n) * 100; // align กับ center bar
+    const ticks: Array<{ date: string; pct: number; index: number }> = [];
+    ticks.push({ date: days[0].date, pct: positionPct(0), index: 0 });
+    for (let i = step; i < n - 1; i += step) {
+        ticks.push({ date: days[i].date, pct: positionPct(i), index: i });
+    }
+    // หลีกเลี่ยง tick สุดท้ายชนกันวันก่อนสุด (<1 step)
+    if (ticks[ticks.length - 1].index < n - 1) {
+        ticks.push({ date: days[n - 1].date, pct: positionPct(n - 1), index: n - 1 });
+    }
+    return ticks;
+}
+
+/**
+ * แถวป้ายวันที่ใต้กราฟ — จัดตำแหน่งตาม % ของ plotW เพื่อ sync กับ bar centers
+ * หมายเหตุ transform: ใช้ `-${pct}%` ทำให้ tick ที่ 0% ไม่ล้นซ้าย, 100% ไม่ล้นขวา
+ * และตรงกลางก็ center-align พอดี (สูตรเดียว)
+ */
+function ChartXAxis({ days }: { days: { date: string }[] }) {
+    const ticks = useMemo(() => computeAxisTicks(days), [days]);
+    if (ticks.length === 0) return null;
+    return (
+        <div className="relative h-7 border-t border-slate-800/90 pt-2" aria-hidden>
+            {ticks.map((t) => {
+                const { isWeekend } = dayOfWeekInfo(t.date);
+                return (
+                    <span
+                        key={t.date}
+                        className={`absolute top-2 whitespace-nowrap text-[10px] font-medium tabular-nums ${
+                            isWeekend ? 'text-slate-600' : 'text-slate-500'
+                        }`}
+                        style={{
+                            left: `${t.pct}%`,
+                            transform: `translateX(-${t.pct}%)`,
+                        }}
+                    >
+                        {formatDayLabel(t.date)}
+                    </span>
+                );
+            })}
+        </div>
+    );
 }
 
 /** ทศนิยม 1 ตำแหน่ง สำหรับ % */
@@ -326,12 +400,16 @@ export function JtDashboardDailyCharts({
         const pct = dailyBarHeightPct(d.count, maxCount || 1);
         const h = Math.max(pct, d.count > 0 ? 4 : 0);
         const isLast = i === data.daily30.length - 1;
+        const isZero = d.count <= 0;
+        const dow = dayOfWeekInfo(d.date);
         const vsPeak = pct1(d.count, maxCount || 1);
         const vsSum = pct1(d.count, sumCounts || 1);
-        const tipTitle = `${formatDayLabel(d.date)} · ${d.count.toLocaleString('th-TH')} รายการ · ${vsPeak}% ของสูงสุด · ${vsSum}% ของรวมช่วง`;
+        const tipTitle = isZero
+            ? `${formatDayLabel(d.date)} · ${dow.label} · ไม่มีข้อมูล`
+            : `${formatDayLabel(d.date)} · ${dow.label} · ${d.count.toLocaleString('th-TH')} รายการ · ${vsPeak}% ของสูงสุด · ${vsSum}% ของรวมช่วง`;
         return (
             <div key={d.date} className={barCol} title={tipTitle}>
-                {showCompactBarLabels && d.count > 0 ? (
+                {showCompactBarLabels && !isZero ? (
                     <div className="mb-0.5 text-center text-[9px] font-semibold tabular-nums leading-none text-slate-400">
                         {compactCountLabel(d.count)}
                     </div>
@@ -340,34 +418,59 @@ export function JtDashboardDailyCharts({
                 )}
                 <div className="relative flex min-h-0 w-full flex-col justify-end">
                     <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-[min(92vw,17rem)] -translate-x-1/2 rounded-xl border border-slate-600/50 bg-slate-950/98 px-3 py-2.5 text-left text-[10px] leading-snug text-white shadow-2xl backdrop-blur-md sm:block sm:opacity-0 sm:transition-all sm:duration-200 sm:group-hover:opacity-100">
-                        <div className="font-semibold text-sky-300">{formatDayLabel(d.date)}</div>
-                        <div className="mt-1 tabular-nums text-slate-50">
-                            {d.count.toLocaleString('th-TH')} <span className="text-slate-500">รายการ</span>
+                        <div className="flex items-center gap-1.5 font-semibold text-sky-300">
+                            <span>{formatDayLabel(d.date)}</span>
+                            <span
+                                className={`rounded px-1 py-[1px] text-[9px] font-medium ring-1 ${
+                                    dow.isWeekend
+                                        ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
+                                        : 'bg-slate-700/70 text-slate-300 ring-slate-600/60'
+                                }`}
+                            >
+                                {dow.label}
+                            </span>
                         </div>
-                        <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
-                            <div>
-                                <span className="text-sky-300/95">{vsPeak}%</span>{' '}
-                                <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
-                            </div>
-                            <div>
-                                <span className="text-emerald-300/95">{vsSum}%</span>{' '}
-                                <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
-                            </div>
-                        </div>
+                        {isZero ? (
+                            <div className="mt-1 italic text-slate-500">ไม่มีข้อมูลในวันนี้</div>
+                        ) : (
+                            <>
+                                <div className="mt-1 tabular-nums text-slate-50">
+                                    {d.count.toLocaleString('th-TH')}{' '}
+                                    <span className="text-slate-500">รายการ</span>
+                                </div>
+                                <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
+                                    <div>
+                                        <span className="text-sky-300/95">{vsPeak}%</span>{' '}
+                                        <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-emerald-300/95">{vsSum}%</span>{' '}
+                                        <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
-                    <span
-                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
-                            isLast
-                                ? 'bg-gradient-to-t from-sky-600 via-sky-500 to-sky-300 shadow-[0_0_20px_rgba(56,189,248,0.35)]'
-                                : 'bg-gradient-to-t from-sky-900/95 via-sky-700/85 to-sky-500/75 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.2)]'
-                        }`}
-                        style={{
-                            height: `${Math.min(h, 100)}%`,
-                            minHeight: d.count > 0 ? '5px' : '2px',
-                            opacity: d.count > 0 ? 1 : 0.18,
-                            animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
-                        }}
-                    />
+                    {isZero ? (
+                        <span
+                            className="block w-full rounded-full bg-slate-600/70 ring-1 ring-slate-700/40"
+                            style={{ height: '3px', opacity: 0.55 }}
+                            aria-label="ไม่มีข้อมูล"
+                        />
+                    ) : (
+                        <span
+                            className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
+                                isLast
+                                    ? 'bg-gradient-to-t from-sky-600 via-sky-500 to-sky-300 shadow-[0_0_20px_rgba(56,189,248,0.35)]'
+                                    : 'bg-gradient-to-t from-sky-900/95 via-sky-700/85 to-sky-500/75 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.2)]'
+                            }`}
+                            style={{
+                                height: `${Math.min(h, 100)}%`,
+                                minHeight: '5px',
+                                animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         );
@@ -377,12 +480,16 @@ export function JtDashboardDailyCharts({
         const pct = dailyBarHeightPct(d.codTotal, maxCod || 1);
         const h = Math.max(pct, d.codTotal > 0 ? 4 : 0);
         const isLast = i === (data.dailyCod30 ?? []).length - 1;
+        const isZero = d.codTotal <= 0;
+        const dow = dayOfWeekInfo(d.date);
         const vsPeak = pct1(d.codTotal, maxCod || 1);
         const vsSum = pct1(d.codTotal, sumCods || 1);
-        const tipTitle = `${formatDayLabel(d.date)} · ฿${formatThb(d.codTotal)} · ${vsPeak}% ของสูงสุด · ${vsSum}% ของรวมช่วง`;
+        const tipTitle = isZero
+            ? `${formatDayLabel(d.date)} · ${dow.label} · ไม่มีข้อมูล`
+            : `${formatDayLabel(d.date)} · ${dow.label} · ฿${formatThb(d.codTotal)} · ${vsPeak}% ของสูงสุด · ${vsSum}% ของรวมช่วง`;
         return (
             <div key={d.date} className={barCol} title={tipTitle}>
-                {showCompactBarLabels && d.codTotal > 0 ? (
+                {showCompactBarLabels && !isZero ? (
                     <div className="mb-0.5 text-center text-[9px] font-semibold tabular-nums leading-none text-amber-400/90">
                         {compactMoneyLabel(d.codTotal)}
                     </div>
@@ -391,32 +498,56 @@ export function JtDashboardDailyCharts({
                 )}
                 <div className="relative flex min-h-0 w-full flex-col justify-end">
                     <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-[min(92vw,17rem)] -translate-x-1/2 rounded-xl border border-slate-600/50 bg-slate-950/98 px-3 py-2.5 text-left text-[10px] leading-snug text-white shadow-2xl backdrop-blur-md sm:block sm:opacity-0 sm:transition-all sm:duration-200 sm:group-hover:opacity-100">
-                        <div className="font-semibold text-amber-300">{formatDayLabel(d.date)}</div>
-                        <div className="mt-1 tabular-nums text-slate-50">฿{formatThb(d.codTotal)}</div>
-                        <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
-                            <div>
-                                <span className="text-amber-300/95">{vsPeak}%</span>{' '}
-                                <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
-                            </div>
-                            <div>
-                                <span className="text-emerald-300/95">{vsSum}%</span>{' '}
-                                <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
-                            </div>
+                        <div className="flex items-center gap-1.5 font-semibold text-amber-300">
+                            <span>{formatDayLabel(d.date)}</span>
+                            <span
+                                className={`rounded px-1 py-[1px] text-[9px] font-medium ring-1 ${
+                                    dow.isWeekend
+                                        ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
+                                        : 'bg-slate-700/70 text-slate-300 ring-slate-600/60'
+                                }`}
+                            >
+                                {dow.label}
+                            </span>
                         </div>
+                        {isZero ? (
+                            <div className="mt-1 italic text-slate-500">ไม่มีข้อมูลในวันนี้</div>
+                        ) : (
+                            <>
+                                <div className="mt-1 tabular-nums text-slate-50">฿{formatThb(d.codTotal)}</div>
+                                <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
+                                    <div>
+                                        <span className="text-amber-300/95">{vsPeak}%</span>{' '}
+                                        <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-emerald-300/95">{vsSum}%</span>{' '}
+                                        <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
-                    <span
-                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
-                            isLast
-                                ? 'bg-gradient-to-t from-amber-600 via-amber-500 to-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.3)]'
-                                : 'bg-gradient-to-t from-amber-950/95 via-amber-800/85 to-amber-600/80 group-hover:shadow-[0_0_12px_rgba(251,191,36,0.18)]'
-                        }`}
-                        style={{
-                            height: `${Math.min(h, 100)}%`,
-                            minHeight: d.codTotal > 0 ? '5px' : '2px',
-                            opacity: d.codTotal > 0 ? 1 : 0.18,
-                            animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
-                        }}
-                    />
+                    {isZero ? (
+                        <span
+                            className="block w-full rounded-full bg-slate-600/70 ring-1 ring-slate-700/40"
+                            style={{ height: '3px', opacity: 0.55 }}
+                            aria-label="ไม่มีข้อมูล"
+                        />
+                    ) : (
+                        <span
+                            className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
+                                isLast
+                                    ? 'bg-gradient-to-t from-amber-600 via-amber-500 to-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.3)]'
+                                    : 'bg-gradient-to-t from-amber-950/95 via-amber-800/85 to-amber-600/80 group-hover:shadow-[0_0_12px_rgba(251,191,36,0.18)]'
+                            }`}
+                            style={{
+                                height: `${Math.min(h, 100)}%`,
+                                minHeight: '5px',
+                                animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         );
@@ -426,12 +557,16 @@ export function JtDashboardDailyCharts({
         const pct = dailyBarHeightPct(d.feeTotal, maxFee || 1);
         const h = Math.max(pct, d.feeTotal > 0 ? 4 : 0);
         const isLast = i === data.dailyFee30.length - 1;
+        const isZero = d.feeTotal <= 0;
+        const dow = dayOfWeekInfo(d.date);
         const vsPeak = pct1(d.feeTotal, maxFee || 1);
         const vsSum = pct1(d.feeTotal, sumFees || 1);
-        const tipTitle = `${formatDayLabel(d.date)} · ฿${formatThb(d.feeTotal)} · ${vsPeak}% ของสูงสุด · ${vsSum}% ของรวมช่วง`;
+        const tipTitle = isZero
+            ? `${formatDayLabel(d.date)} · ${dow.label} · ไม่มีข้อมูล`
+            : `${formatDayLabel(d.date)} · ${dow.label} · ฿${formatThb(d.feeTotal)} · ${vsPeak}% ของสูงสุด · ${vsSum}% ของรวมช่วง`;
         return (
             <div key={d.date} className={barCol} title={tipTitle}>
-                {showCompactBarLabels && d.feeTotal > 0 ? (
+                {showCompactBarLabels && !isZero ? (
                     <div className="mb-0.5 text-center text-[9px] font-semibold tabular-nums leading-none text-violet-400/90">
                         {compactMoneyLabel(d.feeTotal)}
                     </div>
@@ -440,32 +575,56 @@ export function JtDashboardDailyCharts({
                 )}
                 <div className="relative flex min-h-0 w-full flex-col justify-end">
                     <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-[min(92vw,17rem)] -translate-x-1/2 rounded-xl border border-slate-600/50 bg-slate-950/98 px-3 py-2.5 text-left text-[10px] leading-snug text-white shadow-2xl backdrop-blur-md sm:block sm:opacity-0 sm:transition-all sm:duration-200 sm:group-hover:opacity-100">
-                        <div className="font-semibold text-violet-300">{formatDayLabel(d.date)}</div>
-                        <div className="mt-1 tabular-nums text-slate-50">฿{formatThb(d.feeTotal)}</div>
-                        <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
-                            <div>
-                                <span className="text-violet-300/95">{vsPeak}%</span>{' '}
-                                <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
-                            </div>
-                            <div>
-                                <span className="text-emerald-300/95">{vsSum}%</span>{' '}
-                                <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
-                            </div>
+                        <div className="flex items-center gap-1.5 font-semibold text-violet-300">
+                            <span>{formatDayLabel(d.date)}</span>
+                            <span
+                                className={`rounded px-1 py-[1px] text-[9px] font-medium ring-1 ${
+                                    dow.isWeekend
+                                        ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
+                                        : 'bg-slate-700/70 text-slate-300 ring-slate-600/60'
+                                }`}
+                            >
+                                {dow.label}
+                            </span>
                         </div>
+                        {isZero ? (
+                            <div className="mt-1 italic text-slate-500">ไม่มีข้อมูลในวันนี้</div>
+                        ) : (
+                            <>
+                                <div className="mt-1 tabular-nums text-slate-50">฿{formatThb(d.feeTotal)}</div>
+                                <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
+                                    <div>
+                                        <span className="text-violet-300/95">{vsPeak}%</span>{' '}
+                                        <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-emerald-300/95">{vsSum}%</span>{' '}
+                                        <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
-                    <span
-                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
-                            isLast
-                                ? 'bg-gradient-to-t from-violet-600 via-violet-500 to-violet-300 shadow-[0_0_18px_rgba(167,139,250,0.28)]'
-                                : 'bg-gradient-to-t from-violet-950/95 via-violet-800/85 to-violet-600/80 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.18)]'
-                        }`}
-                        style={{
-                            height: `${Math.min(h, 100)}%`,
-                            minHeight: d.feeTotal > 0 ? '5px' : '2px',
-                            opacity: d.feeTotal > 0 ? 1 : 0.18,
-                            animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
-                        }}
-                    />
+                    {isZero ? (
+                        <span
+                            className="block w-full rounded-full bg-slate-600/70 ring-1 ring-slate-700/40"
+                            style={{ height: '3px', opacity: 0.55 }}
+                            aria-label="ไม่มีข้อมูล"
+                        />
+                    ) : (
+                        <span
+                            className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
+                                isLast
+                                    ? 'bg-gradient-to-t from-violet-600 via-violet-500 to-violet-300 shadow-[0_0_18px_rgba(167,139,250,0.28)]'
+                                    : 'bg-gradient-to-t from-violet-950/95 via-violet-800/85 to-violet-600/80 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.18)]'
+                            }`}
+                            style={{
+                                height: `${Math.min(h, 100)}%`,
+                                minHeight: '5px',
+                                animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         );
@@ -570,14 +729,7 @@ export function JtDashboardDailyCharts({
                                     {countBars}
                                 </div>
                             </div>
-                            <div className="flex justify-between border-t border-slate-800/90 px-1 pb-2 pt-2 text-[10px] font-medium text-slate-500">
-                                <span>{data.daily30[0] ? formatDayLabel(data.daily30[0].date) : ''}</span>
-                                <span>
-                                    {data.daily30[data.daily30.length - 1]
-                                        ? formatDayLabel(data.daily30[data.daily30.length - 1].date)
-                                        : ''}
-                                </span>
-                            </div>
+                        <ChartXAxis days={data.daily30} />
                         </div>
                     </div>
                 </div>
@@ -613,14 +765,7 @@ export function JtDashboardDailyCharts({
                                     {feeBars}
                                 </div>
                             </div>
-                            <div className="flex justify-between border-t border-slate-800/90 px-1 pb-2 pt-2 text-[10px] font-medium text-slate-500">
-                                <span>{data.dailyFee30[0] ? formatDayLabel(data.dailyFee30[0].date) : ''}</span>
-                                <span>
-                                    {data.dailyFee30[data.dailyFee30.length - 1]
-                                        ? formatDayLabel(data.dailyFee30[data.dailyFee30.length - 1].date)
-                                        : ''}
-                                </span>
-                            </div>
+                        <ChartXAxis days={data.dailyFee30} />
                         </div>
                     </div>
                 </div>
@@ -656,20 +801,7 @@ export function JtDashboardDailyCharts({
                                     {codBars}
                                 </div>
                             </div>
-                            <div className="flex justify-between border-t border-slate-800/90 px-1 pb-2 pt-2 text-[10px] font-medium text-slate-500">
-                                <span>
-                                    {(data.dailyCod30 ?? [])[0]
-                                        ? formatDayLabel((data.dailyCod30 ?? [])[0].date)
-                                        : ''}
-                                </span>
-                                <span>
-                                    {(data.dailyCod30 ?? []).length > 0
-                                        ? formatDayLabel(
-                                              (data.dailyCod30 ?? [])[(data.dailyCod30 ?? []).length - 1].date,
-                                          )
-                                        : ''}
-                                </span>
-                            </div>
+                        <ChartXAxis days={data.dailyCod30 ?? []} />
                         </div>
                     </div>
                 </div>
