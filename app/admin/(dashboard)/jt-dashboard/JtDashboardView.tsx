@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { AlertCircle, Banknote, Package, RotateCcw, Scale } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
+import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
 import type { JtDashboardMetrics, JtDashboardShipmentRow } from './jtDashboardTypes';
+import { JtDashboardCustomMetrics } from './JtDashboardCustomMetrics';
 import { JtDashboardDailyCharts } from './JtDashboardDailyCharts';
 import { JtTopSendersPanel, type JtTopSenderRow } from './JtTopSendersPanel';
 import {
@@ -23,6 +25,16 @@ export type JtDashboardViewProps = {
     chartError: string | null;
     chartsAlignedWithSummaryCards: boolean;
     topSenders: JtTopSenderRow[];
+    customMetricDefinitions: JtCustomMetricCardDefinition[];
+    customMetrics: Array<{
+        id: string;
+        title: string;
+        subtitle?: string;
+        icon: string;
+        display: string;
+        format: string;
+    }>;
+    onSaveCustomMetricCards: (cards: JtCustomMetricCardDefinition[]) => Promise<void>;
     loading: boolean;
     error: string | null;
     parcelDateFrom: string;
@@ -69,6 +81,9 @@ export function JtDashboardView({
     chartError,
     chartsAlignedWithSummaryCards,
     topSenders,
+    customMetricDefinitions,
+    customMetrics,
+    onSaveCustomMetricCards,
     loading,
     error,
     parcelDateFrom,
@@ -243,6 +258,15 @@ export function JtDashboardView({
                                     latest_scan_type มีคำว่า &quot;ตีกลับ&quot; หรือ Return
                                 </p>
                             </article>
+
+                            {!mockMode ? (
+                                <JtDashboardCustomMetrics
+                                    definitions={customMetricDefinitions}
+                                    computed={customMetrics}
+                                    disabled={loading}
+                                    onSave={onSaveCustomMetricCards}
+                                />
+                            ) : null}
                         </>
                     ) : null}
                 </div>

@@ -990,11 +990,7 @@ export function buildOrderedDashboardBlocks(ctx: JtOrderedBlocksInput): ReactNod
                     <div className="mb-5">
                         <h2 className="text-lg font-bold flex items-center gap-2 tracking-tight">🛒 แพลตฟอร์ม / ช่องทาง</h2>
                         <p className="text-xs text-zinc-500 mt-1.5 max-w-3xl leading-relaxed">
-                            ใช้ลำดับฟิลด์จาก{' '}
-                            <Link href="/admin/settings#jt-channel-fields" className="text-blue-400 hover:underline font-medium">
-                                ตั้งค่าเว็บไซต์ → แดชบอร์ด J&amp;T
-                            </Link>{' '}
-                            (ค่าเริ่มต้น: platform → order_source) — แก้ที่{' '}
+                            ลำดับอ่านค่าแพลตฟอร์มตามค่าในระบบ (ค่าเริ่มต้น: platform → order_source) — แก้ข้อมูลที่{' '}
                             <Link href="/admin/shipments" className="text-blue-400 hover:underline font-medium">
                                 J&T Shipments
                             </Link>{' '}

@@ -72,16 +72,6 @@ export default async function AdminDashboard() {
                 title="Dashboard"
                 description="ภาพรวมร้านค้าของคุณ"
                 titleLeft={<span aria-hidden>📊</span>}
-                actions={
-                    <div className="hidden md:block text-right text-sm font-medium text-white">
-                        {new Date().toLocaleDateString('th-TH', {
-                            weekday: 'long',
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                        })}
-                    </div>
-                }
             />
 
             {/* Stats Grid */}

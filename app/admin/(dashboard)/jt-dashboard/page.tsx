@@ -7,9 +7,19 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { JtDashboardView } from './JtDashboardView';
+import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
 import type { JtDashboardMetrics, JtDashboardShipmentRow } from './jtDashboardTypes';
 import type { JtTopSenderRow } from './JtTopSendersPanel';
+
+type CustomMetricRow = {
+    id: string;
+    title: string;
+    subtitle?: string;
+    icon: string;
+    display: string;
+    format: string;
+};
 
 type FetchState =
     | { status: 'idle' | 'loading' }
@@ -21,6 +31,8 @@ type FetchState =
           charts: JtDashboardChartsPayload | null;
           chartError: string | null;
           topSenders: JtTopSenderRow[];
+          customMetricDefinitions: JtCustomMetricCardDefinition[];
+          customMetrics: CustomMetricRow[];
       };
 
 export default function JtDashboardPage() {
@@ -62,6 +74,8 @@ export default function JtDashboardPage() {
                 avgShippingFee?: number;
                 returnCount?: number;
                 recent?: JtDashboardShipmentRow[];
+                custom_metric_definitions?: JtCustomMetricCardDefinition[];
+                custom_metrics?: CustomMetricRow[];
             };
             try {
                 json = JSON.parse(raw) as typeof json;
@@ -146,6 +160,8 @@ export default function JtDashboardPage() {
                 charts,
                 chartError,
                 topSenders,
+                customMetricDefinitions: json.custom_metric_definitions ?? [],
+                customMetrics: json.custom_metrics ?? [],
             });
         } catch (e) {
             const message =
@@ -173,6 +189,30 @@ export default function JtDashboardPage() {
         returnCount: 0,
     };
 
+    const saveCustomMetricCards = useCallback(
+        async (cards: JtCustomMetricCardDefinition[]) => {
+            const res = await fetch('/api/admin/jt-shipments/custom-metric-cards', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ cards }),
+            });
+            const raw = await res.text();
+            if (!res.ok) {
+                let msg = 'บันทึกการ์ดไม่สำเร็จ';
+                try {
+                    const o = JSON.parse(raw) as { error?: string };
+                    if (o.error) msg = o.error;
+                } catch {
+                    /* ignore */
+                }
+                throw new Error(msg);
+            }
+            await load(parcelDateFrom, parcelDateTo);
+        },
+        [load, parcelDateFrom, parcelDateTo],
+    );
+
     const chartsAligned =
         success &&
         Boolean(
@@ -188,6 +228,9 @@ export default function JtDashboardPage() {
             chartError={success ? state.chartError : null}
             chartsAlignedWithSummaryCards={chartsAligned}
             topSenders={success ? state.topSenders : []}
+            customMetricDefinitions={success ? state.customMetricDefinitions : []}
+            customMetrics={success ? state.customMetrics : []}
+            onSaveCustomMetricCards={saveCustomMetricCards}
             loading={loading}
             error={err}
             parcelDateFrom={parcelDateFrom}

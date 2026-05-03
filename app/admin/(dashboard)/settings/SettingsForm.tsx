@@ -1,16 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import {
-    DEFAULT_JT_CHANNEL_PRIORITY,
-    JT_CHANNEL_FIELD_OPTIONS,
-    parseJtChannelPriorityFromSettingValue,
-} from '@/lib/jtChannelSettings';
-import {
-    JT_DASHBOARD_SECTION_KEYS,
-    JT_DASHBOARD_SECTION_LABELS,
-    parseJtDashboardSectionsJson,
-} from '@/lib/jtDashboardSections';
+import { useState } from 'react';
 import { CollapsibleSection, InputField } from './SettingsComponents';
 import { uploadImage } from './actions';
 
@@ -36,51 +26,6 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
 
     const getSetting = (key: string, defaultValue: string = '') => {
         return initialSettings[key] || defaultValue;
-    };
-
-    const [jtSections, setJtSections] = useState(() =>
-        parseJtDashboardSectionsJson(getSetting('jt_dashboard_sections', ''))
-    );
-
-    const [channelSlots, setChannelSlots] = useState<string[]>(() => {
-        const p = parseJtChannelPriorityFromSettingValue(getSetting('jt_channel_field_priority', ''));
-        return [...p, '', '', '', '', ''].slice(0, 5);
-    });
-
-    const setChannelSlot = (index: number, value: string) => {
-        setChannelSlots((prev) => {
-            const next = [...prev];
-            next[index] = value;
-            return next;
-        });
-    };
-
-    /** ชื่อคอลัมน์จริงในตาราง jt_shipments (จาก API) — null = กำลังโหลด */
-    const [jtTableColumnNames, setJtTableColumnNames] = useState<string[] | null>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const res = await fetch('/api/admin/jt-shipments/columns');
-                const data = (await res.json()) as { names?: string[] };
-                if (!cancelled && Array.isArray(data.names)) {
-                    setJtTableColumnNames(data.names);
-                } else if (!cancelled) {
-                    setJtTableColumnNames([]);
-                }
-            } catch {
-                if (!cancelled) setJtTableColumnNames([]);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    const applyChannelPreset = (fields: string[]) => {
-        const padded = [...fields, '', '', '', '', ''].slice(0, 5);
-        setChannelSlots(padded);
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -297,129 +242,6 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                         placeholder="https://maps.app.goo.gl/..."
                     />
                 </CollapsibleSection>
-
-                <div id="jt-dashboard-sections">
-                    <CollapsibleSection title="แดชบอร์ด J&T — เลือกข้อมูลที่แสดง" icon="📊" defaultOpen={false}>
-                        <input type="hidden" name="jt_dashboard_sections" value={JSON.stringify(jtSections)} />
-                        <input
-                            type="hidden"
-                            name="jt_channel_field_priority"
-                            value={JSON.stringify(channelSlots.filter((s) => s !== ''))}
-                        />
-                        <p className="text-xs text-zinc-500 mb-3">
-                            กำหนดบล็อกที่เห็นในหน้า <span className="text-zinc-400">/admin/jt-dashboard</span>
-                            — ผู้ใช้แต่ละคนยังเลือกซ้อนทับในเบราว์เซอร์ของตัวเองได้ (ไม่กระทบผู้อื่น)
-                        </p>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            {JT_DASHBOARD_SECTION_KEYS.map((key) => (
-                                <label
-                                    key={key}
-                                    className="flex items-start gap-3 p-3 rounded-lg bg-zinc-800/40 border border-zinc-700/80 cursor-pointer hover:bg-zinc-800/60"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        className="mt-1 rounded border-zinc-600"
-                                        checked={jtSections[key]}
-                                        onChange={(e) =>
-                                            setJtSections((prev) => ({ ...prev, [key]: e.target.checked }))
-                                        }
-                                    />
-                                    <span className="text-sm text-zinc-200 leading-snug">
-                                        {JT_DASHBOARD_SECTION_LABELS[key]}
-                                    </span>
-                                </label>
-                            ))}
-                        </div>
-
-                        <div id="jt-channel-fields" className="mt-6 pt-6 border-t border-zinc-700/80">
-                            <h4 className="text-sm font-semibold text-zinc-100 mb-1">ฟิลด์แพลตฟอร์ม / ช่องทาง</h4>
-                            <p className="text-xs text-zinc-500 mb-3 leading-relaxed">
-                                กำหนดลำดับความสำคัญว่าจะอ่านค่าจากคอลัมน์ไหนก่อน (ใช้ค่าจากฟิลด์แรกที่ไม่ว่าง) — ใช้กับแดชบอร์ด J&amp;T และตาราง Shipments
-                            </p>
-
-                            <div className="flex flex-wrap items-center gap-2 mb-4">
-                                <span className="text-[11px] text-zinc-500 shrink-0">ชุดลำดับด่วน:</span>
-                                <button
-                                    type="button"
-                                    onClick={() => applyChannelPreset([...DEFAULT_JT_CHANNEL_PRIORITY])}
-                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/60 text-zinc-200 hover:bg-zinc-700/80"
-                                >
-                                    ค่าเริ่มต้น (platform → order_source)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => applyChannelPreset(['platform'])}
-                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/60 text-zinc-200 hover:bg-zinc-700/80"
-                                >
-                                    เฉพาะ platform
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => applyChannelPreset(['order_source'])}
-                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/60 text-zinc-200 hover:bg-zinc-700/80"
-                                >
-                                    เฉพาะ order_source
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => applyChannelPreset([])}
-                                    className="text-xs px-2.5 py-1 rounded-md border border-zinc-600 bg-zinc-800/40 text-zinc-400 hover:bg-zinc-800/70"
-                                    title="ล้างช่องทั้งหมด — ตอนบันทึกระบบจะใช้ค่าเริ่มต้นเดียวกับปุ่มแรก"
-                                >
-                                    ล้างช่อง (ใช้ค่าเริ่มต้นของระบบ)
-                                </button>
-                            </div>
-
-                            {jtTableColumnNames === null ? (
-                                <p className="text-[11px] text-zinc-600 mb-3">กำลังโหลดรายชื่อคอลัมน์ในตาราง…</p>
-                            ) : jtTableColumnNames.length === 0 ? (
-                                <p className="text-[11px] text-amber-600/90 mb-3">
-                                    โหลดรายชื่อคอลัมน์ไม่ได้ — เช็ค RPC ในฐานข้อมูลหรือสิทธิ์ API แต่ยังตั้งลำดับฟิลด์ได้ตามปกติ
-                                </p>
-                            ) : (
-                                <p className="text-[11px] text-zinc-500 mb-3 leading-relaxed">
-                                    <span className="text-zinc-400">คอลัมน์ที่เลือกได้ซึ่งมีในตารางตอนนี้:</span>{' '}
-                                    {JT_CHANNEL_FIELD_OPTIONS.filter((opt) => jtTableColumnNames.includes(opt)).length >
-                                    0 ? (
-                                        JT_CHANNEL_FIELD_OPTIONS.filter((opt) => jtTableColumnNames.includes(opt)).map(
-                                            (opt, i, arr) => (
-                                                <span key={opt}>
-                                                    <code className="text-emerald-400/90">{opt}</code>
-                                                    {i < arr.length - 1 ? ', ' : ''}
-                                                </span>
-                                            )
-                                        )
-                                    ) : (
-                                        <span className="text-zinc-500">ไม่มีชื่อตรงกับตัวเลือกด้านล่าง — อาจต้องเพิ่มคอลัมน์ในฐานข้อมูล</span>
-                                    )}
-                                </p>
-                            )}
-
-                            <div className="space-y-2 max-w-md">
-                                {[0, 1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="flex items-center gap-3">
-                                        <span className="text-xs text-zinc-500 w-24 shrink-0">ลำดับ {i + 1}</span>
-                                        <select
-                                            value={channelSlots[i] ?? ''}
-                                            onChange={(e) => setChannelSlot(i, e.target.value)}
-                                            className="flex-1 rounded-lg border border-zinc-600 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        >
-                                            <option value="">— ว่าง (ข้าม) —</option>
-                                            {JT_CHANNEL_FIELD_OPTIONS.map((opt) => (
-                                                <option key={opt} value={opt}>
-                                                    {opt}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                ))}
-                            </div>
-                            <p className="text-[11px] text-zinc-600 mt-3">
-                                ถ้าไม่เลือกเลย ระบบใช้ค่าเริ่มต้น: platform → order_source — คอลัมน์ต้องมีในตาราง jt_shipments (เช่น sales_channel ต้องสร้างในฐานข้อมูลก่อน)
-                            </p>
-                        </div>
-                    </CollapsibleSection>
-                </div>
 
                 {/* Bundle Dimensions Sync Section */}
                 <CollapsibleSection title="ซิงค์ขนาดสินค้า (Bundle Dimensions Sync)" icon="📐" defaultOpen={false}>

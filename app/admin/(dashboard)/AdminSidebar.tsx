@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAdminLanguage } from '@app/admin/context/AdminLanguageContext';
+import { AdminGlobalDate } from '@app/admin/components/AdminGlobalDate';
 
 export default function AdminSidebar({ role }: { role: string }) {
     const pathname = usePathname();
@@ -36,25 +37,33 @@ export default function AdminSidebar({ role }: { role: string }) {
 
     return (
         <>
-            {/* Mobile Header with Hamburger */}
-            <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#070d1b] border-b border-zinc-800 px-4 py-3 flex items-center justify-between backdrop-blur">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center text-sm shadow-lg">
-                        📦
+            {/* Mobile: แถวชื่อ + แถบ วันที่·เวลา เต็มความกว้าง (ไม่ truncate — เวลาไม่หาย) */}
+            <div className="md:hidden fixed top-0 left-0 right-0 z-50 border-b border-zinc-800 bg-[#070d1b] backdrop-blur">
+                <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-sm shadow-lg">
+                            📦
+                        </div>
+                        <span className="min-w-0 truncate font-bold text-sm leading-tight text-white">SmartShip Admin</span>
                     </div>
-                    <span className="font-bold text-white">SmartShip Admin</span>
+                    <button
+                        onClick={() => setIsOpen(true)}
+                        className="min-h-11 min-w-11 shrink-0 rounded-lg p-2 text-white transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                        aria-label="Open menu"
+                        aria-expanded={isOpen}
+                        aria-controls="admin-sidebar-nav"
+                    >
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
                 </div>
-                <button
-                    onClick={() => setIsOpen(true)}
-                    className="min-h-11 min-w-11 p-2 text-white hover:bg-zinc-800 rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                    aria-label="Open menu"
-                    aria-expanded={isOpen}
-                    aria-controls="admin-sidebar-nav"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
+                <div className="border-t border-zinc-800/70 px-3 py-1.5 sm:px-4">
+                    <AdminGlobalDate
+                        compact
+                        className="block w-full whitespace-normal break-words text-left text-[11px] leading-snug text-zinc-300 tabular-nums sm:text-xs"
+                    />
+                </div>
             </div>
 
             {/* Mobile Overlay */}
@@ -69,13 +78,14 @@ export default function AdminSidebar({ role }: { role: string }) {
             <aside
                 id="admin-sidebar-nav"
                 className={`
-                w-64 bg-[#060b17] border-r border-zinc-800 flex flex-col fixed h-full z-50 text-white
+                w-64 bg-[#060b17] border-r border-zinc-800 flex flex-col fixed z-50 text-white
+                h-[100dvh] max-h-[100dvh] min-h-0
                 transition-transform duration-300 ease-in-out
                 md:translate-x-0
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'}
             `}
             >
-                <div className="p-8 pb-4">
+                <div className="shrink-0 p-8 pb-4">
                     <div className="flex items-center justify-between gap-3 mb-6">
                         <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-900/40">
@@ -118,7 +128,7 @@ export default function AdminSidebar({ role }: { role: string }) {
                     </div>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-1">
+                <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2 space-y-1">
                     <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-4">{t('nav.overview')}</p>
                     <NavItem href="/admin" icon="📊" label={t('nav.dashboard')} active={pathname === '/admin'} onClick={closeSidebar} />
                     <NavItem href="/admin/orders" icon="🛍️" label={t('nav.orders')} active={isActive('/admin/orders')} onClick={closeSidebar} />
@@ -142,7 +152,7 @@ export default function AdminSidebar({ role }: { role: string }) {
                     )}
                 </nav>
 
-                <div className="p-4 border-t border-zinc-800 mt-auto bg-[#060a14]">
+                <div className="shrink-0 border-t border-zinc-800 bg-[#060a14] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     <button
                         onClick={handleLogout}
                         className="flex items-center gap-3 w-full min-h-11 px-4 py-3 text-zinc-400 hover:text-white hover:bg-[#0f1a31] rounded-lg transition-all text-sm font-medium group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"

@@ -45,10 +45,10 @@ export function AdminPageHeader({
         >
             <div className="min-w-0 flex-1">
                 <h1
-                    className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight ${titleTone} flex flex-wrap items-center gap-2 sm:gap-3`}
+                    className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight ${titleTone} flex flex-wrap items-center gap-2 sm:gap-3 break-words`}
                 >
                     {titleLeft}
-                    <span className="min-w-0">{title}</span>
+                    <span className="min-w-0 break-words">{title}</span>
                     {meta ? (
                         <span
                             className={`text-sm sm:text-base font-semibold ${metaTone} whitespace-nowrap`}
