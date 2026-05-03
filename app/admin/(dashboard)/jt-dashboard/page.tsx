@@ -3,9 +3,14 @@
 /**
  * J&T Dashboard — ข้อมูลจาก `jt_shipments` ผ่าน `/api/admin/jt-shipments/dashboard`
  * แมปคอลัมน์กับ root `schema.sql` ดู `jtDashboardTypes.ts`
+ *
+ * Performance enhancements:
+ * - SWR-style caching: แสดง cached data ทันที → background refetch
+ * - AbortController: ป้องกัน race condition เมื่อกด filter ซ้ำเร็ว
+ * - Refresh timestamp: แสดงว่า data โหลดเมื่อไหร่
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { JtDashboardView } from './JtDashboardView';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
@@ -21,28 +26,48 @@ type CustomMetricRow = {
     format: string;
 };
 
+type SuccessData = {
+    metrics: JtDashboardMetrics;
+    recent: JtDashboardShipmentRow[];
+    charts: JtDashboardChartsPayload | null;
+    chartError: string | null;
+    topSenders: JtTopSenderRow[];
+    customMetricDefinitions: JtCustomMetricCardDefinition[];
+    customMetrics: CustomMetricRow[];
+};
+
 type FetchState =
     | { status: 'idle' | 'loading' }
     | { status: 'error'; message: string }
-    | {
-          status: 'success';
-          metrics: JtDashboardMetrics;
-          recent: JtDashboardShipmentRow[];
-          charts: JtDashboardChartsPayload | null;
-          chartError: string | null;
-          topSenders: JtTopSenderRow[];
-          customMetricDefinitions: JtCustomMetricCardDefinition[];
-          customMetrics: CustomMetricRow[];
-      };
+    | { status: 'success' } & SuccessData;
 
 export default function JtDashboardPage() {
     const [state, setState] = useState<FetchState>({ status: 'idle' });
     const [parcelDateFrom, setParcelDateFrom] = useState('');
     const [parcelDateTo, setParcelDateTo] = useState('');
     const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
+    const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+    // SWR-style cache: keep last successful data so re-fetch shows stale data immediately
+    const cacheRef = useRef<SuccessData | null>(null);
+    // AbortController to cancel in-flight requests on new fetch
+    const abortRef = useRef<AbortController | null>(null);
 
     const load = useCallback(async (from: string, to: string) => {
-        setState({ status: 'loading' });
+        // Cancel any in-flight request
+        if (abortRef.current) {
+            abortRef.current.abort();
+        }
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        // Show loading — but if we have cache, keep showing stale data
+        if (cacheRef.current) {
+            setState({ status: 'success', ...cacheRef.current });
+        } else {
+            setState({ status: 'loading' });
+        }
+
         try {
             const params = new URLSearchParams();
             if (from.trim()) params.set('date_from', from.trim());
@@ -59,12 +84,17 @@ export default function JtDashboardPage() {
                 fetch(dashUrl, {
                     credentials: 'same-origin',
                     headers: { Accept: 'application/json' },
+                    signal: controller.signal,
                 }),
                 fetch(statsUrl, {
                     credentials: 'same-origin',
                     headers: { Accept: 'application/json' },
+                    signal: controller.signal,
                 }),
             ]);
+
+            // If aborted, bail out silently
+            if (controller.signal.aborted) return;
 
             const raw = await res.text();
             let json: {
@@ -147,9 +177,9 @@ export default function JtDashboardPage() {
                 }
             }
 
-            setAppliedRange({ from, to });
-            setState({
-                status: 'success',
+            if (controller.signal.aborted) return;
+
+            const successData: SuccessData = {
                 metrics: {
                     totalParcels: json.count ?? 0,
                     sumCod: json.sumCod ?? 0,
@@ -162,8 +192,16 @@ export default function JtDashboardPage() {
                 topSenders,
                 customMetricDefinitions: json.custom_metric_definitions ?? [],
                 customMetrics: json.custom_metrics ?? [],
-            });
+            };
+
+            // Update cache
+            cacheRef.current = successData;
+
+            setAppliedRange({ from, to });
+            setLastRefreshed(new Date());
+            setState({ status: 'success', ...successData });
         } catch (e) {
+            if (controller.signal.aborted) return;
             const message =
                 e instanceof Error ? e.message : 'โหลดข้อมูลไม่สำเร็จ';
             setState({ status: 'error', message });
@@ -172,9 +210,14 @@ export default function JtDashboardPage() {
 
     useEffect(() => {
         void load('', '');
+        return () => {
+            if (abortRef.current) abortRef.current.abort();
+        };
     }, [load]);
 
     const handleApplyRange = useCallback(() => {
+        // Clear cache when filter changes so loading state shows
+        cacheRef.current = null;
         void load(parcelDateFrom, parcelDateTo);
     }, [load, parcelDateFrom, parcelDateTo]);
 
@@ -241,6 +284,7 @@ export default function JtDashboardPage() {
             onRetry={() => void load(parcelDateFrom, parcelDateTo)}
             appliedRange={appliedRange}
             mockMode={false}
+            lastRefreshed={lastRefreshed}
         />
     );
 }

@@ -320,7 +320,7 @@ export function JtDashboardDailyCharts({
     const showCompactBarLabels = dayCount <= 12;
 
     const barCol =
-        'group relative grid h-full min-h-0 min-w-[3px] flex-1 grid-rows-[auto_minmax(0,1fr)] px-[1px] transition-transform duration-150 will-change-transform hover:z-10 hover:scale-[1.02]';
+        'group relative grid h-full min-h-0 min-w-[3px] flex-1 grid-rows-[auto_minmax(0,1fr)] px-[1px] transition-transform duration-150 will-change-transform hover:z-10 hover:scale-[1.02] jt-bar-animate';
 
     const countBars = data.daily30.map((d, i) => {
         const pct = dailyBarHeightPct(d.count, maxCount || 1);
@@ -356,7 +356,7 @@ export function JtDashboardDailyCharts({
                         </div>
                     </div>
                     <span
-                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[height,box-shadow] duration-200 will-change-[height] ${
+                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
                             isLast
                                 ? 'bg-gradient-to-t from-sky-600 via-sky-500 to-sky-300 shadow-[0_0_20px_rgba(56,189,248,0.35)]'
                                 : 'bg-gradient-to-t from-sky-900/95 via-sky-700/85 to-sky-500/75 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.2)]'
@@ -365,6 +365,7 @@ export function JtDashboardDailyCharts({
                             height: `${Math.min(h, 100)}%`,
                             minHeight: d.count > 0 ? '5px' : '2px',
                             opacity: d.count > 0 ? 1 : 0.18,
+                            animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
                         }}
                     />
                 </div>
@@ -404,7 +405,7 @@ export function JtDashboardDailyCharts({
                         </div>
                     </div>
                     <span
-                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[height,box-shadow] duration-200 ${
+                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
                             isLast
                                 ? 'bg-gradient-to-t from-amber-600 via-amber-500 to-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.3)]'
                                 : 'bg-gradient-to-t from-amber-950/95 via-amber-800/85 to-amber-600/80 group-hover:shadow-[0_0_12px_rgba(251,191,36,0.18)]'
@@ -413,6 +414,7 @@ export function JtDashboardDailyCharts({
                             height: `${Math.min(h, 100)}%`,
                             minHeight: d.codTotal > 0 ? '5px' : '2px',
                             opacity: d.codTotal > 0 ? 1 : 0.18,
+                            animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
                         }}
                     />
                 </div>
@@ -452,7 +454,7 @@ export function JtDashboardDailyCharts({
                         </div>
                     </div>
                     <span
-                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[height,box-shadow] duration-200 ${
+                        className={`block w-full rounded-t-md shadow-sm ring-1 ring-white/5 transition-[box-shadow] duration-200 ${
                             isLast
                                 ? 'bg-gradient-to-t from-violet-600 via-violet-500 to-violet-300 shadow-[0_0_18px_rgba(167,139,250,0.28)]'
                                 : 'bg-gradient-to-t from-violet-950/95 via-violet-800/85 to-violet-600/80 group-hover:shadow-[0_0_12px_rgba(167,139,250,0.18)]'
@@ -461,6 +463,7 @@ export function JtDashboardDailyCharts({
                             height: `${Math.min(h, 100)}%`,
                             minHeight: d.feeTotal > 0 ? '5px' : '2px',
                             opacity: d.feeTotal > 0 ? 1 : 0.18,
+                            animation: `barGrowIn 0.6s ease-out ${Math.min(i * 15, 600)}ms both`,
                         }}
                     />
                 </div>
@@ -673,6 +676,19 @@ export function JtDashboardDailyCharts({
             </div>
 
             <style jsx global>{`
+                @keyframes barGrowIn {
+                    from {
+                        transform: scaleY(0);
+                        transform-origin: bottom;
+                    }
+                    to {
+                        transform: scaleY(1);
+                        transform-origin: bottom;
+                    }
+                }
+                .jt-bar-animate {
+                    transform-origin: bottom;
+                }
                 .jt-chart-scroll {
                     scrollbar-width: thin;
                     scrollbar-color: rgb(71 85 105 / 0.85) rgb(15 23 42 / 0.5);
