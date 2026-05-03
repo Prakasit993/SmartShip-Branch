@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import { useToast } from '@app/components/ui/Toast';
 
 export function FingerprintRegisterButton() {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -61,15 +63,14 @@ export function FingerprintRegisterButton() {
 }
 
 export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }) {
-    const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-    const [message, setMessage] = useState('');
+    const router = useRouter();
+    const { showToast } = useToast();
+    const [status, setStatus] = useState<'idle' | 'loading'>('idle');
 
     const handleLogin = async () => {
         setStatus('loading');
-        setMessage('');
 
         try {
-            // Get authentication options from server
             const optionsRes = await fetch('/api/auth/webauthn?action=authenticate');
             if (!optionsRes.ok) {
                 const error = await optionsRes.json();
@@ -77,10 +78,8 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
             }
             const options = await optionsRes.json();
 
-            // Start authentication with browser
             const credential = await startAuthentication({ optionsJSON: options });
 
-            // Verify with server
             const verifyRes = await fetch('/api/auth/webauthn?action=authenticate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -88,38 +87,36 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
             });
 
             if (verifyRes.ok) {
-                setMessage('✅ Login สำเร็จ!');
+                showToast('เข้าสู่ระบบด้วยลายนิ้วมือสำเร็จ กำลังเข้าแดชบอร์ด…', 'success');
                 onSuccess?.();
-                // Redirect to admin
-                window.location.href = '/admin';
+                router.push('/admin');
+                router.refresh();
             } else {
                 throw new Error('Authentication failed');
             }
         } catch (error: unknown) {
-            setStatus('error');
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            setMessage(`❌ ${errorMessage}`);
+            showToast(
+                errorMessage === 'Authentication failed'
+                    ? 'ยืนยันลายนิ้วมือไม่สำเร็จ กรุณาลองอีกครั้ง'
+                    : `ไม่สำเร็จ: ${errorMessage}`,
+                'error',
+            );
+        } finally {
+            setStatus('idle');
         }
     };
 
     return (
         <div className="w-full">
             <button
+                type="button"
                 onClick={handleLogin}
                 disabled={status === 'loading'}
                 className="w-full py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-                {status === 'loading' ? (
-                    <>🔄 กำลังยืนยัน...</>
-                ) : (
-                    <>🖐️ Login ด้วยลายนิ้วมือ</>
-                )}
+                {status === 'loading' ? <>กำลังสแกน…</> : <>สแกนนิ้ว</>}
             </button>
-            {message && (
-                <p className={`mt-2 text-sm text-center ${message.includes('✅') ? 'text-green-500' : 'text-red-500'}`}>
-                    {message}
-                </p>
-            )}
         </div>
     );
 }
