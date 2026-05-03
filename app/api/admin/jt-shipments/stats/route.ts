@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { channelBucketLabelFromRow } from '@/lib/jtChannel';
-import { parseJtChannelPriorityFromSettingValue, uniqueFieldsForSelect } from '@/lib/jtChannelSettings';
+import {
+    DEFAULT_JT_CHANNEL_PRIORITY,
+    parseJtChannelPriorityFromSettingValue,
+    uniqueFieldsForSelect,
+} from '@/lib/jtChannelSettings';
 import { classifyShippingFeeBucket } from '@/lib/jtFeeBuckets';
 import { parseJtDashboardSectionsJson } from '@/lib/jtDashboardSections';
 import { parseJtMoneyText } from '@/lib/jtMoneyText';
@@ -39,6 +43,219 @@ function fillDailyStatsSeries(dayKeys: string[], rpcRows: RpcDailyStatsRow[] | n
         dailyFee30: dayKeys.map((date) => ({ date, feeTotal: fMap[date] ?? 0 })),
         dailyCod30: dayKeys.map((date) => ({ date, codTotal: codMap[date] ?? 0 })),
     };
+}
+
+/**
+ * Supabase PostgREST's default max-rows is 1000 (NOT 10000 as an older comment claimed).
+ * Unbounded `.select()` silently truncates large tables to the first 1000 rows, and asking
+ * for a range larger than max-rows is also capped — so pages MUST be ≤ 1000 or the loop
+ * breaks after the first iteration with wrong results. These helpers page through all rows
+ * in 1000-row chunks and accumulate the final aggregates in TS (no row arrays kept).
+ *
+ * NOTE: these helpers are now a *fallback* path. The hot path calls `jt_stats_summary` RPC
+ * which computes everything server-side in one round-trip. Fallback kicks in only if the
+ * RPC is missing / errors or if the channel-priority setting is non-default (SQL hardcodes
+ * default priority [platform, order_source]).
+ */
+const AGG_PAGE_SIZE = 1000;
+
+/** Shape returned by `jt_stats_summary` RPC (see migrations). */
+type StatsSummaryRpcResult = {
+    total_fee: string | number;
+    max_fee: string | number;
+    count_rows: number | string;
+    sum_mkt: string | number;
+    count_mkt: number | string;
+    sum_jms: string | number;
+    count_jms: number | string;
+    platform_counts: Array<{ name: string; count: number }>;
+    top_senders: Array<{ name: string; count: number }>;
+    top_receivers: Array<{ name: string; count: number }>;
+};
+
+type StatsSummaryReady = {
+    totalFee: number;
+    avgFee: number;
+    maxFee: number;
+    sumFeeMarketplace: number;
+    countFeeMarketplace: number;
+    sumFeeJms: number;
+    countFeeJms: number;
+    platformCounts: Array<{ name: string; count: number }>;
+    topSenders: Array<{ name: string; count: number }>;
+    topReceivers: Array<{ name: string; count: number }>;
+};
+
+/** The RPC hardcodes default channel priority. Skip it if the admin overrode the priority. */
+function isDefaultChannelPriority(priority: string[]): boolean {
+    if (priority.length !== DEFAULT_JT_CHANNEL_PRIORITY.length) return false;
+    for (let i = 0; i < priority.length; i += 1) {
+        if (priority[i] !== DEFAULT_JT_CHANNEL_PRIORITY[i]) return false;
+    }
+    return true;
+}
+
+/**
+ * One-shot server-side aggregation via `jt_stats_summary(p_date_from, p_date_to)` RPC.
+ * Replaces 4 paginated loops (fee stats, top senders, top receivers, platform counts)
+ * with a single round-trip. Returns null → TS fallback used.
+ */
+async function fetchStatsSummaryViaRpc(
+    dateFrom: string,
+    dateTo: string,
+): Promise<StatsSummaryReady | null> {
+    const { data, error } = await supabaseAdmin.rpc('jt_stats_summary', {
+        p_date_from: dateFrom.trim(),
+        p_date_to: dateTo.trim(),
+    });
+    if (error) {
+        console.warn(
+            '[jt-stats] jt_stats_summary RPC unavailable, using TS fallback:',
+            error.message,
+        );
+        return null;
+    }
+    const r = data as StatsSummaryRpcResult | null;
+    if (!r || typeof r !== 'object') return null;
+    const totalFee = Number(r.total_fee) || 0;
+    const countRows = Number(r.count_rows) || 0;
+    return {
+        totalFee,
+        avgFee: countRows > 0 ? totalFee / countRows : 0,
+        maxFee: Number(r.max_fee) || 0,
+        sumFeeMarketplace: Number(r.sum_mkt) || 0,
+        countFeeMarketplace: Number(r.count_mkt) || 0,
+        sumFeeJms: Number(r.sum_jms) || 0,
+        countFeeJms: Number(r.count_jms) || 0,
+        platformCounts: Array.isArray(r.platform_counts) ? r.platform_counts : [],
+        topSenders: Array.isArray(r.top_senders) ? r.top_senders : [],
+        topReceivers: Array.isArray(r.top_receivers) ? r.top_receivers : [],
+    };
+}
+
+async function aggregateFeeStats(
+    selectCols: string,
+    priority: string[],
+): Promise<{
+    totalFee: number;
+    avgFee: number;
+    maxFee: number;
+    countFee: number;
+    sumFeeMarketplace: number;
+    countFeeMarketplace: number;
+    sumFeeJms: number;
+    countFeeJms: number;
+}> {
+    let offset = 0;
+    let totalFee = 0;
+    let maxFee = 0;
+    let countFee = 0;
+    let sumFeeMarketplace = 0;
+    let countFeeMarketplace = 0;
+    let sumFeeJms = 0;
+    let countFeeJms = 0;
+
+    for (;;) {
+        const { data, error } = await supabaseAdmin
+            .from('jt_shipments')
+            .select(selectCols)
+            .range(offset, offset + AGG_PAGE_SIZE - 1);
+        if (error) {
+            console.error('[jt-stats] aggregateFeeStats', error);
+            throw new Error(error.message);
+        }
+        const rows = (data || []) as unknown as Record<string, unknown>[];
+        for (const row of rows) {
+            const f = parseJtMoneyText(row.shipping_fee);
+            totalFee += f;
+            if (f > maxFee) maxFee = f;
+            countFee += 1;
+            const label = channelBucketLabelFromRow(row, priority);
+            const bucket = classifyShippingFeeBucket(label);
+            if (bucket === 'marketplace') {
+                sumFeeMarketplace += f;
+                countFeeMarketplace += 1;
+            } else if (bucket === 'jms') {
+                sumFeeJms += f;
+                countFeeJms += 1;
+            }
+        }
+        if (rows.length < AGG_PAGE_SIZE) break;
+        offset += AGG_PAGE_SIZE;
+    }
+
+    return {
+        totalFee,
+        avgFee: countFee ? totalFee / countFee : 0,
+        maxFee,
+        countFee,
+        sumFeeMarketplace,
+        countFeeMarketplace,
+        sumFeeJms,
+        countFeeJms,
+    };
+}
+
+async function aggregateTopNames(
+    column: 'sender_name' | 'receiver_name',
+    topN = 10,
+): Promise<{ name: string; count: number }[]> {
+    let offset = 0;
+    const map: Record<string, number> = {};
+
+    for (;;) {
+        const { data, error } = await supabaseAdmin
+            .from('jt_shipments')
+            .select(column)
+            .not(column, 'is', null)
+            .range(offset, offset + AGG_PAGE_SIZE - 1);
+        if (error) {
+            console.error(`[jt-stats] aggregateTopNames(${column})`, error);
+            break;
+        }
+        const rows = (data || []) as unknown as Record<string, string>[];
+        for (const r of rows) {
+            const name = r[column];
+            if (name) map[name] = (map[name] || 0) + 1;
+        }
+        if (rows.length < AGG_PAGE_SIZE) break;
+        offset += AGG_PAGE_SIZE;
+    }
+
+    return Object.entries(map)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, topN)
+        .map(([name, count]) => ({ name, count }));
+}
+
+async function aggregatePlatformCounts(
+    selectCols: string,
+    priority: string[],
+): Promise<{ name: string; count: number }[]> {
+    let offset = 0;
+    const map: Record<string, number> = {};
+
+    for (;;) {
+        const { data, error } = await supabaseAdmin
+            .from('jt_shipments')
+            .select(selectCols)
+            .range(offset, offset + AGG_PAGE_SIZE - 1);
+        if (error) {
+            console.error('[jt-stats] aggregatePlatformCounts', error);
+            break;
+        }
+        const rows = (data || []) as unknown as Record<string, unknown>[];
+        for (const row of rows) {
+            const name = channelBucketLabelFromRow(row, priority);
+            map[name] = (map[name] || 0) + 1;
+        }
+        if (rows.length < AGG_PAGE_SIZE) break;
+        offset += AGG_PAGE_SIZE;
+    }
+
+    return Object.entries(map)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => ({ name, count }));
 }
 
 /**
@@ -239,16 +456,20 @@ export async function GET(request: Request) {
             );
         }
 
+        // Hot path: single RPC for fee aggregates + top senders/receivers + platform counts.
+        // Skip only when admin overrode the channel-priority setting (RPC hardcodes default).
+        const canUseStatsRpc = isDefaultChannelPriority(priority);
+        const rpcSummaryPromise: Promise<StatsSummaryReady | null> = canUseStatsRpc
+            ? fetchStatsSummaryViaRpc('', '')
+            : Promise.resolve(null);
+
         const [
             totalRes,
             todayRes,
             weekRes,
             monthRes,
-            feeRes,
+            rpcSummary,
             recentRes,
-            topSendersRes,
-            topReceiversRes,
-            platformRes,
             bookingNullRes,
             rpcStats30,
         ] = await Promise.all([
@@ -265,41 +486,66 @@ export async function GET(request: Request) {
                 .from('jt_shipments')
                 .select('*', { count: 'exact', head: true })
                 .gte('booking_date', monthStart.toISOString()),
-            supabaseAdmin.from('jt_shipments').select(feeSelect),
+            rpcSummaryPromise,
             supabaseAdmin
                 .from('jt_shipments')
                 .select(recentSelect)
                 .order('booking_date', { ascending: false })
                 .limit(10),
-            supabaseAdmin.from('jt_shipments').select('sender_name').not('sender_name', 'is', null),
-            supabaseAdmin.from('jt_shipments').select('receiver_name').not('receiver_name', 'is', null),
-            supabaseAdmin.from('jt_shipments').select(platformSelect),
             supabaseAdmin.from('jt_shipments').select('*', { count: 'exact', head: true }).is('booking_date', null),
             rpcDailyStatsUtc(startDateWindow, endDateWindow),
         ]);
 
-        const feeRows = (feeRes.data || []) as unknown as Record<string, unknown>[];
-        const fees = feeRows.map((r) => Number(r.shipping_fee) || 0);
-        const totalFee = fees.reduce((a, b) => a + b, 0);
-        const avgFee = fees.length ? totalFee / fees.length : 0;
-        const maxFee = fees.length ? Math.max(...fees) : 0;
+        // ── Fee / bucket / top-names / platform-counts ──
+        // Branch: RPC success → use its scalars/arrays; RPC missing → run 4 paginated TS helpers in parallel.
+        let totalFee: number;
+        let avgFee: number;
+        let maxFee: number;
+        let sumFeeMarketplace: number;
+        let countFeeMarketplace: number;
+        let sumFeeJms: number;
+        let countFeeJms: number;
+        let topSenders: Array<{ name: string; count: number }>;
+        let topReceivers: Array<{ name: string; count: number }>;
+        let platformCounts: Array<{ name: string; count: number }>;
+        let aggregateSource: 'rpc' | 'paginate';
 
-        let sumFeeMarketplace = 0;
-        let countFeeMarketplace = 0;
-        let sumFeeJms = 0;
-        let countFeeJms = 0;
-        feeRows.forEach((row) => {
-            const f = Number(row.shipping_fee) || 0;
-            const label = channelBucketLabelFromRow(row, priority);
-            const bucket = classifyShippingFeeBucket(label);
-            if (bucket === 'marketplace') {
-                sumFeeMarketplace += f;
-                countFeeMarketplace += 1;
-            } else if (bucket === 'jms') {
-                sumFeeJms += f;
-                countFeeJms += 1;
-            }
-        });
+        if (rpcSummary) {
+            ({
+                totalFee,
+                avgFee,
+                maxFee,
+                sumFeeMarketplace,
+                countFeeMarketplace,
+                sumFeeJms,
+                countFeeJms,
+                topSenders,
+                topReceivers,
+                platformCounts,
+            } = rpcSummary);
+            aggregateSource = 'rpc';
+        } else {
+            const [feeAggregates, senders, receivers, platforms] = await Promise.all([
+                aggregateFeeStats(feeSelect, priority),
+                aggregateTopNames('sender_name', 10),
+                aggregateTopNames('receiver_name', 10),
+                aggregatePlatformCounts(platformSelect, priority),
+            ]);
+            ({
+                totalFee,
+                avgFee,
+                maxFee,
+                sumFeeMarketplace,
+                countFeeMarketplace,
+                sumFeeJms,
+                countFeeJms,
+            } = feeAggregates);
+            topSenders = senders;
+            topReceivers = receivers;
+            platformCounts = platforms;
+            aggregateSource = 'paginate';
+        }
+
         const avgFeeMarketplace = countFeeMarketplace ? sumFeeMarketplace / countFeeMarketplace : 0;
         const avgFeeJms = countFeeJms ? sumFeeJms / countFeeJms : 0;
 
@@ -324,36 +570,6 @@ export async function GET(request: Request) {
         const distinctDaysWithCount = daily30.filter((d) => d.count > 0).length;
         const bookingNull = bookingNullRes.count ?? 0;
         const rowsOutsideWindowApprox = Math.max(0, (totalRes.count || 0) - bookingNull - sumDaily30);
-
-        const platformCounts: { name: string; count: number }[] = [];
-        if (!platformRes.error && platformRes.data) {
-            const pMap: Record<string, number> = {};
-            const rows = platformRes.data as unknown as Record<string, unknown>[];
-            rows.forEach((row) => {
-                const name = channelBucketLabelFromRow(row, priority);
-                pMap[name] = (pMap[name] || 0) + 1;
-            });
-            const entries = Object.entries(pMap).sort((a, b) => b[1] - a[1]);
-            platformCounts.push(...entries.map(([name, count]) => ({ name, count })));
-        }
-
-        const sMap: Record<string, number> = {};
-        (topSendersRes.data || []).forEach((r: Record<string, string>) => {
-            if (r.sender_name) sMap[r.sender_name] = (sMap[r.sender_name] || 0) + 1;
-        });
-        const topSenders = Object.entries(sMap)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10)
-            .map(([name, count]) => ({ name, count }));
-
-        const rMap: Record<string, number> = {};
-        (topReceiversRes.data || []).forEach((r: Record<string, string>) => {
-            if (r.receiver_name) rMap[r.receiver_name] = (rMap[r.receiver_name] || 0) + 1;
-        });
-        const topReceivers = Object.entries(rMap)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10)
-            .map(([name, count]) => ({ name, count }));
 
         const sectionsVal = settingsRows.find((r) => r.key === 'jt_dashboard_sections')?.value;
 
@@ -398,6 +614,7 @@ export async function GET(request: Request) {
             ui: {
                 sections: parseJtDashboardSectionsJson(sectionsVal),
             },
+            _aggregate_source: aggregateSource,
         });
     } catch (e) {
         console.error('[jt-stats]', e);

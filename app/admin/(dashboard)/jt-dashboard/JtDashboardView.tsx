@@ -1,11 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, Banknote, Calendar, Clock, Package, RefreshCw, RotateCcw, Scale, Search } from 'lucide-react';
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, Clock, Minus, Package, RefreshCw, RotateCcw, Scale, Search } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
-import type { JtDashboardMetrics, JtDashboardShipmentRow } from './jtDashboardTypes';
+import type {
+    JtDashboardMetrics,
+    JtDashboardPreviousMetrics,
+    JtDashboardShipmentRow,
+} from './jtDashboardTypes';
 import { JtDashboardCustomMetrics } from './JtDashboardCustomMetrics';
 import { JtDashboardDailyCharts } from './JtDashboardDailyCharts';
 import { JtTopSendersPanel, type JtTopSenderRow } from './JtTopSendersPanel';
@@ -20,6 +24,7 @@ import { useAnimatedCounter } from './useAnimatedCounter';
 
 export type JtDashboardViewProps = {
     metrics: JtDashboardMetrics;
+    previousMetrics: JtDashboardPreviousMetrics | null;
     recentRows: JtDashboardShipmentRow[];
     /** สถิติรายวันจาก `/api/admin/jt-shipments/stats` — โหมด mock ไม่ใช้ */
     charts: JtDashboardChartsPayload | null;
@@ -52,6 +57,62 @@ export type JtDashboardViewProps = {
     lastRefreshed?: Date | null;
 };
 
+/** Compare current vs previous. `inverseGood = true` flips color (e.g. returnCount: ▼ = good). */
+function DeltaBadge({
+    current,
+    previous,
+    previousRangeDays,
+    inverseGood = false,
+}: {
+    current: number;
+    previous: number;
+    previousRangeDays: number;
+    inverseGood?: boolean;
+}) {
+    const hint = `เทียบ ${previousRangeDays} วันก่อนหน้า (${previous.toLocaleString('th-TH', { maximumFractionDigits: 2 })})`;
+
+    if (previous === 0 && current === 0) {
+        return (
+            <span
+                className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-slate-800/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-700/60"
+                title={hint}
+            >
+                <Minus className="h-2.5 w-2.5" aria-hidden />
+                ไม่มีข้อมูลเทียบ
+            </span>
+        );
+    }
+
+    const delta = current - previous;
+    const pct = previous !== 0 ? (delta / Math.abs(previous)) * 100 : current > 0 ? 100 : 0;
+    const isUp = delta > 0;
+    const isDown = delta < 0;
+    const isFlat = delta === 0;
+
+    const isGood = isFlat ? true : inverseGood ? isDown : isUp;
+    const tone = isFlat
+        ? 'bg-slate-800/60 text-slate-400 ring-slate-700/60'
+        : isGood
+            ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30'
+            : 'bg-rose-500/15 text-rose-300 ring-rose-500/30';
+
+    const Icon = isFlat ? Minus : isUp ? ArrowUpRight : ArrowDownRight;
+    const sign = isUp ? '+' : '';
+    const pctText = Math.abs(pct) >= 1000
+        ? `${sign}${Math.round(pct).toLocaleString('th-TH')}%`
+        : `${sign}${pct.toFixed(1)}%`;
+
+    return (
+        <span
+            className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${tone}`}
+            title={hint}
+        >
+            <Icon className="h-2.5 w-2.5" aria-hidden />
+            {pctText}
+        </span>
+    );
+}
+
 /* ─── Animated KPI Card ─── */
 function AnimatedKpiCard({
     icon,
@@ -66,6 +127,7 @@ function AnimatedKpiCard({
     hint,
     index,
     decimals,
+    delta,
 }: {
     icon: React.ReactNode;
     iconBg: string;
@@ -79,6 +141,7 @@ function AnimatedKpiCard({
     hint?: React.ReactNode;
     index: number;
     decimals?: number;
+    delta?: { previous: number; previousRangeDays: number; inverseGood?: boolean };
 }) {
     const animated = useAnimatedCounter(value, { duration: 900, decimals: decimals ?? 0 });
     const formatted = (decimals ?? 0) > 0
@@ -109,6 +172,14 @@ function AnimatedKpiCard({
             <p className="mt-1.5 sm:mt-2 text-xl sm:text-2xl lg:text-[1.75rem] font-bold tabular-nums tracking-tight text-white">
                 {prefix}{formatted}{suffix}
             </p>
+            {delta ? (
+                <DeltaBadge
+                    current={value}
+                    previous={delta.previous}
+                    previousRangeDays={delta.previousRangeDays}
+                    inverseGood={delta.inverseGood}
+                />
+            ) : null}
             {hint ? (
                 <div className="mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] leading-snug text-slate-500">
                     {hint}
@@ -154,6 +225,7 @@ function formatTimeAgo(date: Date): string {
  */
 export function JtDashboardView({
     metrics,
+    previousMetrics,
     recentRows,
     charts,
     chartError,
@@ -339,6 +411,14 @@ export function JtDashboardView({
                                 glowColor="bg-sky-500/40"
                                 label="พัสดุทั้งหมด"
                                 value={metrics.totalParcels}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.count,
+                                              previousRangeDays: previousMetrics.range.days,
+                                          }
+                                        : undefined
+                                }
                                 hint={
                                     appliedRange && (appliedRange.from || appliedRange.to) ? (
                                         <span className="text-sky-400/90">
@@ -361,6 +441,14 @@ export function JtDashboardView({
                                 value={metrics.sumCod}
                                 prefix="฿"
                                 decimals={2}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.sumCod,
+                                              previousRangeDays: previousMetrics.range.days,
+                                          }
+                                        : undefined
+                                }
                                 hint="ผลรวม cod_amount"
                             />
 
@@ -375,6 +463,14 @@ export function JtDashboardView({
                                 value={metrics.avgShippingFee}
                                 prefix="฿"
                                 decimals={2}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.avgShippingFee,
+                                              previousRangeDays: previousMetrics.range.days,
+                                          }
+                                        : undefined
+                                }
                                 hint="จากแถวที่ shipping_fee > 0 เท่านั้น"
                             />
 
@@ -387,6 +483,15 @@ export function JtDashboardView({
                                 glowColor="bg-rose-500/40"
                                 label="พัสดุตีกลับ"
                                 value={metrics.returnCount}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.returnCount,
+                                              previousRangeDays: previousMetrics.range.days,
+                                              inverseGood: true,
+                                          }
+                                        : undefined
+                                }
                                 hint={'latest_scan_type มีคำว่า "ตีกลับ" หรือ Return'}
                             />
 

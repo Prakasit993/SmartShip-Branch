@@ -14,7 +14,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { JtDashboardView } from './JtDashboardView';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
-import type { JtDashboardMetrics, JtDashboardShipmentRow } from './jtDashboardTypes';
+import type {
+    JtDashboardMetrics,
+    JtDashboardPreviousMetrics,
+    JtDashboardShipmentRow,
+} from './jtDashboardTypes';
 import type { JtTopSenderRow } from './JtTopSendersPanel';
 
 type CustomMetricRow = {
@@ -28,6 +32,7 @@ type CustomMetricRow = {
 
 type SuccessData = {
     metrics: JtDashboardMetrics;
+    previousMetrics: JtDashboardPreviousMetrics | null;
     recent: JtDashboardShipmentRow[];
     charts: JtDashboardChartsPayload | null;
     chartError: string | null;
@@ -106,6 +111,7 @@ export default function JtDashboardPage() {
                 recent?: JtDashboardShipmentRow[];
                 custom_metric_definitions?: JtCustomMetricCardDefinition[];
                 custom_metrics?: CustomMetricRow[];
+                previous?: JtDashboardPreviousMetrics | null;
             };
             try {
                 json = JSON.parse(raw) as typeof json;
@@ -186,6 +192,7 @@ export default function JtDashboardPage() {
                     avgShippingFee: json.avgShippingFee ?? 0,
                     returnCount: json.returnCount ?? 0,
                 },
+                previousMetrics: json.previous ?? null,
                 recent: json.recent ?? [],
                 charts,
                 chartError,
@@ -266,6 +273,7 @@ export default function JtDashboardPage() {
     return (
         <JtDashboardView
             metrics={success ? state.metrics : emptyMetrics}
+            previousMetrics={success ? state.previousMetrics : null}
             recentRows={success ? state.recent : []}
             charts={success ? state.charts : null}
             chartError={success ? state.chartError : null}

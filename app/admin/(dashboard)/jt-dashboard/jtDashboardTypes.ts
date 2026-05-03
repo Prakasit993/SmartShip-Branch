@@ -21,6 +21,15 @@ export type JtDashboardMetrics = {
     returnCount: number;
 };
 
+/** Previous-period totals used to render delta badges on KPI cards. */
+export type JtDashboardPreviousMetrics = {
+    range: { from: string; to: string; days: number };
+    count: number;
+    sumCod: number;
+    avgShippingFee: number;
+    returnCount: number;
+};
+
 export type JtDashboardShipmentRow = {
     awb_number: string | null;
     booking_date: string | null;
