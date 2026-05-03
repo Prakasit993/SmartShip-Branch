@@ -100,6 +100,8 @@ export type JtDashboardStatsShape = {
     topReceivers: { name: string; count: number }[];
     daily30: { date: string; count: number }[];
     dailyFee30: { date: string; feeTotal: number }[];
+    /** รวม COD ต่อวัน — มีเมื่อ API อัปเดต */
+    dailyCod30?: { date: string; codTotal: number }[];
     sumDaily30: number;
     sumDailyFee30: number;
     bookingDateNullCount: number;
@@ -114,6 +116,8 @@ export type JtDashboardStatsShape = {
         rowsInWindow: number;
         rowsOutsideWindowApprox: number;
         anchorHint: string;
+        dailyStatsSource?: 'rpc' | 'fallback';
+        paramNotes?: string[];
     };
 };
 
@@ -572,6 +576,19 @@ function DailyChartsSection({
                         </p>
                         {stats.chartWindow?.anchorHint ? (
                             <p className="text-zinc-400">{stats.chartWindow.anchorHint}</p>
+                        ) : null}
+                        {stats.chartWindow?.dailyStatsSource === 'fallback' ? (
+                            <p className="text-zinc-400">
+                                สถิติรายวันใช้การดึงแบบสำรอง (ไม่มี RPC <code className="text-zinc-500">jt_shipment_daily_stats_utc</code>
+                                ) — ช่วงวันที่บนแกนยังตรงกับโหมดที่เลือก
+                            </p>
+                        ) : null}
+                        {stats.chartWindow?.paramNotes?.length ? (
+                            <ul className="list-disc pl-4 text-amber-300/90 space-y-1">
+                                {stats.chartWindow.paramNotes.map((n) => (
+                                    <li key={n}>{n}</li>
+                                ))}
+                            </ul>
                         ) : null}
                         <p className="text-zinc-600">
                             โหมด <strong className="text-zinc-500">สมดุล</strong> เหมาะเมื่อบางวันมีจำนวนสูงมากโดด ·{' '}

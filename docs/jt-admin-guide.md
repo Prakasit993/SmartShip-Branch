@@ -1,6 +1,13 @@
 # SmartShip — J&T Admin Module: คู่มือการพัฒนาต่อ
 
-> อัปเดต: 2026-04-30 | ผู้เขียน: ทีมพัฒนา SmartShip Branch
+> อัปเดต: 2026-05-02 | ผู้เขียน: ทีมพัฒนา SmartShip Branch
+
+---
+
+## คู่มือแหล่งข้อมูล Dashboard (อ่านก่อนทำกราฟ / ตัวเลขสรุป)
+
+เพื่อไม่ให้สับสนว่าเลขมาจาก **browser + RLS**, **service role API**, หรือ **RPC ฝั่ง Postgres** — อ่าน **`docs/jt-dashboard-data-sources.md`**  
+ครอบคลุม: `supabaseAdmin` สองที่ใน repo, migration `jt_shipments_import_columns`, RPC กราฟรายวัน UTC, และข้อควรระวังเมื่อเทียบยอดกับ SQL Editor
 
 ---
 
@@ -12,7 +19,7 @@
 |---|---|---|
 | Admin Dashboard (Shop) | `/admin` | ✅ Live |
 | J&T Shipments (CRUD) | `/admin/shipments` | ✅ Live |
-| J&T Dashboard (Stats) | `/admin/jt-dashboard` | ✅ Live |
+| J&T Dashboard (สรุป + 5 รายการล่าสุด; โหลดผ่าน browser Supabase client) | `/admin/jt-dashboard` | ✅ Live |
 | Import Excel Drag & Drop | `/admin/shipments` → ปุ่ม Import | ✅ Live |
 | API: CRUD Shipments | `GET/POST/PUT/DELETE /api/admin/jt-shipments` | ✅ Live |
 | API: Bulk Import | `POST /api/admin/jt-shipments/import` | ✅ Live |
@@ -23,34 +30,38 @@
 
 ## 🗄️ ตาราง jt_shipments — Field ที่มีและจัดการได้
 
-### Field ปัจจุบัน
+### Field ปัจจุบัน (โครงหลัก — ดู schema จริงใน Supabase / migration)
 
 | Field | Type | CRUD | หมายเหตุ |
 |---|---|---|---|
 | `id` | bigint / uuid | อ่านอย่างเดียว | Primary Key, auto-generate |
 | `awb_number` | text | ✅ C R U D | เลขพัสดุ J&T — Unique |
-| `booking_date` | timestamptz | ✅ C R U D | วันที่จอง |
+| `booking_date` | timestamptz หรือ text (บางดีพลอย) | ✅ C R U D | วันที่จอง — กราฟรายวันใช้กฎ UTC / substring ตาม RPC |
 | `sender_name` | text | ✅ C R U D | ชื่อผู้ส่ง |
 | `sender_phone` | text | ✅ C R U D | เบอร์ผู้ส่ง |
 | `receiver_name` | text | ✅ C R U D | ชื่อผู้รับ |
 | `receiver_phone` | text | ✅ C R U D | เบอร์ผู้รับ |
 | `shipping_fee` | numeric | ✅ C R U D | ค่าส่ง (บาท) |
+| `platform` | text | ✅ | แหล่งที่มา (Shopee, TikTok, …) — ดู `20260502_jt_shipments_platform.sql` |
+| `cod_amount` | numeric | ✅ | COD (ถ้ามีในตาราง) |
+| `latest_scan_type` | text | ✅ | ใช้ badge / นับตีกลับใน dashboard |
+
+รายชื่อคอลัมน์สำหรับ **Import UI** ดึงจาก RPC **`jt_shipments_import_columns()`** (service_role เท่านั้น) — ดู `database/db/migrations/20260503_jt_shipments_columns_rpc.sql`
 
 ---
 
-## ➕ Field ที่แนะนำให้เพิ่ม (Roadmap)
+## ➕ Field ที่แนะนำให้เพิ่ม (Roadmap — บางส่วนอาจมีในฐานแล้ว)
 
 ### Phase 1 — เพิ่มได้เลย (ไม่กระทบระบบเดิม)
 
 ```sql
-ALTER TABLE public.jt_shipments ADD COLUMN status text DEFAULT 'pending'
-  CHECK (status IN ('pending', 'in_transit', 'delivered', 'returned', 'lost'));
+ALTER TABLE public.jt_shipments ADD COLUMN IF NOT EXISTS status text DEFAULT 'pending';
 
-ALTER TABLE public.jt_shipments ADD COLUMN weight_kg numeric(6,2);
-ALTER TABLE public.jt_shipments ADD COLUMN cod_amount numeric(10,2) DEFAULT 0;
-ALTER TABLE public.jt_shipments ADD COLUMN notes text;
-ALTER TABLE public.jt_shipments ADD COLUMN service_type text DEFAULT 'standard'
-  CHECK (service_type IN ('standard', 'express', 'economy'));
+ALTER TABLE public.jt_shipments ADD COLUMN IF NOT EXISTS weight_kg numeric(6,2);
+-- cod_amount อาจมีแล้ว — ตรวจก่อนรัน
+ALTER TABLE public.jt_shipments ADD COLUMN IF NOT EXISTS cod_amount numeric(10,2) DEFAULT 0;
+ALTER TABLE public.jt_shipments ADD COLUMN IF NOT EXISTS notes text;
+ALTER TABLE public.jt_shipments ADD COLUMN IF NOT EXISTS service_type text DEFAULT 'standard';
 ```
 
 | Field ใหม่ | ประโยชน์ | ความยาก |
@@ -256,7 +267,8 @@ Phase 3 (เดือนหน้า)
 ## 📝 หมายเหตุสำหรับนักพัฒนา
 
 - **Auth**: ใช้ Cookie-based Admin Auth (`ADMIN_USERNAME` / `ADMIN_PASSWORD`)
-- **Supabase**: ใช้ `supabaseAdmin` (Service Role) ใน API routes เท่านั้น ห้ามใช้ใน Client
+- **Supabase**: ใช้ `supabaseAdmin` (Service Role) ใน API routes เท่านั้น ห้ามใส่ service key ใน Client — หน้า `/admin/jt-dashboard` ปัจจุบันใช้ **anon browser client** (`@/lib/supabaseClient`) จึงต้องมี **RLS/policy** ที่อนุญาตอ่าน `jt_shipments` ตามที่ต้องการ (หรือย้าย metrics ไป API + service role)
+- **สองที่ของ admin client**: `@/lib/supabaseAdmin` (throw ถ้าไม่มี key) vs `@app/lib/supabaseAdmin` (placeholder) — รายละเอียดใน `docs/jt-dashboard-data-sources.md`
 - **Import**: ใช้ `xlsx` library parse ไฟล์ client-side ก่อน ส่งเป็น JSON ไป API
 - **n8n Sync**: รับทั้ง `{ rows: [...] }` และ `[...]` array โดยตรง
 - **Pagination**: ทุกหน้าที่มีข้อมูลเยอะใช้ server-side pagination ขนาด 50 ต่อหน้า

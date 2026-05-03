@@ -4,51 +4,71 @@ import { channelBucketLabelFromRow } from '@/lib/jtChannel';
 import { parseJtChannelPriorityFromSettingValue, uniqueFieldsForSelect } from '@/lib/jtChannelSettings';
 import { classifyShippingFeeBucket } from '@/lib/jtFeeBuckets';
 import { parseJtDashboardSectionsJson } from '@/lib/jtDashboardSections';
+import { parseJtMoneyText } from '@/lib/jtMoneyText';
 import {
     buildUtcDayKeysForMonth,
     buildUtcDayKeysInclusiveRange,
     buildUtcDayWindow,
+    nextUtcCalendarDayYmd,
     utcDayKeyFromIso,
 } from '@/lib/utcDayKey';
 
 type ChartAxisMode = 'rolling' | 'month' | 'range';
 
-type RpcDailyStatsRow = { day: string; cnt: number | string; fee_sum: number | string };
+type RpcDailyStatsRow = {
+    day: string;
+    cnt: number | string;
+    fee_sum: number | string;
+    cod_sum?: number | string;
+};
 
 function fillDailyStatsSeries(dayKeys: string[], rpcRows: RpcDailyStatsRow[] | null | undefined) {
     const cMap: Record<string, number> = Object.fromEntries(dayKeys.map((k) => [k, 0]));
     const fMap: Record<string, number> = Object.fromEntries(dayKeys.map((k) => [k, 0]));
+    const codMap: Record<string, number> = Object.fromEntries(dayKeys.map((k) => [k, 0]));
     for (const r of rpcRows || []) {
         const key = String(r.day).slice(0, 10);
         if (key in cMap) {
             cMap[key] = Number(r.cnt) || 0;
             fMap[key] = Math.round((Number(r.fee_sum) || 0) * 100) / 100;
+            codMap[key] = Math.round((Number(r.cod_sum) || 0) * 100) / 100;
         }
     }
     return {
         daily30: dayKeys.map((date) => ({ date, count: cMap[date] ?? 0 })),
         dailyFee30: dayKeys.map((date) => ({ date, feeTotal: fMap[date] ?? 0 })),
+        dailyCod30: dayKeys.map((date) => ({ date, codTotal: codMap[date] ?? 0 })),
     };
 }
 
-/** PostgREST row limit fallback — only used if DB RPC is missing. */
-async function fetchBookingRowsInUtcWindow(rangeStartIso: string, rangeEndIso: string) {
-    const out: { booking_date: string; shipping_fee: unknown }[] = [];
+/**
+ * PostgREST pagination fallback — only used if DB RPC is missing.
+ * `booking_date` is often **text** (`YYYY-MM-DD HH:mm:ss` or `...T...Z`). Lexicographic
+ * compare against ISO `...T00:00:00.000Z` wrongly drops same-day space-format rows; use
+ * `gte(YYYY-MM-DD)` + `lt(first_day_after_end)` so all encodings of days in [start,end] match.
+ */
+async function fetchBookingRowsInUtcWindow(startYmd: string, endYmd: string) {
+    const out: { booking_date: string; shipping_fee: unknown; cod_amount: unknown }[] = [];
     const pageSize = 1000;
     let offset = 0;
+    const endExclusive = nextUtcCalendarDayYmd(endYmd);
     for (;;) {
         const { data, error } = await supabaseAdmin
             .from('jt_shipments')
-            .select('booking_date, shipping_fee')
-            .gte('booking_date', rangeStartIso)
-            .lte('booking_date', rangeEndIso)
+            .select('booking_date, shipping_fee, cod_amount')
+            .gte('booking_date', startYmd)
+            .lt('booking_date', endExclusive)
             .order('booking_date', { ascending: true })
             .range(offset, offset + pageSize - 1);
         if (error) {
             console.error('[jt-stats] daily stats pagination fallback', error);
             break;
         }
-        const rows = (data || []) as { booking_date: string; shipping_fee: unknown }[];
+        const rows = (data || []) as {
+            booking_date: string;
+            shipping_fee: unknown;
+            cod_amount: unknown;
+        }[];
         out.push(...rows);
         if (rows.length < pageSize) break;
         offset += pageSize;
@@ -58,22 +78,32 @@ async function fetchBookingRowsInUtcWindow(rangeStartIso: string, rangeEndIso: s
 
 function aggregateDailyStatsFallback(
     dayKeys: string[],
-    rows: { booking_date: string; shipping_fee: unknown }[],
-): { daily30: { date: string; count: number }[]; dailyFee30: { date: string; feeTotal: number }[] } {
+    rows: { booking_date: string; shipping_fee: unknown; cod_amount: unknown }[],
+): {
+    daily30: { date: string; count: number }[];
+    dailyFee30: { date: string; feeTotal: number }[];
+    dailyCod30: { date: string; codTotal: number }[];
+} {
     const daySet = new Set(dayKeys);
     const countMap: Record<string, number> = Object.fromEntries(dayKeys.map((k) => [k, 0]));
     const feeMap: Record<string, number> = Object.fromEntries(dayKeys.map((k) => [k, 0]));
+    const codMap: Record<string, number> = Object.fromEntries(dayKeys.map((k) => [k, 0]));
     for (const row of rows) {
         const key = utcDayKeyFromIso(row.booking_date);
         if (!key || !daySet.has(key)) continue;
         countMap[key] = (countMap[key] || 0) + 1;
-        feeMap[key] = (feeMap[key] || 0) + (Number(row.shipping_fee) || 0);
+        feeMap[key] = (feeMap[key] || 0) + parseJtMoneyText(row.shipping_fee);
+        codMap[key] = (codMap[key] || 0) + parseJtMoneyText(row.cod_amount);
     }
     return {
         daily30: dayKeys.map((date) => ({ date, count: countMap[date] ?? 0 })),
         dailyFee30: dayKeys.map((date) => ({
             date,
             feeTotal: Math.round((feeMap[date] ?? 0) * 100) / 100,
+        })),
+        dailyCod30: dayKeys.map((date) => ({
+            date,
+            codTotal: Math.round((codMap[date] ?? 0) * 100) / 100,
         })),
     };
 }
@@ -101,8 +131,6 @@ function resolveChartAxis(
     anchorSafe: number,
 ): {
     dayKeysWindow: string[];
-    rangeStartIso: string;
-    rangeEndIso: string;
     startDateWindow: string;
     endDateWindow: string;
     axisDayCount: number;
@@ -121,8 +149,6 @@ function resolveChartAxis(
         const endDateWindow = rangeKeys[rangeKeys.length - 1];
         return {
             dayKeysWindow: rangeKeys,
-            rangeStartIso: `${startDateWindow}T00:00:00.000Z`,
-            rangeEndIso: `${endDateWindow}T23:59:59.999Z`,
             startDateWindow,
             endDateWindow,
             axisDayCount: rangeKeys.length,
@@ -139,8 +165,6 @@ function resolveChartAxis(
         const endDateWindow = monthKeys[monthKeys.length - 1];
         return {
             dayKeysWindow: monthKeys,
-            rangeStartIso: `${startDateWindow}T00:00:00.000Z`,
-            rangeEndIso: `${endDateWindow}T23:59:59.999Z`,
             startDateWindow,
             endDateWindow,
             axisDayCount: monthKeys.length,
@@ -152,14 +176,11 @@ function resolveChartAxis(
     }
 
     const rollingWindowDays = clampChartWindowDays(searchParams.get('window_days'));
-    const { keys: dayKeysWindow, startIso: rangeStartIso } = buildUtcDayWindow(anchorSafe, rollingWindowDays);
-    const rangeEndIso = `${dayKeysWindow[dayKeysWindow.length - 1]}T23:59:59.999Z`;
+    const { keys: dayKeysWindow } = buildUtcDayWindow(anchorSafe, rollingWindowDays);
     const startDateWindow = dayKeysWindow[0];
     const endDateWindow = dayKeysWindow[dayKeysWindow.length - 1];
     return {
         dayKeysWindow,
-        rangeStartIso,
-        rangeEndIso,
         startDateWindow,
         endDateWindow,
         axisDayCount: rollingWindowDays,
@@ -201,7 +222,22 @@ export async function GET(request: Request) {
         monthStart.setHours(0, 0, 0, 0);
 
         const axis = resolveChartAxis(searchParams, anchorSafe);
-        const { dayKeysWindow, rangeStartIso, rangeEndIso, startDateWindow, endDateWindow } = axis;
+        const { dayKeysWindow, startDateWindow, endDateWindow } = axis;
+
+        const paramNotes: string[] = [];
+        const rawMonth = searchParams.get('chart_month')?.trim();
+        if (rawMonth && buildUtcDayKeysForMonth(rawMonth) == null) {
+            paramNotes.push(
+                'ค่า chart_month ไม่ถูกต้อง — กราฟใช้โหมดย้อนหลังจากจองล่าสุด (UTC)',
+            );
+        }
+        const rawFrom = searchParams.get('chart_from')?.trim();
+        const rawTo = searchParams.get('chart_to')?.trim();
+        if (rawFrom && rawTo && buildUtcDayKeysInclusiveRange(rawFrom, rawTo, 400) == null) {
+            paramNotes.push(
+                'ช่วง chart_from / chart_to ไม่ถูกต้อง — กราฟใช้โหมดย้อนหลังจากจองล่าสุด (UTC)',
+            );
+        }
 
         const [
             totalRes,
@@ -269,18 +305,22 @@ export async function GET(request: Request) {
 
         let daily30: { date: string; count: number }[];
         let dailyFee30: { date: string; feeTotal: number }[];
+        let dailyCod30: { date: string; codTotal: number }[];
         if (rpcStats30 !== null) {
             const filled = fillDailyStatsSeries(dayKeysWindow, rpcStats30);
             daily30 = filled.daily30;
             dailyFee30 = filled.dailyFee30;
+            dailyCod30 = filled.dailyCod30;
         } else {
-            const fallbackRows = await fetchBookingRowsInUtcWindow(rangeStartIso, rangeEndIso);
+            const fallbackRows = await fetchBookingRowsInUtcWindow(startDateWindow, endDateWindow);
             const agg = aggregateDailyStatsFallback(dayKeysWindow, fallbackRows);
             daily30 = agg.daily30;
             dailyFee30 = agg.dailyFee30;
+            dailyCod30 = agg.dailyCod30;
         }
         const sumDaily30 = daily30.reduce((a, d) => a + d.count, 0);
         const sumDailyFee30 = dailyFee30.reduce((a, d) => a + d.feeTotal, 0);
+        const sumDailyCod30 = dailyCod30.reduce((a, d) => a + d.codTotal, 0);
         const distinctDaysWithCount = daily30.filter((d) => d.count > 0).length;
         const bookingNull = bookingNullRes.count ?? 0;
         const rowsOutsideWindowApprox = Math.max(0, (totalRes.count || 0) - bookingNull - sumDaily30);
@@ -334,8 +374,10 @@ export async function GET(request: Request) {
             topReceivers,
             daily30,
             dailyFee30,
+            dailyCod30,
             sumDaily30,
             sumDailyFee30,
+            sumDailyCod30,
             bookingDateNullCount: bookingNull,
             chartWindow: {
                 mode: axis.mode,
@@ -348,6 +390,8 @@ export async function GET(request: Request) {
                 rowsInWindow: sumDaily30,
                 rowsOutsideWindowApprox,
                 anchorHint: axis.anchorHint,
+                dailyStatsSource: rpcStats30 !== null ? 'rpc' : 'fallback',
+                paramNotes,
             },
             platformCounts,
             channelFieldPriority: priority,

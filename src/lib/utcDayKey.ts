@@ -63,3 +63,11 @@ export function buildUtcDayKeysForMonth(ym: string): string[] | null {
     }
     return keys.length ? keys : null;
 }
+
+/** First UTC calendar day strictly after `ymd` (YYYY-MM-DD), for exclusive upper bounds on text `booking_date`. */
+export function nextUtcCalendarDayYmd(ymd: string): string {
+    const a = YMD.exec(ymd.trim());
+    if (!a) return ymd;
+    const t = Date.UTC(Number(a[1]), Number(a[2]) - 1, Number(a[3]) + 1, 0, 0, 0, 0);
+    return new Date(t).toISOString().slice(0, 10);
+}

@@ -134,8 +134,6 @@ export default function AdminSidebar({ role }: { role: string }) {
 
 
                             <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-8">{t('nav.marketing')}</p>
-                            <NavItem href="/admin/reviews" icon="⭐" label={t('nav.reviews')} active={isActive('/admin/reviews')} onClick={closeSidebar} />
-                            <NavItem href="/admin/coupons" icon="🎫" label={t('nav.coupons')} active={isActive('/admin/coupons')} onClick={closeSidebar} />
                             <NavItem href="/admin/bulk-discounts" icon="💰" label={t('nav.bulkDiscounts')} active={isActive('/admin/bulk-discounts')} onClick={closeSidebar} />
 
                             <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-8">{t('nav.system')}</p>

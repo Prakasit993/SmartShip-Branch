@@ -1,18 +1,37 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { parseJtChannelPriorityFromSettingValue } from '@/lib/jtChannelSettings';
+import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
 
-// GET: list with pagination + search
+// GET: list with pagination + search | count_only + date range
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
+        const countOnly =
+            searchParams.get('count_only') === 'true' || searchParams.get('count_only') === '1';
+        const dateFrom = searchParams.get('date_from') || '';
+        const dateTo = searchParams.get('date_to') || '';
+
+        if (countOnly) {
+            let q = supabaseAdmin.from('jt_shipments').select('awb_number', { count: 'exact', head: true });
+            q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
+            const { count, error } = await q;
+            if (error) {
+                console.error('[api/admin/jt-shipments][GET count_only]', error);
+                return NextResponse.json({ error: error.message }, { status: 500 });
+            }
+            return NextResponse.json({
+                count: count ?? 0,
+                date_from: dateFrom.trim() || null,
+                date_to: dateTo.trim() || null,
+            });
+        }
+
         const page = parseInt(searchParams.get('page') || '1');
         const requestedLimit = parseInt(searchParams.get('limit') || '20');
         const limit = Number.isNaN(requestedLimit) ? 20 : Math.min(Math.max(requestedLimit, 5), 100);
         const search = searchParams.get('search') || '';
         const searchField = searchParams.get('search_field') || 'all';
-        const dateFrom = searchParams.get('date_from') || '';
-        const dateTo = searchParams.get('date_to') || '';
         const sortByParam = searchParams.get('sort_by') || 'booking_date';
         const sortOrderParam = searchParams.get('sort_order') || 'desc';
         const offset = (page - 1) * limit;
@@ -43,8 +62,7 @@ export async function GET(req: Request) {
                 );
             }
         }
-        if (dateFrom) query = query.gte('booking_date', dateFrom);
-        if (dateTo) query = query.lte('booking_date', dateTo + 'T23:59:59');
+        query = applyBookingDateRangeFilters(query, dateFrom, dateTo);
 
         const [listRes, prioRes] = await Promise.all([
             query,
@@ -139,8 +157,11 @@ export async function DELETE(req: Request) {
         if (deleteAll) {
             let query = supabaseAdmin.from('jt_shipments').delete();
 
-            if (dateFrom) query = query.gte('booking_date', dateFrom);
-            if (dateTo) query = query.lte('booking_date', dateTo + 'T23:59:59');
+            query = applyBookingDateRangeFilters(
+                query,
+                dateFrom || '',
+                dateTo || '',
+            );
 
             // If no dates provided, we must use a dummy filter to delete all in Supabase JS
             if (!dateFrom && !dateTo) {
