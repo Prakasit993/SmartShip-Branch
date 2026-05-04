@@ -19,7 +19,7 @@ import type {
     JtDashboardPreviousMetrics,
     JtDashboardShipmentRow,
 } from './jtDashboardTypes';
-import type { JtTopSenderCountRow, JtTopSenderRow } from './JtTopSendersPanel';
+import type { JtTopProductRow, JtTopSenderCountRow, JtTopSenderRow } from './JtTopSendersPanel';
 
 type CustomMetricRow = {
     id: string;
@@ -38,6 +38,7 @@ type SuccessData = {
     chartError: string | null;
     topSenders: JtTopSenderRow[];
     topSendersCount: JtTopSenderCountRow[];
+    topProducts: JtTopProductRow[];
     customMetricDefinitions: JtCustomMetricCardDefinition[];
     customMetrics: CustomMetricRow[];
 };
@@ -137,6 +138,7 @@ export default function JtDashboardPage() {
             let chartError: string | null = null;
             let topSenders: JtTopSenderRow[] = [];
             let topSendersCount: JtTopSenderCountRow[] = [];
+            let topProducts: JtTopProductRow[] = [];
             try {
                 const statsRaw = await statsRes.text();
                 let statsJson: {
@@ -147,6 +149,7 @@ export default function JtDashboardPage() {
                     chartWindow?: JtDashboardChartsPayload['chartWindow'];
                     topSenders?: JtTopSenderRow[];
                     topSendersCount?: JtTopSenderCountRow[];
+                    topProducts?: JtTopProductRow[];
                 };
                 try {
                     statsJson = JSON.parse(statsRaw) as typeof statsJson;
@@ -197,6 +200,16 @@ export default function JtDashboardPage() {
                               )
                               .slice(0, 10)
                         : [];
+                    topProducts = Array.isArray(statsJson.topProducts)
+                        ? statsJson.topProducts
+                              .filter(
+                                  (r): r is JtTopProductRow =>
+                                      r != null &&
+                                      typeof r.name === 'string' &&
+                                      typeof r.count === 'number',
+                              )
+                              .slice(0, 10)
+                        : [];
                 }
             } catch (e) {
                 if (chartError == null && e instanceof Error && e.message !== 'parse') {
@@ -227,6 +240,7 @@ export default function JtDashboardPage() {
                 chartError,
                 topSenders,
                 topSendersCount,
+                topProducts,
                 customMetricDefinitions: json.custom_metric_definitions ?? [],
                 customMetrics: json.custom_metrics ?? [],
             };
@@ -317,6 +331,7 @@ export default function JtDashboardPage() {
             chartsAlignedWithSummaryCards={chartsAligned}
             topSenders={success ? state.topSenders : []}
             topSendersCount={success ? state.topSendersCount : []}
+            topProducts={success ? state.topProducts : []}
             customMetricDefinitions={success ? state.customMetricDefinitions : []}
             customMetrics={success ? state.customMetrics : []}
             onSaveCustomMetricCards={saveCustomMetricCards}

@@ -5,6 +5,7 @@ import { ChevronDown, Users } from 'lucide-react';
 
 export type JtTopSenderRow = { name: string; totalShippingFee: number };
 export type JtTopSenderCountRow = { name: string; count: number };
+export type JtTopProductRow = { name: string; count: number };
 
 const DEFAULT_VISIBLE = 5;
 const MAX_ROWS = 10;
@@ -142,6 +143,18 @@ export function JtTopSendersCountPanel({ rows }: { rows: JtTopSenderCountRow[] }
             subtitle="ทั้งตาราง · จัดอันดับตามจำนวนชิ้น"
             valueOf={(row) => (row as JtTopSenderCountRow).count}
             renderValue={(row) => (row as JtTopSenderCountRow).count.toLocaleString('th-TH')}
+        />
+    );
+}
+
+export function JtTopProductsPanel({ rows }: { rows: JtTopProductRow[] }) {
+    return (
+        <TopSendersListPanel
+            rows={rows}
+            title="สินค้าในระบบ"
+            subtitle="ทั้งตาราง · จัดอันดับตามจำนวนรายการ"
+            valueOf={(row) => (row as JtTopProductRow).count}
+            renderValue={(row) => (row as JtTopProductRow).count.toLocaleString('th-TH')}
         />
     );
 }

@@ -228,6 +228,36 @@ async function aggregateTopNames(
         .map(([name, count]) => ({ name, count }));
 }
 
+async function aggregateTopProductNames(topN = 10): Promise<{ name: string; count: number }[]> {
+    let offset = 0;
+    const map: Record<string, number> = {};
+
+    for (;;) {
+        const { data, error } = await supabaseAdmin
+            .from('jt_shipments')
+            .select('product_name')
+            .not('product_name', 'is', null)
+            .range(offset, offset + AGG_PAGE_SIZE - 1);
+        if (error) {
+            console.error('[jt-stats] aggregateTopProductNames', error);
+            break;
+        }
+        const rows = (data || []) as unknown as Array<{ product_name: string | null }>;
+        for (const r of rows) {
+            const name = (r.product_name || '').trim();
+            if (!name) continue;
+            map[name] = (map[name] || 0) + 1;
+        }
+        if (rows.length < AGG_PAGE_SIZE) break;
+        offset += AGG_PAGE_SIZE;
+    }
+
+    return Object.entries(map)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, topN)
+        .map(([name, count]) => ({ name, count }));
+}
+
 async function aggregateTopSendersByShippingFee(
     topN = 10,
 ): Promise<Array<{ name: string; totalShippingFee: number }>> {
@@ -545,6 +575,7 @@ export async function GET(request: Request) {
         let countFeeJms: number;
         let topSenders: Array<{ name: string; totalShippingFee: number }>;
         let topSendersCount: Array<{ name: string; count: number }>;
+        let topProducts: Array<{ name: string; count: number }>;
         let topReceivers: Array<{ name: string; count: number }>;
         let platformCounts: Array<{ name: string; count: number }>;
         let aggregateSource: 'rpc' | 'paginate';
@@ -562,13 +593,19 @@ export async function GET(request: Request) {
                 topReceivers,
                 platformCounts,
             } = rpcSummary);
-            topSenders = await aggregateTopSendersByShippingFee(10);
+            const [sendersByFee, products] = await Promise.all([
+                aggregateTopSendersByShippingFee(10),
+                aggregateTopProductNames(10),
+            ]);
+            topSenders = sendersByFee;
+            topProducts = products;
             aggregateSource = 'rpc';
         } else {
-            const [feeAggregates, sendersByFee, sendersByCount, receivers, platforms] = await Promise.all([
+            const [feeAggregates, sendersByFee, sendersByCount, products, receivers, platforms] = await Promise.all([
                 aggregateFeeStats(feeSelect, priority),
                 aggregateTopSendersByShippingFee(10),
                 aggregateTopNames('sender_name', 10),
+                aggregateTopProductNames(10),
                 aggregateTopNames('receiver_name', 10),
                 aggregatePlatformCounts(platformSelect, priority),
             ]);
@@ -583,6 +620,7 @@ export async function GET(request: Request) {
             } = feeAggregates);
             topSenders = sendersByFee;
             topSendersCount = sendersByCount;
+            topProducts = products;
             topReceivers = receivers;
             platformCounts = platforms;
             aggregateSource = 'paginate';
@@ -630,6 +668,7 @@ export async function GET(request: Request) {
             recent: recentRes.data || [],
             topSenders,
             topSendersCount,
+            topProducts,
             topReceivers,
             daily30,
             dailyFee30,

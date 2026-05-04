@@ -11,8 +11,10 @@ import type {
 import { JtDashboardCustomMetrics } from './JtDashboardCustomMetrics';
 import { JtDashboardDailyCharts } from './JtDashboardDailyCharts';
 import {
+    JtTopProductsPanel,
     JtTopSendersCountPanel,
     JtTopSendersPanel,
+    type JtTopProductRow,
     type JtTopSenderCountRow,
     type JtTopSenderRow,
 } from './JtTopSendersPanel';
@@ -30,6 +32,7 @@ export type JtDashboardViewProps = {
     chartsAlignedWithSummaryCards: boolean;
     topSenders: JtTopSenderRow[];
     topSendersCount: JtTopSenderCountRow[];
+    topProducts: JtTopProductRow[];
     customMetricDefinitions: JtCustomMetricCardDefinition[];
     customMetrics: Array<{
         id: string;
@@ -219,6 +222,7 @@ export function JtDashboardView({
     chartsAlignedWithSummaryCards,
     topSenders,
     topSendersCount,
+    topProducts,
     customMetricDefinitions,
     customMetrics,
     onSaveCustomMetricCards,
@@ -647,13 +651,14 @@ export function JtDashboardView({
                             chartsAlignedWithSummaryCards={chartsAlignedWithSummaryCards}
                         />
                     </div>
-                    {topSenders.length > 0 || topSendersCount.length > 0 ? (
+                    {topSenders.length > 0 || topSendersCount.length > 0 || topProducts.length > 0 ? (
                         <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">
                             <div className="space-y-4">
                                 {topSenders.length > 0 ? <JtTopSendersPanel rows={topSenders} /> : null}
                                 {topSendersCount.length > 0 ? (
                                     <JtTopSendersCountPanel rows={topSendersCount} />
                                 ) : null}
+                                {topProducts.length > 0 ? <JtTopProductsPanel rows={topProducts} /> : null}
                             </div>
                         </div>
                     ) : null}
