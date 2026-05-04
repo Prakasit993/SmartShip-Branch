@@ -10,6 +10,15 @@ export const MOCK_METRICS: JtDashboardMetrics = {
     sumCod: 7812,
     avgShippingFee: 52.35,
     returnCount: 24,
+    jmsCount: 612,
+    // Business KPIs (P6) — ตัวเลขจำลองให้สอดคล้องกับ RPC `jt_dashboard_fixed_totals`
+    sumTotalFeeJms: 11128.5,
+    codPaidCount: 626,
+    codPaidAmount: 138700.68,
+    codPendingCount: 747,
+    codPendingAmount: 190266.55,
+    codNoCollectionCount: 992,
+    codCollectionRate: 45.59,
 };
 
 export const MOCK_RECENT_ROWS: JtDashboardShipmentRow[] = [

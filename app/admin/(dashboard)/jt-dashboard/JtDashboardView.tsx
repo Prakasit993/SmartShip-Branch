@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Scale, Search } from 'lucide-react';
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
@@ -454,24 +454,38 @@ export function JtDashboardView({
 
                             <AnimatedKpiCard
                                 index={2}
-                                icon={<Scale className="h-5 w-5" aria-hidden />}
+                                icon={<Truck className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-violet-500/15"
                                 iconRing="ring-violet-500/25"
                                 iconFg="text-violet-400"
                                 glowColor="bg-violet-500/40"
-                                label="ค่าส่งเฉลี่ย"
-                                value={metrics.avgShippingFee}
-                                prefix="฿"
-                                decimals={2}
+                                label="ส่งโดย JMS"
+                                value={metrics.jmsCount}
                                 delta={
                                     previousMetrics
                                         ? {
-                                              previous: previousMetrics.avgShippingFee,
+                                              previous: previousMetrics.jmsCount,
                                               previousRangeDays: previousMetrics.range.days,
                                           }
                                         : undefined
                                 }
-                                hint="จากแถวที่ shipping_fee > 0 เท่านั้น"
+                                hint={
+                                    metrics.totalParcels > 0 ? (
+                                        <span>
+                                            {metrics.jmsCount.toLocaleString('th-TH')} จาก{' '}
+                                            {metrics.totalParcels.toLocaleString('th-TH')} พัสดุ
+                                            {' · '}
+                                            {(
+                                                Math.round(
+                                                    (metrics.jmsCount / metrics.totalParcels) * 1000,
+                                                ) / 10
+                                            ).toLocaleString('th-TH')}
+                                            %
+                                        </span>
+                                    ) : (
+                                        <span>ช่องทาง = JMS (เราเก็บค่าส่งเอง)</span>
+                                    )
+                                }
                             />
 
                             <AnimatedKpiCard

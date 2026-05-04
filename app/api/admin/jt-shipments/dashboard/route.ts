@@ -87,6 +87,30 @@ async function fetchFixedTotalsViaRpc(
 }
 
 /**
+ * จำนวนพัสดุที่ช่องทาง = JMS ผ่าน `jt_stats_summary(p_date_from, p_date_to)` RPC.
+ * ใช้แค่ `count_jms` เพื่อโชว์การ์ด "ส่งโดย JMS" — แทนที่ "ค่าส่งเฉลี่ย" ตัวเดิม
+ *
+ * RPC นี้ hardcode default channel priority `[platform, order_source]` ฝั่ง SQL จึงคืน 0
+ * เมื่อ admin override priority ไว้ — ในกรณีนั้นการ์ดจะแสดง 0 (acceptable trade-off เพราะ
+ * dashboard ไม่ทำ TS pagination fallback สำหรับ derived bucket)
+ */
+async function fetchJmsCountViaRpc(dateFrom: string, dateTo: string): Promise<number> {
+    const { data, error } = await supabaseAdmin.rpc('jt_stats_summary', {
+        p_date_from: dateFrom.trim(),
+        p_date_to: dateTo.trim(),
+    });
+    if (error) {
+        console.warn(
+            '[jt-shipments/dashboard] jt_stats_summary RPC unavailable for JMS count:',
+            error.message,
+        );
+        return 0;
+    }
+    const r = data as { count_jms?: number | string } | null;
+    return r && typeof r === 'object' ? Number(r.count_jms) || 0 : 0;
+}
+
+/**
  * Compute the previous period of equal length (same-day-count shift back) for delta
  * comparisons on KPI cards. Returns null if either date is missing or invalid.
  *
@@ -147,21 +171,33 @@ export async function GET(req: Request) {
         const previousTotalsPromise: Promise<FixedTotals | null> = prevRange
             ? fetchFixedTotalsViaRpc(prevRange.from, prevRange.to)
             : Promise.resolve(null);
+        const previousJmsCountPromise: Promise<number> = prevRange
+            ? fetchJmsCountViaRpc(prevRange.from, prevRange.to)
+            : Promise.resolve(0);
 
-        const [settingsResult, countResult, recentResult, rpcTotals, previousTotals] =
-            await Promise.all([
-                supabaseAdmin
-                    .from('settings')
-                    .select('value')
-                    .eq('key', JT_CUSTOM_METRIC_SETTINGS_KEY)
-                    .maybeSingle(),
-                countQ,
-                recentQ
-                    .order('booking_date', { ascending: false, nullsFirst: false })
-                    .limit(5),
-                fetchFixedTotalsViaRpc(dateFrom, dateTo),
-                previousTotalsPromise,
-            ]);
+        const [
+            settingsResult,
+            countResult,
+            recentResult,
+            rpcTotals,
+            previousTotals,
+            jmsCount,
+            previousJmsCount,
+        ] = await Promise.all([
+            supabaseAdmin
+                .from('settings')
+                .select('value')
+                .eq('key', JT_CUSTOM_METRIC_SETTINGS_KEY)
+                .maybeSingle(),
+            countQ,
+            recentQ
+                .order('booking_date', { ascending: false, nullsFirst: false })
+                .limit(5),
+            fetchFixedTotalsViaRpc(dateFrom, dateTo),
+            previousTotalsPromise,
+            fetchJmsCountViaRpc(dateFrom, dateTo),
+            previousJmsCountPromise,
+        ]);
 
         const { count, error: cErr } = countResult;
         if (cErr) {
@@ -262,6 +298,7 @@ export async function GET(req: Request) {
                                 ) / 100
                               : 0,
                       returnCount: previousTotals.returnCount,
+                      jmsCount: previousJmsCount,
                       sumTotalFeeJms: previousTotals.sumTotalFeeJms,
                       codPaidCount: previousTotals.codPaidCount,
                       codPaidAmount: previousTotals.codPaidAmount,
@@ -288,6 +325,7 @@ export async function GET(req: Request) {
             sumCod,
             avgShippingFee,
             returnCount,
+            jmsCount,
             sumTotalFeeJms,
             codPaidCount,
             codPaidAmount,

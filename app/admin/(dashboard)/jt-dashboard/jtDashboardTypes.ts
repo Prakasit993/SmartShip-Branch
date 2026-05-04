@@ -20,6 +20,12 @@ export type JtDashboardMetrics = {
     avgShippingFee: number;
     returnCount: number;
     /**
+     * จำนวนพัสดุที่ช่องทาง = JMS (เราเก็บเอง — ไม่ใช่ marketplace)
+     * คำนวณจาก `jt_stats_summary` RPC (`count_jms`) โดยใช้ default channel priority
+     * (platform, order_source) แล้วผ่าน `jt_shipping_fee_bucket` ฝั่ง SQL
+     */
+    jmsCount: number;
+    /**
      * Business KPIs (P6) — derived per channel/COD status in the RPC so the UI does not
      * double-parse text money columns. See `jt_dashboard_fixed_totals` in Supabase.
      */
@@ -39,6 +45,7 @@ export type JtDashboardPreviousMetrics = {
     sumCod: number;
     avgShippingFee: number;
     returnCount: number;
+    jmsCount: number;
     sumTotalFeeJms: number;
     codPaidCount: number;
     codPaidAmount: number;

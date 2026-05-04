@@ -108,6 +108,7 @@ export default function JtDashboardPage() {
                 sumCod?: number;
                 avgShippingFee?: number;
                 returnCount?: number;
+                jmsCount?: number;
                 sumTotalFeeJms?: number;
                 codPaidCount?: number;
                 codPaidAmount?: number;
@@ -198,6 +199,7 @@ export default function JtDashboardPage() {
                     sumCod: json.sumCod ?? 0,
                     avgShippingFee: json.avgShippingFee ?? 0,
                     returnCount: json.returnCount ?? 0,
+                    jmsCount: json.jmsCount ?? 0,
                     sumTotalFeeJms: json.sumTotalFeeJms ?? 0,
                     codPaidCount: json.codPaidCount ?? 0,
                     codPaidAmount: json.codPaidAmount ?? 0,
@@ -251,6 +253,7 @@ export default function JtDashboardPage() {
         sumCod: 0,
         avgShippingFee: 0,
         returnCount: 0,
+        jmsCount: 0,
         sumTotalFeeJms: 0,
         codPaidCount: 0,
         codPaidAmount: 0,
