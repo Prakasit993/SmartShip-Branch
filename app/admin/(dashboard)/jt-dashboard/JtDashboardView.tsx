@@ -633,7 +633,62 @@ export function JtDashboardView({
                                     </span>
                                 }
                             />
+
+                            <AnimatedKpiCard
+                                index={8}
+                                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-rose-500/15"
+                                iconRing="ring-rose-500/25"
+                                iconFg="text-rose-300"
+                                glowColor="bg-rose-500/40"
+                                label="เคส Return (return_type)"
+                                value={metrics.exceptionCount}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.exceptionCount,
+                                              previousRangeDays: previousMetrics.range.days,
+                                              inverseGood: true,
+                                          }
+                                        : undefined
+                                }
+                                hint={
+                                    metrics.topReturnTypeCases.length > 0 ? (
+                                        <span>
+                                            {metrics.topReturnTypeCases[0]?.exception_reason || '-'}
+                                        </span>
+                                    ) : (
+                                        'ไม่พบเคสจาก return_type'
+                                    )
+                                }
+                            />
                         </div>
+                        {metrics.topReturnTypeCases.length > 0 ? (
+                            <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                    อันดับเคส Return 1–10
+                                </p>
+                                <div className="mt-2 space-y-1.5">
+                                    {metrics.topReturnTypeCases.map((r, idx) => (
+                                        <div
+                                            key={`${r.awb_number}-${idx}`}
+                                            className="grid grid-cols-[1.6rem_1.3fr_1.3fr_2fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                        >
+                                            <span className="tabular-nums text-slate-500">{idx + 1}</span>
+                                            <span className="min-w-0 truncate text-sky-300" title={r.awb_number}>
+                                                {r.awb_number}
+                                            </span>
+                                            <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
+                                                {r.sender_name}
+                                            </span>
+                                            <span className="min-w-0 truncate text-rose-200" title={r.exception_reason}>
+                                                {r.exception_reason}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
             </section>

@@ -49,6 +49,104 @@ type FixedTotals = {
     codNoCollectionCount: number;
 };
 
+async function aggregateExceptionReasonStats(
+    dateFrom: string,
+    dateTo: string,
+    topN = 5,
+): Promise<{ exceptionCount: number; topExceptionReasons: Array<{ reason: string; count: number }> }> {
+    let offset = 0;
+    let exceptionCount = 0;
+    const reasonMap: Record<string, number> = {};
+
+    for (;;) {
+        let q = supabaseAdmin.from('jt_shipments').select('exception_reason');
+        q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
+        const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
+        if (error) {
+            console.error('[jt-shipments/dashboard] aggregateExceptionReasonStats', error);
+            throw new Error(error.message);
+        }
+        const rows = (data || []) as Array<{ exception_reason: string | null }>;
+        for (const row of rows) {
+            const reason = String(row.exception_reason ?? '').trim();
+            if (!reason || reason.toLowerCase() === 'null') continue;
+            exceptionCount += 1;
+            reasonMap[reason] = (reasonMap[reason] || 0) + 1;
+        }
+        if (rows.length < AGG_PAGE) break;
+        offset += AGG_PAGE;
+    }
+
+    const topExceptionReasons = Object.entries(reasonMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, topN)
+        .map(([reason, count]) => ({ reason, count }));
+
+    return { exceptionCount, topExceptionReasons };
+}
+
+function hasMeaningfulReturnType(raw: unknown): boolean {
+    const v = String(raw ?? '').trim();
+    if (!v) return false;
+    const upper = v.toUpperCase();
+    return upper !== 'EMPTY' && upper !== 'NULL' && upper !== '-';
+}
+
+async function aggregateReturnTypeCases(
+    dateFrom: string,
+    dateTo: string,
+    topN = 10,
+): Promise<{
+    returnTypeCaseCount: number;
+    topReturnTypeCases: Array<{
+        awb_number: string;
+        sender_name: string;
+        exception_reason: string;
+    }>;
+}> {
+    let offset = 0;
+    let returnTypeCaseCount = 0;
+    const topReturnTypeCases: Array<{
+        awb_number: string;
+        sender_name: string;
+        exception_reason: string;
+    }> = [];
+
+    for (;;) {
+        let q = supabaseAdmin
+            .from('jt_shipments')
+            .select('awb_number,sender_name,exception_reason,return_type,booking_date')
+            .order('booking_date', { ascending: false, nullsFirst: false });
+        q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
+        const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
+        if (error) {
+            console.error('[jt-shipments/dashboard] aggregateReturnTypeCases', error);
+            throw new Error(error.message);
+        }
+        const rows = (data || []) as Array<{
+            awb_number: string | null;
+            sender_name: string | null;
+            exception_reason: string | null;
+            return_type: string | null;
+        }>;
+        for (const row of rows) {
+            if (!hasMeaningfulReturnType(row.return_type)) continue;
+            returnTypeCaseCount += 1;
+            if (topReturnTypeCases.length < topN) {
+                topReturnTypeCases.push({
+                    awb_number: String(row.awb_number ?? '-').trim() || '-',
+                    sender_name: String(row.sender_name ?? '-').trim() || '-',
+                    exception_reason: String(row.exception_reason ?? '-').trim() || '-',
+                });
+            }
+        }
+        if (rows.length < AGG_PAGE) break;
+        offset += AGG_PAGE;
+    }
+
+    return { returnTypeCaseCount, topReturnTypeCases };
+}
+
 /**
  * Server-side aggregation via `jt_dashboard_fixed_totals(p_date_from, p_date_to)` RPC.
  * Replaces ~29 paginated round-trips with 1. Returns null (→ TS fallback) if the RPC
@@ -183,6 +281,10 @@ export async function GET(req: Request) {
             previousTotals,
             jmsCount,
             previousJmsCount,
+            exceptionStats,
+            previousExceptionStats,
+            returnTypeCases,
+            previousReturnTypeCases,
         ] = await Promise.all([
             supabaseAdmin
                 .from('settings')
@@ -197,6 +299,14 @@ export async function GET(req: Request) {
             previousTotalsPromise,
             fetchJmsCountViaRpc(dateFrom, dateTo),
             previousJmsCountPromise,
+            aggregateExceptionReasonStats(dateFrom, dateTo, 5),
+            prevRange
+                ? aggregateExceptionReasonStats(prevRange.from, prevRange.to, 5)
+                : Promise.resolve({ exceptionCount: 0, topExceptionReasons: [] }),
+            aggregateReturnTypeCases(dateFrom, dateTo, 10),
+            prevRange
+                ? aggregateReturnTypeCases(prevRange.from, prevRange.to, 10)
+                : Promise.resolve({ returnTypeCaseCount: 0, topReturnTypeCases: [] }),
         ]);
 
         const { count, error: cErr } = countResult;
@@ -305,6 +415,7 @@ export async function GET(req: Request) {
                       codPendingCount: previousTotals.codPendingCount,
                       codPendingAmount: previousTotals.codPendingAmount,
                       codNoCollectionCount: previousTotals.codNoCollectionCount,
+                      exceptionCount: previousReturnTypeCases.returnTypeCaseCount,
                       codCollectionRate:
                           previousTotals.codPaidCount + previousTotals.codPendingCount > 0
                               ? Math.round(
@@ -333,6 +444,9 @@ export async function GET(req: Request) {
             codPendingAmount,
             codNoCollectionCount,
             codCollectionRate,
+            exceptionCount: returnTypeCases.returnTypeCaseCount,
+            topExceptionReasons: exceptionStats.topExceptionReasons,
+            topReturnTypeCases: returnTypeCases.topReturnTypeCases,
             recent: recent ?? [],
             date_from: dateFrom.trim() || null,
             date_to: dateTo.trim() || null,

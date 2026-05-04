@@ -35,6 +35,13 @@ export type JtDashboardMetrics = {
     codPendingCount: number;       // cod_amount > 0 แต่ cod_status != 'ชำระเงินแล้ว'
     codPendingAmount: number;
     codNoCollectionCount: number;  // cod_amount = 0 (ส่งแบบไม่เก็บเงินปลายทาง)
+    exceptionCount: number;        // จำนวนเคสที่มี return_type (ตัด EMPTY/ว่าง)
+    topExceptionReasons: Array<{ reason: string; count: number }>;
+    topReturnTypeCases: Array<{
+        awb_number: string;
+        sender_name: string;
+        exception_reason: string;
+    }>;
     codCollectionRate: number;     // paid / (paid + pending) × 100  (percent, 2 dp)
 };
 
@@ -52,6 +59,7 @@ export type JtDashboardPreviousMetrics = {
     codPendingCount: number;
     codPendingAmount: number;
     codNoCollectionCount: number;
+    exceptionCount: number;
     codCollectionRate: number;
 };
 

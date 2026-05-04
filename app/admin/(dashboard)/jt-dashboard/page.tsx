@@ -117,6 +117,13 @@ export default function JtDashboardPage() {
                 codPendingCount?: number;
                 codPendingAmount?: number;
                 codNoCollectionCount?: number;
+                exceptionCount?: number;
+                topExceptionReasons?: Array<{ reason: string; count: number }>;
+                topReturnTypeCases?: Array<{
+                    awb_number: string;
+                    sender_name: string;
+                    exception_reason: string;
+                }>;
                 codCollectionRate?: number;
                 recent?: JtDashboardShipmentRow[];
                 custom_metric_definitions?: JtCustomMetricCardDefinition[];
@@ -232,6 +239,34 @@ export default function JtDashboardPage() {
                     codPendingCount: json.codPendingCount ?? 0,
                     codPendingAmount: json.codPendingAmount ?? 0,
                     codNoCollectionCount: json.codNoCollectionCount ?? 0,
+                    exceptionCount: json.exceptionCount ?? 0,
+                    topExceptionReasons: Array.isArray(json.topExceptionReasons)
+                        ? json.topExceptionReasons
+                              .filter(
+                                  (r): r is { reason: string; count: number } =>
+                                      r != null &&
+                                      typeof r.reason === 'string' &&
+                                      typeof r.count === 'number',
+                              )
+                              .slice(0, 5)
+                        : [],
+                    topReturnTypeCases: Array.isArray(json.topReturnTypeCases)
+                        ? json.topReturnTypeCases
+                              .filter(
+                                  (
+                                      r,
+                                  ): r is {
+                                      awb_number: string;
+                                      sender_name: string;
+                                      exception_reason: string;
+                                  } =>
+                                      r != null &&
+                                      typeof r.awb_number === 'string' &&
+                                      typeof r.sender_name === 'string' &&
+                                      typeof r.exception_reason === 'string',
+                              )
+                              .slice(0, 10)
+                        : [],
                     codCollectionRate: json.codCollectionRate ?? 0,
                 },
                 previousMetrics: json.previous ?? null,
@@ -288,6 +323,9 @@ export default function JtDashboardPage() {
         codPendingCount: 0,
         codPendingAmount: 0,
         codNoCollectionCount: 0,
+        exceptionCount: 0,
+        topExceptionReasons: [],
+        topReturnTypeCases: [],
         codCollectionRate: 0,
     };
 

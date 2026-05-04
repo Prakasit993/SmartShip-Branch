@@ -18,6 +18,23 @@ export const MOCK_METRICS: JtDashboardMetrics = {
     codPendingCount: 747,
     codPendingAmount: 190266.55,
     codNoCollectionCount: 992,
+    exceptionCount: 4,
+    topExceptionReasons: [
+        { reason: 'ผู้รับปฏิเสธการชำระเงินหรือปฏิเสธการรับพัสดุ', count: 1 },
+        { reason: 'พัสดุคัดแยกผิดร้านสาขานำจ่าย', count: 3 },
+    ],
+    topReturnTypeCases: [
+        {
+            awb_number: '8200011223344',
+            sender_name: 'ร้านตัวอย่าง A',
+            exception_reason: 'ผู้รับปฏิเสธการชำระเงินหรือปฏิเสธการรับพัสดุ',
+        },
+        {
+            awb_number: '8200011223345',
+            sender_name: 'ร้านตัวอย่าง B',
+            exception_reason: 'พัสดุคัดแยกผิดร้านสาขานำจ่าย',
+        },
+    ],
     codCollectionRate: 45.59,
 };
 
