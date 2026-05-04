@@ -19,7 +19,7 @@ import type {
     JtDashboardPreviousMetrics,
     JtDashboardShipmentRow,
 } from './jtDashboardTypes';
-import type { JtTopSenderRow } from './JtTopSendersPanel';
+import type { JtTopSenderCountRow, JtTopSenderRow } from './JtTopSendersPanel';
 
 type CustomMetricRow = {
     id: string;
@@ -37,6 +37,7 @@ type SuccessData = {
     charts: JtDashboardChartsPayload | null;
     chartError: string | null;
     topSenders: JtTopSenderRow[];
+    topSendersCount: JtTopSenderCountRow[];
     customMetricDefinitions: JtCustomMetricCardDefinition[];
     customMetrics: CustomMetricRow[];
 };
@@ -135,6 +136,7 @@ export default function JtDashboardPage() {
             let charts: JtDashboardChartsPayload | null = null;
             let chartError: string | null = null;
             let topSenders: JtTopSenderRow[] = [];
+            let topSendersCount: JtTopSenderCountRow[] = [];
             try {
                 const statsRaw = await statsRes.text();
                 let statsJson: {
@@ -144,6 +146,7 @@ export default function JtDashboardPage() {
                     dailyCod30?: { date: string; codTotal: number }[];
                     chartWindow?: JtDashboardChartsPayload['chartWindow'];
                     topSenders?: JtTopSenderRow[];
+                    topSendersCount?: JtTopSenderCountRow[];
                 };
                 try {
                     statsJson = JSON.parse(statsRaw) as typeof statsJson;
@@ -180,6 +183,16 @@ export default function JtDashboardPage() {
                                   (r): r is JtTopSenderRow =>
                                       r != null &&
                                       typeof r.name === 'string' &&
+                                      typeof r.totalShippingFee === 'number',
+                              )
+                              .slice(0, 10)
+                        : [];
+                    topSendersCount = Array.isArray(statsJson.topSendersCount)
+                        ? statsJson.topSendersCount
+                              .filter(
+                                  (r): r is JtTopSenderCountRow =>
+                                      r != null &&
+                                      typeof r.name === 'string' &&
                                       typeof r.count === 'number',
                               )
                               .slice(0, 10)
@@ -213,6 +226,7 @@ export default function JtDashboardPage() {
                 charts,
                 chartError,
                 topSenders,
+                topSendersCount,
                 customMetricDefinitions: json.custom_metric_definitions ?? [],
                 customMetrics: json.custom_metrics ?? [],
             };
@@ -298,11 +312,11 @@ export default function JtDashboardPage() {
         <JtDashboardView
             metrics={success ? state.metrics : emptyMetrics}
             previousMetrics={success ? state.previousMetrics : null}
-            recentRows={success ? state.recent : []}
             charts={success ? state.charts : null}
             chartError={success ? state.chartError : null}
             chartsAlignedWithSummaryCards={chartsAligned}
             topSenders={success ? state.topSenders : []}
+            topSendersCount={success ? state.topSendersCount : []}
             customMetricDefinitions={success ? state.customMetricDefinitions : []}
             customMetrics={success ? state.customMetrics : []}
             onSaveCustomMetricCards={saveCustomMetricCards}

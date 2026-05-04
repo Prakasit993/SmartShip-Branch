@@ -82,7 +82,7 @@ type StatsSummaryReady = {
     sumFeeJms: number;
     countFeeJms: number;
     platformCounts: Array<{ name: string; count: number }>;
-    topSenders: Array<{ name: string; count: number }>;
+    topSendersCount: Array<{ name: string; count: number }>;
     topReceivers: Array<{ name: string; count: number }>;
 };
 
@@ -128,7 +128,7 @@ async function fetchStatsSummaryViaRpc(
         sumFeeJms: Number(r.sum_jms) || 0,
         countFeeJms: Number(r.count_jms) || 0,
         platformCounts: Array.isArray(r.platform_counts) ? r.platform_counts : [],
-        topSenders: Array.isArray(r.top_senders) ? r.top_senders : [],
+        topSendersCount: Array.isArray(r.top_senders) ? r.top_senders : [],
         topReceivers: Array.isArray(r.top_receivers) ? r.top_receivers : [],
     };
 }
@@ -226,6 +226,44 @@ async function aggregateTopNames(
         .sort((a, b) => b[1] - a[1])
         .slice(0, topN)
         .map(([name, count]) => ({ name, count }));
+}
+
+async function aggregateTopSendersByShippingFee(
+    topN = 10,
+): Promise<Array<{ name: string; totalShippingFee: number }>> {
+    let offset = 0;
+    const map: Record<string, number> = {};
+
+    for (;;) {
+        const { data, error } = await supabaseAdmin
+            .from('jt_shipments')
+            .select('sender_name,shipping_fee')
+            .not('sender_name', 'is', null)
+            .range(offset, offset + AGG_PAGE_SIZE - 1);
+        if (error) {
+            console.error('[jt-stats] aggregateTopSendersByShippingFee', error);
+            break;
+        }
+        const rows = (data || []) as unknown as Array<{
+            sender_name: string | null;
+            shipping_fee: unknown;
+        }>;
+        for (const r of rows) {
+            const name = (r.sender_name || '').trim();
+            if (!name) continue;
+            map[name] = (map[name] || 0) + parseJtMoneyText(r.shipping_fee);
+        }
+        if (rows.length < AGG_PAGE_SIZE) break;
+        offset += AGG_PAGE_SIZE;
+    }
+
+    return Object.entries(map)
+        .map(([name, totalShippingFee]) => ({
+            name,
+            totalShippingFee: Math.round(totalShippingFee * 100) / 100,
+        }))
+        .sort((a, b) => b.totalShippingFee - a.totalShippingFee)
+        .slice(0, topN);
 }
 
 async function aggregatePlatformCounts(
@@ -505,7 +543,8 @@ export async function GET(request: Request) {
         let countFeeMarketplace: number;
         let sumFeeJms: number;
         let countFeeJms: number;
-        let topSenders: Array<{ name: string; count: number }>;
+        let topSenders: Array<{ name: string; totalShippingFee: number }>;
+        let topSendersCount: Array<{ name: string; count: number }>;
         let topReceivers: Array<{ name: string; count: number }>;
         let platformCounts: Array<{ name: string; count: number }>;
         let aggregateSource: 'rpc' | 'paginate';
@@ -519,14 +558,16 @@ export async function GET(request: Request) {
                 countFeeMarketplace,
                 sumFeeJms,
                 countFeeJms,
-                topSenders,
+                topSendersCount,
                 topReceivers,
                 platformCounts,
             } = rpcSummary);
+            topSenders = await aggregateTopSendersByShippingFee(10);
             aggregateSource = 'rpc';
         } else {
-            const [feeAggregates, senders, receivers, platforms] = await Promise.all([
+            const [feeAggregates, sendersByFee, sendersByCount, receivers, platforms] = await Promise.all([
                 aggregateFeeStats(feeSelect, priority),
+                aggregateTopSendersByShippingFee(10),
                 aggregateTopNames('sender_name', 10),
                 aggregateTopNames('receiver_name', 10),
                 aggregatePlatformCounts(platformSelect, priority),
@@ -540,7 +581,8 @@ export async function GET(request: Request) {
                 sumFeeJms,
                 countFeeJms,
             } = feeAggregates);
-            topSenders = senders;
+            topSenders = sendersByFee;
+            topSendersCount = sendersByCount;
             topReceivers = receivers;
             platformCounts = platforms;
             aggregateSource = 'paginate';
@@ -587,6 +629,7 @@ export async function GET(request: Request) {
             maxFee: Math.round(maxFee * 100) / 100,
             recent: recentRes.data || [],
             topSenders,
+            topSendersCount,
             topReceivers,
             daily30,
             dailyFee30,

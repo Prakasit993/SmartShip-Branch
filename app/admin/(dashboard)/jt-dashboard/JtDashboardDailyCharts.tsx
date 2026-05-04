@@ -417,40 +417,11 @@ export function JtDashboardDailyCharts({
                     <div className="h-0 overflow-hidden" aria-hidden />
                 )}
                 <div className="relative flex min-h-0 w-full flex-col justify-end">
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-[min(92vw,17rem)] -translate-x-1/2 rounded-xl border border-slate-600/50 bg-slate-950/98 px-3 py-2.5 text-left text-[10px] leading-snug text-white shadow-2xl backdrop-blur-md sm:block sm:opacity-0 sm:transition-all sm:duration-200 sm:group-hover:opacity-100">
-                        <div className="flex items-center gap-1.5 font-semibold text-sky-300">
-                            <span>{formatDayLabel(d.date)}</span>
-                            <span
-                                className={`rounded px-1 py-[1px] text-[9px] font-medium ring-1 ${
-                                    dow.isWeekend
-                                        ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
-                                        : 'bg-slate-700/70 text-slate-300 ring-slate-600/60'
-                                }`}
-                            >
-                                {dow.label}
-                            </span>
+                    {!isZero ? (
+                        <div className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 rounded-md border border-sky-400/35 bg-slate-950/95 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-sky-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                            {d.count.toLocaleString('th-TH')}
                         </div>
-                        {isZero ? (
-                            <div className="mt-1 italic text-slate-500">ไม่มีข้อมูลในวันนี้</div>
-                        ) : (
-                            <>
-                                <div className="mt-1 tabular-nums text-slate-50">
-                                    {d.count.toLocaleString('th-TH')}{' '}
-                                    <span className="text-slate-500">รายการ</span>
-                                </div>
-                                <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
-                                    <div>
-                                        <span className="text-sky-300/95">{vsPeak}%</span>{' '}
-                                        <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-emerald-300/95">{vsSum}%</span>{' '}
-                                        <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    ) : null}
                     {isZero ? (
                         <span
                             className="block w-full rounded-full bg-slate-600/70 ring-1 ring-slate-700/40"
@@ -497,37 +468,11 @@ export function JtDashboardDailyCharts({
                     <div className="h-0 overflow-hidden" aria-hidden />
                 )}
                 <div className="relative flex min-h-0 w-full flex-col justify-end">
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-[min(92vw,17rem)] -translate-x-1/2 rounded-xl border border-slate-600/50 bg-slate-950/98 px-3 py-2.5 text-left text-[10px] leading-snug text-white shadow-2xl backdrop-blur-md sm:block sm:opacity-0 sm:transition-all sm:duration-200 sm:group-hover:opacity-100">
-                        <div className="flex items-center gap-1.5 font-semibold text-amber-300">
-                            <span>{formatDayLabel(d.date)}</span>
-                            <span
-                                className={`rounded px-1 py-[1px] text-[9px] font-medium ring-1 ${
-                                    dow.isWeekend
-                                        ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
-                                        : 'bg-slate-700/70 text-slate-300 ring-slate-600/60'
-                                }`}
-                            >
-                                {dow.label}
-                            </span>
+                    {!isZero ? (
+                        <div className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 rounded-md border border-amber-400/35 bg-slate-950/95 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-amber-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                            ฿{formatThb(d.codTotal)}
                         </div>
-                        {isZero ? (
-                            <div className="mt-1 italic text-slate-500">ไม่มีข้อมูลในวันนี้</div>
-                        ) : (
-                            <>
-                                <div className="mt-1 tabular-nums text-slate-50">฿{formatThb(d.codTotal)}</div>
-                                <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
-                                    <div>
-                                        <span className="text-amber-300/95">{vsPeak}%</span>{' '}
-                                        <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-emerald-300/95">{vsSum}%</span>{' '}
-                                        <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    ) : null}
                     {isZero ? (
                         <span
                             className="block w-full rounded-full bg-slate-600/70 ring-1 ring-slate-700/40"
@@ -574,37 +519,11 @@ export function JtDashboardDailyCharts({
                     <div className="h-0 overflow-hidden" aria-hidden />
                 )}
                 <div className="relative flex min-h-0 w-full flex-col justify-end">
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-[min(92vw,17rem)] -translate-x-1/2 rounded-xl border border-slate-600/50 bg-slate-950/98 px-3 py-2.5 text-left text-[10px] leading-snug text-white shadow-2xl backdrop-blur-md sm:block sm:opacity-0 sm:transition-all sm:duration-200 sm:group-hover:opacity-100">
-                        <div className="flex items-center gap-1.5 font-semibold text-violet-300">
-                            <span>{formatDayLabel(d.date)}</span>
-                            <span
-                                className={`rounded px-1 py-[1px] text-[9px] font-medium ring-1 ${
-                                    dow.isWeekend
-                                        ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
-                                        : 'bg-slate-700/70 text-slate-300 ring-slate-600/60'
-                                }`}
-                            >
-                                {dow.label}
-                            </span>
+                    {!isZero ? (
+                        <div className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 rounded-md border border-violet-400/35 bg-slate-950/95 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-violet-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                            ฿{formatThb(d.feeTotal)}
                         </div>
-                        {isZero ? (
-                            <div className="mt-1 italic text-slate-500">ไม่มีข้อมูลในวันนี้</div>
-                        ) : (
-                            <>
-                                <div className="mt-1 tabular-nums text-slate-50">฿{formatThb(d.feeTotal)}</div>
-                                <div className="mt-2 space-y-0.5 border-t border-slate-700/80 pt-2 text-slate-300">
-                                    <div>
-                                        <span className="text-violet-300/95">{vsPeak}%</span>{' '}
-                                        <span className="text-slate-500">ของจุดสูงสุดในช่วง</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-emerald-300/95">{vsSum}%</span>{' '}
-                                        <span className="text-slate-500">ของรวมทุกวันในช่วง</span>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    ) : null}
                     {isZero ? (
                         <span
                             className="block w-full rounded-full bg-slate-600/70 ring-1 ring-slate-700/40"
@@ -638,63 +557,44 @@ export function JtDashboardDailyCharts({
             aria-labelledby={`jt-daily-charts-${uid}`}
             className="min-w-0 space-y-6 rounded-2xl border border-slate-800/90 bg-gradient-to-b from-slate-900/70 via-slate-950/85 to-[#070c14] p-4 shadow-xl shadow-black/30 ring-1 ring-white/[0.05] md:p-6"
         >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-600/25 to-slate-900/80 text-sky-400 shadow-inner ring-1 ring-sky-500/25">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-600/25 to-slate-900/80 text-sky-400 shadow-inner ring-1 ring-sky-500/25">
                         <BarChart3 className="h-5 w-5" aria-hidden />
                     </div>
-                    <div>
-                        <h2 id={`jt-daily-charts-${uid}`} className="text-lg font-semibold tracking-tight text-white">
-                            {title}
-                        </h2>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                            แยกตามวันปฏิทิน UTC จาก{' '}
-                            <code className="rounded-md bg-slate-950/90 px-1.5 py-0.5 text-[10px] text-sky-400 ring-1 ring-slate-800">
-                                booking_date
-                            </code>
-                            {data.chartWindow.dailyStatsSource ? (
-                                <span className="ml-1 text-slate-600">
-                                    · แหล่งข้อมูล:{' '}
-                                    {data.chartWindow.dailyStatsSource === 'rpc' ? 'RPC' : 'สำรอง'}
-                                </span>
-                            ) : null}
-                        </p>
-                        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
-                            <span className="rounded-full bg-slate-800/80 px-2 py-0.5 text-slate-400 ring-1 ring-slate-700/80">
-                                ลากในกราฟ = เลื่อนซ้าย–ขวา
-                            </span>
-                            <span className="text-slate-600">·</span>
-                            <span>หรือใช้แถบเลื่อนด้านล่าง</span>
-                        </p>
-                        {!chartsAlignedWithSummaryCards ? (
-                            <p className="mt-2 text-[11px] leading-relaxed text-amber-200/90">
-                                เมื่อไม่เลือกช่วงวันที่ การ์ดสรุปด้านบนคือทั้งตาราง แต่กราฟนี้ใช้ช่วงย้อนหลังจาก
-                                <strong>วันที่จองล่าสุด</strong> — ใส่วันที่แล้วกด &quot;ใช้ช่วงนี้&quot; เพื่อให้กราฟตรงกับการ์ด
-                            </p>
-                        ) : null}
-                        {data.chartWindow.paramNotes && data.chartWindow.paramNotes.length > 0 ? (
-                            <ul className="mt-2 list-inside list-disc text-[11px] text-amber-200/85">
-                                {data.chartWindow.paramNotes.map((n) => (
-                                    <li key={n}>{n}</li>
-                                ))}
-                            </ul>
-                        ) : null}
-                    </div>
+                    <h2
+                        id={`jt-daily-charts-${uid}`}
+                        className="text-base font-semibold tracking-tight text-white sm:text-lg"
+                        title={data.chartWindow.anchorHint || undefined}
+                    >
+                        {title}
+                    </h2>
                 </div>
-                <div className="text-right text-[11px] leading-relaxed text-slate-500">
-                    <div className="font-mono text-slate-400">
-                        {data.chartWindow.utcStart} → {data.chartWindow.utcEnd}
-                    </div>
-                    <p className="mt-1.5 max-w-[18rem] text-slate-600">{data.chartWindow.anchorHint}</p>
+                <div
+                    className="font-mono text-xs text-slate-400 sm:text-sm"
+                    title={data.chartWindow.anchorHint || undefined}
+                >
+                    {data.chartWindow.utcStart} → {data.chartWindow.utcEnd}
                 </div>
             </div>
 
-            <div className="rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-3 ring-1 ring-white/[0.03]">
-                <ChartScrollScrubber
-                    primaryScrollRef={countScrollRef}
-                    onSyncFromPrimary={(left) => syncScroll('count', left)}
-                />
-            </div>
+            {!chartsAlignedWithSummaryCards ? (
+                <p className="rounded-md border border-amber-500/25 bg-amber-500/5 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-200/90">
+                    กราฟใช้ช่วงย้อนหลังจาก<strong>วันที่จองล่าสุด</strong> — ใส่วันที่แล้วกด &quot;ใช้ช่วงนี้&quot; เพื่อให้ตรงกับการ์ดสรุป
+                </p>
+            ) : null}
+            {data.chartWindow.paramNotes && data.chartWindow.paramNotes.length > 0 ? (
+                <ul className="list-inside list-disc rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-200/85">
+                    {data.chartWindow.paramNotes.map((n) => (
+                        <li key={n}>{n}</li>
+                    ))}
+                </ul>
+            ) : null}
+
+            <ChartScrollScrubber
+                primaryScrollRef={countScrollRef}
+                onSyncFromPrimary={(left) => syncScroll('count', left)}
+            />
 
             <div className="space-y-2">
                 <div>

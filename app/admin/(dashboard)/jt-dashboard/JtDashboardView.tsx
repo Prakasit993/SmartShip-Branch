@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
@@ -8,29 +7,29 @@ import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
 import type {
     JtDashboardMetrics,
     JtDashboardPreviousMetrics,
-    JtDashboardShipmentRow,
 } from './jtDashboardTypes';
 import { JtDashboardCustomMetrics } from './JtDashboardCustomMetrics';
 import { JtDashboardDailyCharts } from './JtDashboardDailyCharts';
-import { JtTopSendersPanel, type JtTopSenderRow } from './JtTopSendersPanel';
 import {
-    formatBookingDateThai,
+    JtTopSendersCountPanel,
+    JtTopSendersPanel,
+    type JtTopSenderCountRow,
+    type JtTopSenderRow,
+} from './JtTopSendersPanel';
+import {
     formatThb,
-    moneyOrZero,
-    scanStatusPresentation,
-    strOrDash,
 } from './jtDashboardFormatters';
 import { useAnimatedCounter } from './useAnimatedCounter';
 
 export type JtDashboardViewProps = {
     metrics: JtDashboardMetrics;
     previousMetrics: JtDashboardPreviousMetrics | null;
-    recentRows: JtDashboardShipmentRow[];
     /** สถิติรายวันจาก `/api/admin/jt-shipments/stats` — โหมด mock ไม่ใช้ */
     charts: JtDashboardChartsPayload | null;
     chartError: string | null;
     chartsAlignedWithSummaryCards: boolean;
     topSenders: JtTopSenderRow[];
+    topSendersCount: JtTopSenderCountRow[];
     customMetricDefinitions: JtCustomMetricCardDefinition[];
     customMetrics: Array<{
         id: string;
@@ -199,17 +198,6 @@ function SummaryCardSkeleton() {
     );
 }
 
-function TableSkeleton() {
-    return (
-        <div className="animate-pulse space-y-3 rounded-2xl border border-slate-800/60 bg-gradient-to-br from-slate-900/40 to-slate-950/60 p-4">
-            <div className="h-5 w-48 rounded bg-slate-800/60" />
-            {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 rounded-lg bg-slate-800/40" />
-            ))}
-        </div>
-    );
-}
-
 function formatTimeAgo(date: Date): string {
     const seconds = Math.round((Date.now() - date.getTime()) / 1000);
     if (seconds < 10) return 'เมื่อสักครู่';
@@ -226,11 +214,11 @@ function formatTimeAgo(date: Date): string {
 export function JtDashboardView({
     metrics,
     previousMetrics,
-    recentRows,
     charts,
     chartError,
     chartsAlignedWithSummaryCards,
     topSenders,
+    topSendersCount,
     customMetricDefinitions,
     customMetrics,
     onSaveCustomMetricCards,
@@ -275,9 +263,6 @@ export function JtDashboardView({
                 @keyframes subtlePulse {
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.7; }
-                }
-                .jt-row-fade {
-                    animation: fadeSlideInLeft 0.35s ease-out both;
                 }
             `}</style>
 
@@ -432,24 +417,24 @@ export function JtDashboardView({
 
                             <AnimatedKpiCard
                                 index={1}
-                                icon={<Banknote className="h-5 w-5" aria-hidden />}
-                                iconBg="bg-amber-500/15"
-                                iconRing="ring-amber-500/25"
-                                iconFg="text-amber-400"
-                                glowColor="bg-amber-500/40"
-                                label="ยอดเก็บปลายทาง (COD)"
-                                value={metrics.sumCod}
+                                icon={<HandCoins className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-emerald-500/15"
+                                iconRing="ring-emerald-500/25"
+                                iconFg="text-emerald-400"
+                                glowColor="bg-emerald-500/40"
+                                label="รายได้ค่าส่ง (JMS)"
+                                value={metrics.sumTotalFeeJms}
                                 prefix="฿"
                                 decimals={2}
                                 delta={
                                     previousMetrics
                                         ? {
-                                              previous: previousMetrics.sumCod,
+                                              previous: previousMetrics.sumTotalFeeJms,
                                               previousRangeDays: previousMetrics.range.days,
                                           }
                                         : undefined
                                 }
-                                hint="ผลรวม cod_amount"
+                                hint="total_shipping_fee เฉพาะ bucket=jms (เราเก็บเอง)"
                             />
 
                             <AnimatedKpiCard
@@ -539,24 +524,24 @@ export function JtDashboardView({
                         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                             <AnimatedKpiCard
                                 index={4}
-                                icon={<HandCoins className="h-5 w-5" aria-hidden />}
-                                iconBg="bg-emerald-500/15"
-                                iconRing="ring-emerald-500/25"
-                                iconFg="text-emerald-400"
-                                glowColor="bg-emerald-500/40"
-                                label="รายได้ค่าส่ง (JMS)"
-                                value={metrics.sumTotalFeeJms}
+                                icon={<Banknote className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-amber-500/15"
+                                iconRing="ring-amber-500/25"
+                                iconFg="text-amber-400"
+                                glowColor="bg-amber-500/40"
+                                label="ยอดเก็บปลายทาง (COD)"
+                                value={metrics.sumCod}
                                 prefix="฿"
                                 decimals={2}
                                 delta={
                                     previousMetrics
                                         ? {
-                                              previous: previousMetrics.sumTotalFeeJms,
+                                              previous: previousMetrics.sumCod,
                                               previousRangeDays: previousMetrics.range.days,
                                           }
                                         : undefined
                                 }
-                                hint="total_shipping_fee เฉพาะ bucket=jms (เราเก็บเอง)"
+                                hint="ผลรวม cod_amount"
                             />
 
                             <AnimatedKpiCard
@@ -662,105 +647,19 @@ export function JtDashboardView({
                             chartsAlignedWithSummaryCards={chartsAlignedWithSummaryCards}
                         />
                     </div>
-                    {topSenders.length > 0 ? (
+                    {topSenders.length > 0 || topSendersCount.length > 0 ? (
                         <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">
-                            <JtTopSendersPanel rows={topSenders} />
+                            <div className="space-y-4">
+                                {topSenders.length > 0 ? <JtTopSendersPanel rows={topSenders} /> : null}
+                                {topSendersCount.length > 0 ? (
+                                    <JtTopSendersCountPanel rows={topSendersCount} />
+                                ) : null}
+                            </div>
                         </div>
                     ) : null}
                 </div>
             ) : null}
 
-            {/* ── Recent Shipments Table ── */}
-            <section
-                aria-labelledby="recent-heading"
-                className="space-y-4"
-                style={{ animation: 'fadeSlideIn 0.5s ease-out 0.4s both' }}
-            >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h2 id="recent-heading" className="text-lg font-semibold text-white">
-                            รายการล่าสุด
-                        </h2>
-                        <p className="text-sm text-slate-500">5 รายการล่าสุดตาม booking_date</p>
-                    </div>
-                    <Link
-                        href="/admin/shipments"
-                        className="group/link flex items-center gap-1 text-sm font-medium text-sky-400 transition-colors hover:text-sky-300"
-                    >
-                        ดูทั้งหมด
-                        <span className="inline-block transition-transform group-hover/link:translate-x-0.5">→</span>
-                    </Link>
-                </div>
-
-                {loading ? (
-                    <TableSkeleton />
-                ) : showContent ? (
-                    <div className="overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-br from-slate-900/50 to-slate-950/70 shadow-xl shadow-black/25 ring-1 ring-white/[0.04]">
-                        <div className="overflow-x-auto overscroll-x-contain -webkit-overflow-scrolling-touch">
-                            <table className="w-full min-w-[580px] text-left text-[13px] sm:text-sm">
-                                <thead>
-                                    <tr className="border-b border-slate-800/80 bg-slate-950/60 text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-500">
-                                        <th className="px-3 sm:px-4 py-3 sm:py-3.5 font-semibold">AWB</th>
-                                        <th className="px-3 sm:px-4 py-3 sm:py-3.5 font-semibold">วันที่จอง</th>
-                                        <th className="px-3 sm:px-4 py-3 sm:py-3.5 font-semibold">ผู้รับ</th>
-                                        <th className="px-3 sm:px-4 py-3 sm:py-3.5 font-semibold text-right">ค่าส่ง</th>
-                                        <th className="px-3 sm:px-4 py-3 sm:py-3.5 font-semibold text-right">COD</th>
-                                        <th className="px-3 sm:px-4 py-3 sm:py-3.5 font-semibold">สถานะสแกน</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-800/60">
-                                    {recentRows.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={6}
-                                                className="px-4 py-10 text-center text-slate-500"
-                                            >
-                                                ไม่มีข้อมูลในตาราง
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        recentRows.map((row, idx) => {
-                                            const badge = scanStatusPresentation(row.latest_scan_type);
-                                            return (
-                                                <tr
-                                                    key={`${idx}-${strOrDash(row.awb_number)}-${String(row.booking_date ?? '')}`}
-                                                    className="jt-row-fade group/row relative transition-colors duration-200 hover:bg-slate-800/25"
-                                                    style={{ animationDelay: `${idx * 60 + 200}ms` }}
-                                                >
-                                                    {/* Left accent bar on hover */}
-                                                    <td className="relative whitespace-nowrap px-3 sm:px-4 py-3 sm:py-3.5 font-mono text-[11px] sm:text-xs text-sky-300/95">
-                                                        <span className="pointer-events-none absolute inset-y-0 left-0 w-[3px] rounded-r bg-sky-500/0 transition-all duration-200 group-hover/row:bg-sky-500/80" />
-                                                        {strOrDash(row.awb_number)}
-                                                    </td>
-                                                    <td className="whitespace-nowrap px-3 sm:px-4 py-3 sm:py-3.5 text-slate-300">
-                                                        {formatBookingDateThai(row.booking_date)}
-                                                    </td>
-                                                    <td className="max-w-[140px] sm:max-w-[200px] truncate px-3 sm:px-4 py-3 sm:py-3.5 text-slate-300">
-                                                        {strOrDash(row.receiver_name)}
-                                                    </td>
-                                                    <td className="whitespace-nowrap px-3 sm:px-4 py-3 sm:py-3.5 text-right tabular-nums text-slate-200">
-                                                        ฿{formatThb(moneyOrZero(row.shipping_fee))}
-                                                    </td>
-                                                    <td className="whitespace-nowrap px-3 sm:px-4 py-3 sm:py-3.5 text-right tabular-nums text-slate-200">
-                                                        ฿{formatThb(moneyOrZero(row.cod_amount))}
-                                                    </td>
-                                                    <td className="px-3 sm:px-4 py-3 sm:py-3.5">
-                                                        <span
-                                                            className={`inline-flex max-w-full items-center rounded-full px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium ring-1 transition-all duration-200 ${badge.className}`}
-                                                        >
-                                                            {badge.label}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                ) : null}
-            </section>
         </div>
     );
 }

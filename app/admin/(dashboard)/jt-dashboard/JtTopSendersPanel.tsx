@@ -3,7 +3,8 @@
 import { useId, useMemo, useState } from 'react';
 import { ChevronDown, Users } from 'lucide-react';
 
-export type JtTopSenderRow = { name: string; count: number };
+export type JtTopSenderRow = { name: string; totalShippingFee: number };
+export type JtTopSenderCountRow = { name: string; count: number };
 
 const DEFAULT_VISIBLE = 5;
 const MAX_ROWS = 10;
@@ -14,10 +15,29 @@ function truncateName(s: string, max = 24): string {
     return `${t.slice(0, max - 1)}…`;
 }
 
+function formatMoney(n: number): string {
+    return n.toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
 /**
  * รายชื่อผู้ส่ง Top 5–10 แบบกะทัดรัด
  */
-export function JtTopSendersPanel({ rows }: { rows: JtTopSenderRow[] }) {
+function TopSendersListPanel({
+    rows,
+    title,
+    subtitle,
+    valueOf,
+    renderValue,
+}: {
+    rows: Array<{ name: string }>;
+    title: string;
+    subtitle: string;
+    valueOf: (row: { name: string }) => number;
+    renderValue: (row: { name: string }) => string;
+}) {
     const list = useMemo(() => rows.slice(0, MAX_ROWS), [rows]);
     const [expanded, setExpanded] = useState(false);
     const headId = useId();
@@ -26,7 +46,7 @@ export function JtTopSendersPanel({ rows }: { rows: JtTopSenderRow[] }) {
         return null;
     }
 
-    const top1 = list[0]?.count || 1;
+    const top1 = valueOf(list[0] ?? { name: '' }) || 1;
     const showToggle = list.length > DEFAULT_VISIBLE;
     const shown = expanded ? list : list.slice(0, DEFAULT_VISIBLE);
 
@@ -42,10 +62,10 @@ export function JtTopSendersPanel({ rows }: { rows: JtTopSenderRow[] }) {
                     </div>
                     <div className="min-w-0">
                         <h3 id={headId} className="text-sm font-semibold text-white">
-                            ผู้ส่งมากสุด
+                            {title}
                         </h3>
                         <p className="text-[10px] leading-snug text-slate-600">
-                            ทั้งตาราง · ไม่ผูกช่วงวันที่กรอง
+                            {subtitle}
                         </p>
                     </div>
                 </div>
@@ -53,8 +73,9 @@ export function JtTopSendersPanel({ rows }: { rows: JtTopSenderRow[] }) {
             <ol className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-2 py-2">
                 {shown.map((row, idx) => {
                     const rank = idx + 1;
-                    const vsTopPct = Math.round((row.count / top1) * 1000) / 10;
-                    const barPct = (row.count / top1) * 100;
+                    const metric = valueOf(row);
+                    const vsTopPct = Math.round((metric / top1) * 1000) / 10;
+                    const barPct = (metric / top1) * 100;
                     return (
                         <li
                             key={`${row.name}-${rank}`}
@@ -74,7 +95,7 @@ export function JtTopSendersPanel({ rows }: { rows: JtTopSenderRow[] }) {
                                     {truncateName(row.name)}
                                 </span>
                                 <span className="shrink-0 tabular-nums text-slate-300">
-                                    {row.count.toLocaleString('th-TH')}
+                                    {renderValue(row)}
                                 </span>
                                 <span className="w-11 shrink-0 text-right tabular-nums text-slate-500">
                                     {vsTopPct}%
@@ -98,5 +119,29 @@ export function JtTopSendersPanel({ rows }: { rows: JtTopSenderRow[] }) {
                 </button>
             ) : null}
         </aside>
+    );
+}
+
+export function JtTopSendersPanel({ rows }: { rows: JtTopSenderRow[] }) {
+    return (
+        <TopSendersListPanel
+            rows={rows}
+            title="ผู้ส่งค่าส่งสูงสุด"
+            subtitle="ทั้งตาราง · จัดอันดับตาม total_shipping_fee"
+            valueOf={(row) => (row as JtTopSenderRow).totalShippingFee}
+            renderValue={(row) => `฿${formatMoney((row as JtTopSenderRow).totalShippingFee)}`}
+        />
+    );
+}
+
+export function JtTopSendersCountPanel({ rows }: { rows: JtTopSenderCountRow[] }) {
+    return (
+        <TopSendersListPanel
+            rows={rows}
+            title="ผู้ส่งมากสุด"
+            subtitle="ทั้งตาราง · จัดอันดับตามจำนวนชิ้น"
+            valueOf={(row) => (row as JtTopSenderCountRow).count}
+            renderValue={(row) => (row as JtTopSenderCountRow).count.toLocaleString('th-TH')}
+        />
     );
 }
