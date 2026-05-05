@@ -638,7 +638,7 @@ export function JtDashboardDailyCharts({
             <div className="space-y-2">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        รวมค่าส่งต่อวัน (shipping_fee)
+                        รวมค่าส่งต่อวัน (total_shipping_fee)
                     </p>
                     <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
                         รวมช่วง <strong className="font-medium text-slate-400">฿{formatThb(sumFees)}</strong> · เฉลี่ย{' '}

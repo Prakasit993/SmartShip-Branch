@@ -267,7 +267,7 @@ async function aggregateTopSendersByShippingFee(
     for (;;) {
         const { data, error } = await supabaseAdmin
             .from('jt_shipments')
-            .select('sender_name,shipping_fee')
+            .select('sender_name,total_shipping_fee')
             .not('sender_name', 'is', null)
             .range(offset, offset + AGG_PAGE_SIZE - 1);
         if (error) {
@@ -276,12 +276,12 @@ async function aggregateTopSendersByShippingFee(
         }
         const rows = (data || []) as unknown as Array<{
             sender_name: string | null;
-            shipping_fee: unknown;
+            total_shipping_fee: unknown;
         }>;
         for (const r of rows) {
             const name = (r.sender_name || '').trim();
             if (!name) continue;
-            map[name] = (map[name] || 0) + parseJtMoneyText(r.shipping_fee);
+            map[name] = (map[name] || 0) + parseJtMoneyText(r.total_shipping_fee);
         }
         if (rows.length < AGG_PAGE_SIZE) break;
         offset += AGG_PAGE_SIZE;
@@ -333,14 +333,14 @@ async function aggregatePlatformCounts(
  * `gte(YYYY-MM-DD)` + `lt(first_day_after_end)` so all encodings of days in [start,end] match.
  */
 async function fetchBookingRowsInUtcWindow(startYmd: string, endYmd: string) {
-    const out: { booking_date: string; shipping_fee: unknown; cod_amount: unknown }[] = [];
+    const out: { booking_date: string; total_shipping_fee: unknown; cod_amount: unknown }[] = [];
     const pageSize = 1000;
     let offset = 0;
     const endExclusive = nextUtcCalendarDayYmd(endYmd);
     for (;;) {
         const { data, error } = await supabaseAdmin
             .from('jt_shipments')
-            .select('booking_date, shipping_fee, cod_amount')
+            .select('booking_date, total_shipping_fee, cod_amount')
             .gte('booking_date', startYmd)
             .lt('booking_date', endExclusive)
             .order('booking_date', { ascending: true })
@@ -351,7 +351,7 @@ async function fetchBookingRowsInUtcWindow(startYmd: string, endYmd: string) {
         }
         const rows = (data || []) as {
             booking_date: string;
-            shipping_fee: unknown;
+            total_shipping_fee: unknown;
             cod_amount: unknown;
         }[];
         out.push(...rows);
@@ -363,7 +363,7 @@ async function fetchBookingRowsInUtcWindow(startYmd: string, endYmd: string) {
 
 function aggregateDailyStatsFallback(
     dayKeys: string[],
-    rows: { booking_date: string; shipping_fee: unknown; cod_amount: unknown }[],
+    rows: { booking_date: string; total_shipping_fee: unknown; cod_amount: unknown }[],
 ): {
     daily30: { date: string; count: number }[];
     dailyFee30: { date: string; feeTotal: number }[];
@@ -377,7 +377,7 @@ function aggregateDailyStatsFallback(
         const key = utcDayKeyFromIso(row.booking_date);
         if (!key || !daySet.has(key)) continue;
         countMap[key] = (countMap[key] || 0) + 1;
-        feeMap[key] = (feeMap[key] || 0) + parseJtMoneyText(row.shipping_fee);
+        feeMap[key] = (feeMap[key] || 0) + parseJtMoneyText(row.total_shipping_fee);
         codMap[key] = (codMap[key] || 0) + parseJtMoneyText(row.cod_amount);
     }
     return {

@@ -12,9 +12,9 @@ AS $$
         SELECT
             (substring(trim(bs.booking_date::text) FROM '^([0-9]{4}-[0-9]{2}-[0-9]{2})'))::date AS day,
             CASE
-                WHEN trim(COALESCE(bs.shipping_fee::text, '')) = '' THEN 0::numeric
-                WHEN regexp_replace(trim(COALESCE(bs.shipping_fee::text, '')), '[^0-9.\-]', '', 'g') ~ '^-?[0-9]+(\.[0-9]+)?$'
-                    THEN regexp_replace(trim(COALESCE(bs.shipping_fee::text, '')), '[^0-9.\-]', '', 'g')::numeric
+                WHEN trim(COALESCE(bs.total_shipping_fee::text, '')) = '' THEN 0::numeric
+                WHEN regexp_replace(trim(COALESCE(bs.total_shipping_fee::text, '')), '[^0-9.\-]', '', 'g') ~ '^-?[0-9]+(\.[0-9]+)?$'
+                    THEN regexp_replace(trim(COALESCE(bs.total_shipping_fee::text, '')), '[^0-9.\-]', '', 'g')::numeric
                 ELSE 0::numeric
             END AS fee_num,
             CASE
