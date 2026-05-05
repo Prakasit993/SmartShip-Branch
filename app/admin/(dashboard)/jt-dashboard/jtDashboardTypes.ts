@@ -16,6 +16,7 @@
 
 export type JtDashboardMetrics = {
     totalParcels: number;
+    closedCount: number;
     sumCod: number;
     avgShippingFee: number;
     returnCount: number;
@@ -41,6 +42,7 @@ export type JtDashboardMetrics = {
         awb_number: string;
         sender_name: string;
         exception_reason: string;
+        issue_registered_time?: string;
     }>;
     codCollectionRate: number;     // paid / (paid + pending) × 100  (percent, 2 dp)
 };

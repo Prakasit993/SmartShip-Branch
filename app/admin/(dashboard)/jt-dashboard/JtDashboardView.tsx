@@ -1,6 +1,8 @@
 'use client';
 
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck } from 'lucide-react';
+import { useState } from 'react';
+
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, CheckSquare, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
@@ -238,6 +240,7 @@ export function JtDashboardView({
     mockMode,
     lastRefreshed,
 }: JtDashboardViewProps) {
+    const [showAllIssues, setShowAllIssues] = useState(false);
     const showContent = !loading && !error;
 
     return (
@@ -381,7 +384,7 @@ export function JtDashboardView({
                 </div>
 
                 {/* ── KPI Cards ── */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
                     {loading ? (
                         <>
                             <SummaryCardSkeleton />
@@ -421,6 +424,23 @@ export function JtDashboardView({
 
                             <AnimatedKpiCard
                                 index={1}
+                                icon={<CheckSquare className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-indigo-500/15"
+                                iconRing="ring-indigo-500/25"
+                                iconFg="text-indigo-400"
+                                glowColor="bg-indigo-500/40"
+                                label="ปิดงาน (มีผู้จัดส่ง)"
+                                value={metrics.closedCount}
+                                hint={
+                                    <span>
+                                        ยอดรวม {metrics.totalParcels.toLocaleString('th-TH')} ชิ้น ·
+                                        เหลือ {(metrics.totalParcels - metrics.closedCount).toLocaleString('th-TH')} ชิ้น
+                                    </span>
+                                }
+                            />
+
+                            <AnimatedKpiCard
+                                index={2}
                                 icon={<HandCoins className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-emerald-500/15"
                                 iconRing="ring-emerald-500/25"
@@ -442,7 +462,7 @@ export function JtDashboardView({
                             />
 
                             <AnimatedKpiCard
-                                index={2}
+                                index={3}
                                 icon={<Truck className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-violet-500/15"
                                 iconRing="ring-violet-500/25"
@@ -478,7 +498,7 @@ export function JtDashboardView({
                             />
 
                             <AnimatedKpiCard
-                                index={3}
+                                index={4}
                                 icon={<RotateCcw className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-rose-500/15"
                                 iconRing="ring-rose-500/25"
@@ -641,7 +661,7 @@ export function JtDashboardView({
                                 iconRing="ring-rose-500/25"
                                 iconFg="text-rose-300"
                                 glowColor="bg-rose-500/40"
-                                label="เคส Return (return_type)"
+                                label="เคสมีปัญหา (issue_registered_time)"
                                 value={metrics.exceptionCount}
                                 delta={
                                     previousMetrics
@@ -658,7 +678,7 @@ export function JtDashboardView({
                                             {metrics.topReturnTypeCases[0]?.exception_reason || '-'}
                                         </span>
                                     ) : (
-                                        'ไม่พบเคสจาก return_type'
+                                        'ไม่พบเคสจาก issue_registered_time'
                                     )
                                 }
                             />
@@ -666,13 +686,13 @@ export function JtDashboardView({
                         {metrics.topReturnTypeCases.length > 0 ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    อันดับเคส Return 1–10
+                                    รายการเคสมีปัญหา ({metrics.topReturnTypeCases.length} รายการล่าสุด)
                                 </p>
                                 <div className="mt-2 space-y-1.5">
-                                    {metrics.topReturnTypeCases.map((r, idx) => (
+                                    {(showAllIssues ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map((r, idx) => (
                                         <div
                                             key={`${r.awb_number}-${idx}`}
-                                            className="grid grid-cols-[1.6rem_1.3fr_1.3fr_2fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                            className="grid grid-cols-[1.6rem_1fr_1fr_1.5fr_1fr] sm:grid-cols-[1.6rem_1.1fr_1.1fr_2fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
                                         >
                                             <span className="tabular-nums text-slate-500">{idx + 1}</span>
                                             <span className="min-w-0 truncate text-sky-300" title={r.awb_number}>
@@ -684,9 +704,21 @@ export function JtDashboardView({
                                             <span className="min-w-0 truncate text-rose-200" title={r.exception_reason}>
                                                 {r.exception_reason}
                                             </span>
+                                            <span className="min-w-0 truncate text-slate-400 text-right tabular-nums" title={r.issue_registered_time}>
+                                                {r.issue_registered_time && r.issue_registered_time !== '-' ? r.issue_registered_time.slice(0, 16) : '-'}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
+                                {metrics.topReturnTypeCases.length > 3 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllIssues(!showAllIssues)}
+                                        className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
+                                    >
+                                        {showAllIssues ? 'ย่อเก็บ' : `ดูเพิ่มเติมอีก ${metrics.topReturnTypeCases.length - 3} รายการ`}
+                                    </button>
+                                )}
                             </div>
                         ) : null}
                     </div>

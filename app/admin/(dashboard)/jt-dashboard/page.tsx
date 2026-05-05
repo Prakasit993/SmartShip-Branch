@@ -107,6 +107,7 @@ export default function JtDashboardPage() {
             let json: {
                 error?: string;
                 count?: number;
+                closedCount?: number;
                 sumCod?: number;
                 avgShippingFee?: number;
                 returnCount?: number;
@@ -123,6 +124,7 @@ export default function JtDashboardPage() {
                     awb_number: string;
                     sender_name: string;
                     exception_reason: string;
+                    issue_registered_time?: string;
                 }>;
                 codCollectionRate?: number;
                 recent?: JtDashboardShipmentRow[];
@@ -229,6 +231,7 @@ export default function JtDashboardPage() {
             const successData: SuccessData = {
                 metrics: {
                     totalParcels: json.count ?? 0,
+                    closedCount: json.closedCount ?? 0,
                     sumCod: json.sumCod ?? 0,
                     avgShippingFee: json.avgShippingFee ?? 0,
                     returnCount: json.returnCount ?? 0,
@@ -259,13 +262,14 @@ export default function JtDashboardPage() {
                                       awb_number: string;
                                       sender_name: string;
                                       exception_reason: string;
+                                      issue_registered_time?: string;
                                   } =>
                                       r != null &&
                                       typeof r.awb_number === 'string' &&
                                       typeof r.sender_name === 'string' &&
                                       typeof r.exception_reason === 'string',
                               )
-                              .slice(0, 10)
+                              .slice(0, 100)
                         : [],
                     codCollectionRate: json.codCollectionRate ?? 0,
                 },
@@ -313,6 +317,7 @@ export default function JtDashboardPage() {
 
     const emptyMetrics: JtDashboardMetrics = {
         totalParcels: 0,
+        closedCount: 0,
         sumCod: 0,
         avgShippingFee: 0,
         returnCount: 0,

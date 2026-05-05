@@ -102,6 +102,7 @@ async function aggregateReturnTypeCases(
         awb_number: string;
         sender_name: string;
         exception_reason: string;
+        issue_registered_time: string;
     }>;
 }> {
     let offset = 0;
@@ -110,12 +111,13 @@ async function aggregateReturnTypeCases(
         awb_number: string;
         sender_name: string;
         exception_reason: string;
+        issue_registered_time: string;
     }> = [];
 
     for (;;) {
         let q = supabaseAdmin
             .from('jt_shipments')
-            .select('awb_number,sender_name,exception_reason,return_type,booking_date')
+            .select('awb_number,sender_name,exception_reason,issue_registered_time,booking_date')
             .order('booking_date', { ascending: false, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
@@ -127,16 +129,17 @@ async function aggregateReturnTypeCases(
             awb_number: string | null;
             sender_name: string | null;
             exception_reason: string | null;
-            return_type: string | null;
+            issue_registered_time: string | null;
         }>;
         for (const row of rows) {
-            if (!hasMeaningfulReturnType(row.return_type)) continue;
+            if (!hasMeaningfulReturnType(row.issue_registered_time)) continue;
             returnTypeCaseCount += 1;
             if (topReturnTypeCases.length < topN) {
                 topReturnTypeCases.push({
                     awb_number: String(row.awb_number ?? '-').trim() || '-',
                     sender_name: String(row.sender_name ?? '-').trim() || '-',
                     exception_reason: String(row.exception_reason ?? '-').trim() || '-',
+                    issue_registered_time: String(row.issue_registered_time ?? '-').trim() || '-',
                 });
             }
         }
@@ -259,6 +262,15 @@ export async function GET(req: Request) {
         let countQ = supabaseAdmin.from('jt_shipments').select('awb_number', { count: 'exact', head: true });
         countQ = applyBookingDateRangeFilters(countQ, dateFrom, dateTo);
 
+        let closedCountQ = supabaseAdmin.from('jt_shipments').select('awb_number', { count: 'exact', head: true })
+            .not('dispatch_time', 'is', null)
+            .neq('dispatch_time', 'NULL')
+            .neq('dispatch_time', '')
+            .not('delivery_staff_name', 'is', null)
+            .neq('delivery_staff_name', 'NULL')
+            .neq('delivery_staff_name', '');
+        closedCountQ = applyBookingDateRangeFilters(closedCountQ, dateFrom, dateTo);
+
         let recentQ = supabaseAdmin
             .from('jt_shipments')
             .select('awb_number, booking_date, receiver_name, receiver_phone, shipping_fee, cod_amount, latest_scan_type');
@@ -276,6 +288,7 @@ export async function GET(req: Request) {
         const [
             settingsResult,
             countResult,
+            closedCountResult,
             recentResult,
             rpcTotals,
             previousTotals,
@@ -292,6 +305,7 @@ export async function GET(req: Request) {
                 .eq('key', JT_CUSTOM_METRIC_SETTINGS_KEY)
                 .maybeSingle(),
             countQ,
+            closedCountQ,
             recentQ
                 .order('booking_date', { ascending: false, nullsFirst: false })
                 .limit(5),
@@ -303,9 +317,9 @@ export async function GET(req: Request) {
             prevRange
                 ? aggregateExceptionReasonStats(prevRange.from, prevRange.to, 5)
                 : Promise.resolve({ exceptionCount: 0, topExceptionReasons: [] }),
-            aggregateReturnTypeCases(dateFrom, dateTo, 10),
+            aggregateReturnTypeCases(dateFrom, dateTo, 100),
             prevRange
-                ? aggregateReturnTypeCases(prevRange.from, prevRange.to, 10)
+                ? aggregateReturnTypeCases(prevRange.from, prevRange.to, 100)
                 : Promise.resolve({ returnTypeCaseCount: 0, topReturnTypeCases: [] }),
         ]);
 
@@ -313,6 +327,12 @@ export async function GET(req: Request) {
         if (cErr) {
             console.error('[jt-shipments/dashboard] count', cErr);
             return NextResponse.json({ error: cErr.message }, { status: 500 });
+        }
+
+        const { count: closedCount, error: ccErr } = closedCountResult;
+        if (ccErr) {
+            console.error('[jt-shipments/dashboard] closed count', ccErr);
+            // Non-fatal, just log
         }
 
         const { data: recent, error: rErr } = recentResult;
@@ -433,6 +453,7 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             count: count ?? 0,
+            closedCount: closedCount ?? 0,
             sumCod,
             avgShippingFee,
             returnCount,
