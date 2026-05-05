@@ -117,7 +117,7 @@ async function aggregateReturnTypeCases(
     for (;;) {
         let q = supabaseAdmin
             .from('jt_shipments')
-            .select('awb_number,sender_name,exception_reason,issue_registered_time,booking_date')
+            .select('awb_number,sender_name,exception_reason,issue_registered_time,booking_date,signer_name')
             .order('booking_date', { ascending: false, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
@@ -130,9 +130,11 @@ async function aggregateReturnTypeCases(
             sender_name: string | null;
             exception_reason: string | null;
             issue_registered_time: string | null;
+            signer_name: string | null;
         }>;
         for (const row of rows) {
             if (!hasMeaningfulReturnType(row.issue_registered_time)) continue;
+            if (hasMeaningfulReturnType(row.signer_name)) continue; // ข้ามเคสที่ปิดงานแล้ว (มี signer_name)
             returnTypeCaseCount += 1;
             if (topReturnTypeCases.length < topN) {
                 topReturnTypeCases.push({
@@ -263,12 +265,9 @@ export async function GET(req: Request) {
         countQ = applyBookingDateRangeFilters(countQ, dateFrom, dateTo);
 
         let closedCountQ = supabaseAdmin.from('jt_shipments').select('awb_number', { count: 'exact', head: true })
-            .not('dispatch_time', 'is', null)
-            .neq('dispatch_time', 'NULL')
-            .neq('dispatch_time', '')
-            .not('delivery_staff_name', 'is', null)
-            .neq('delivery_staff_name', 'NULL')
-            .neq('delivery_staff_name', '');
+            .not('signer_name', 'is', null)
+            .neq('signer_name', 'NULL')
+            .neq('signer_name', '');
         closedCountQ = applyBookingDateRangeFilters(closedCountQ, dateFrom, dateTo);
 
         let recentQ = supabaseAdmin
