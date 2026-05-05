@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, CheckSquare, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
@@ -24,6 +24,7 @@ import {
     formatThb,
 } from './jtDashboardFormatters';
 import { useAnimatedCounter } from './useAnimatedCounter';
+import { DEFAULT_JT_SHIPMENT_DETAIL_FIELDS } from '@/lib/jtShipmentDetailFields';
 
 export type JtDashboardViewProps = {
     metrics: JtDashboardMetrics;
@@ -44,7 +45,10 @@ export type JtDashboardViewProps = {
         display: string;
         format: string;
     }>;
+    detailFields: string[];
+    availableDetailFields: string[];
     onSaveCustomMetricCards: (cards: JtCustomMetricCardDefinition[]) => Promise<void>;
+    onSaveDetailFields: (fields: string[]) => Promise<void>;
     loading: boolean;
     error: string | null;
     parcelDateFrom: string;
@@ -253,7 +257,10 @@ export function JtDashboardView({
     topProducts,
     customMetricDefinitions,
     customMetrics,
+    detailFields,
+    availableDetailFields,
     onSaveCustomMetricCards,
+    onSaveDetailFields,
     loading,
     error,
     parcelDateFrom,
@@ -269,7 +276,92 @@ export function JtDashboardView({
     const [showAllIssues, setShowAllIssues] = useState(false);
     const [showAllReturns, setShowAllReturns] = useState(false);
     const [activeDrilldown, setActiveDrilldown] = useState<'exception' | 'return' | null>(null);
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [detailError, setDetailError] = useState<string | null>(null);
+    const [detailAwb, setDetailAwb] = useState('');
+    const [detailData, setDetailData] = useState<Record<string, unknown> | null>(null);
+    const [editableDetailFields, setEditableDetailFields] = useState<string[]>(detailFields);
+    const [savingDetailFields, setSavingDetailFields] = useState(false);
+    const [detailFieldsErr, setDetailFieldsErr] = useState<string | null>(null);
+    const [showFieldChooser, setShowFieldChooser] = useState(false);
     const showContent = !loading && !error;
+    const fieldLabelMap = new Map(
+        availableDetailFields.map((key) => [
+            key,
+            key
+                .split('_')
+                .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' '),
+        ]),
+    );
+
+    useEffect(() => {
+        if (!savingDetailFields) {
+            setEditableDetailFields(detailFields);
+        }
+    }, [detailFields, savingDetailFields]);
+
+    async function openShipmentDetail(awb: string) {
+        const value = awb.trim();
+        if (!value) return;
+        setDetailAwb(value);
+        setDetailModalOpen(true);
+        setDetailLoading(true);
+        setDetailError(null);
+        setDetailData(null);
+        try {
+            const res = await fetch(`/api/admin/jt-shipments/by-awb?awb=${encodeURIComponent(value)}`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            });
+            const raw = await res.text();
+            let payload: { data?: Record<string, unknown>; error?: string } = {};
+            try {
+                payload = JSON.parse(raw) as typeof payload;
+            } catch {
+                throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
+            }
+            if (!res.ok) throw new Error(payload.error || 'โหลดรายละเอียดพัสดุไม่สำเร็จ');
+            setDetailData(payload.data ?? null);
+        } catch (e) {
+            setDetailError(e instanceof Error ? e.message : 'โหลดรายละเอียดพัสดุไม่สำเร็จ');
+        } finally {
+            setDetailLoading(false);
+        }
+    }
+
+    function toggleDetailField(key: string) {
+        setDetailFieldsErr(null);
+        setEditableDetailFields((prev) => {
+            const has = prev.includes(key);
+            if (has) {
+                return prev.filter((x) => x !== key);
+            }
+            return [...prev, key];
+        });
+    }
+
+    async function saveDetailFields() {
+        setSavingDetailFields(true);
+        setDetailFieldsErr(null);
+        try {
+            await onSaveDetailFields(editableDetailFields);
+        } catch (e) {
+            setDetailFieldsErr(e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ');
+        } finally {
+            setSavingDetailFields(false);
+        }
+    }
+
+    function applyPreset(mode: 'default' | 'all') {
+        const all = availableDetailFields;
+        if (mode === 'all') {
+            setEditableDetailFields(all);
+            return;
+        }
+        setEditableDetailFields([...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS]);
+    }
     return (
         <div className="min-w-0 space-y-5 sm:space-y-6 lg:space-y-8">
             {/* Global animations */}
@@ -702,9 +794,14 @@ export function JtDashboardView({
                                             className="grid grid-cols-[1.6rem_1fr_1fr_1.5fr_1fr] sm:grid-cols-[1.6rem_1.1fr_1.1fr_2fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
                                         >
                                             <span className="tabular-nums text-slate-500">{idx + 1}</span>
-                                            <span className="min-w-0 truncate text-sky-300" title={r.awb_number}>
+                                            <button
+                                                type="button"
+                                                onClick={() => void openShipmentDetail(r.awb_number)}
+                                                className="min-w-0 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                title={`เปิดรายละเอียด ${r.awb_number}`}
+                                            >
                                                 {r.awb_number}
-                                            </span>
+                                            </button>
                                             <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
                                                 {r.sender_name}
                                             </span>
@@ -748,9 +845,14 @@ export function JtDashboardView({
                                                     key={`${r.awb_number}-${idx}`}
                                                     className="grid min-w-[920px] grid-cols-[1.2fr_1.1fr_1.4fr_1.2fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
                                                 >
-                                                    <span className="min-w-0 truncate text-sky-300" title={r.awb_number}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void openShipmentDetail(r.awb_number)}
+                                                        className="min-w-0 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                        title={`เปิดรายละเอียด ${r.awb_number}`}
+                                                    >
                                                         {r.awb_number}
-                                                    </span>
+                                                    </button>
                                                     <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
                                                         {r.sender_name}
                                                     </span>
@@ -812,6 +914,118 @@ export function JtDashboardView({
                         </div>
                     ) : null}
                 </div>
+            ) : null}
+
+            {detailModalOpen ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="jt-awb-detail-title"
+                >
+                    <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl ring-1 ring-white/10">
+                        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+                            <h3 id="jt-awb-detail-title" className="text-lg font-semibold text-white">
+                                รายละเอียดพัสดุ: {detailAwb}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setDetailModalOpen(false)}
+                                className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+                            >
+                                ปิด
+                            </button>
+                        </div>
+                        <div className="space-y-3 px-4 py-4">
+                            {detailLoading ? (
+                                <p className="text-sm text-slate-400">กำลังโหลดข้อมูล...</p>
+                            ) : detailError ? (
+                                <p className="text-sm text-rose-400">{detailError}</p>
+                            ) : detailData ? (
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {editableDetailFields.map((key) => (
+                                        <div key={key} className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2">
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                                {fieldLabelMap.get(key) ?? key}
+                                            </p>
+                                            <p className="mt-1 break-words text-sm text-slate-200">
+                                                {(() => {
+                                                    const value = detailData[key];
+                                                    return value == null || value === '' ? '-' : String(value);
+                                                })()}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-slate-500">ไม่พบข้อมูล</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {!mockMode ? (
+                <section className="rounded-2xl border border-slate-800/70 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-white">ตั้งค่าฟิลด์รายละเอียดพัสดุ</h3>
+                        <span className="text-[11px] text-slate-500">กำหนดฟิลด์ที่จะแสดงเมื่อกดเลข AWB</span>
+                        <button
+                            type="button"
+                            onClick={() => setShowFieldChooser((v) => !v)}
+                            className="ml-auto rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-600"
+                        >
+                            {showFieldChooser ? 'ซ่อนรายการฟิลด์' : 'แสดงรายการฟิลด์'}
+                        </button>
+                    </div>
+                    {showFieldChooser ? (
+                        <>
+                            <div className="mb-3 flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => applyPreset('default')}
+                                    className="rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-600"
+                                >
+                                    ค่าเริ่มต้น
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => applyPreset('all')}
+                                    className="rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-600"
+                                >
+                                    ทั้งหมด
+                                </button>
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {availableDetailFields.map((key) => {
+                                    const checked = editableDetailFields.includes(key);
+                                    return (
+                                        <label key={key} className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/35 px-3 py-2 text-sm text-slate-300">
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleDetailField(key)}
+                                                className="rounded border-slate-600"
+                                            />
+                                            <span>{fieldLabelMap.get(key) ?? key}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    ) : null}
+                    {detailFieldsErr ? <p className="mt-2 text-sm text-rose-400">{detailFieldsErr}</p> : null}
+                    <div className="mt-3 flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => void saveDetailFields()}
+                            disabled={savingDetailFields}
+                            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60"
+                        >
+                            {savingDetailFields ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+                        </button>
+                    </div>
+                </section>
             ) : null}
 
         </div>

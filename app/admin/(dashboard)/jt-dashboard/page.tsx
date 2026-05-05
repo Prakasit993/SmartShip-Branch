@@ -20,6 +20,7 @@ import type {
     JtDashboardShipmentRow,
 } from './jtDashboardTypes';
 import type { JtTopProductRow, JtTopSenderCountRow, JtTopSenderRow } from './JtTopSendersPanel';
+import { DEFAULT_JT_SHIPMENT_DETAIL_FIELDS } from '@/lib/jtShipmentDetailFields';
 
 type CustomMetricRow = {
     id: string;
@@ -41,6 +42,8 @@ type SuccessData = {
     topProducts: JtTopProductRow[];
     customMetricDefinitions: JtCustomMetricCardDefinition[];
     customMetrics: CustomMetricRow[];
+    detailFields: string[];
+    availableDetailFields: string[];
 };
 
 type FetchState =
@@ -87,13 +90,18 @@ export default function JtDashboardPage() {
             const dashUrl = `/api/admin/jt-shipments/dashboard?${params.toString()}`;
             const statsUrl = `/api/admin/jt-shipments/stats?${statsParams.toString()}`;
 
-            const [res, statsRes] = await Promise.all([
+            const [res, statsRes, detailFieldsRes] = await Promise.all([
                 fetch(dashUrl, {
                     credentials: 'same-origin',
                     headers: { Accept: 'application/json' },
                     signal: controller.signal,
                 }),
                 fetch(statsUrl, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                    signal: controller.signal,
+                }),
+                fetch('/api/admin/jt-shipments/detail-fields-settings', {
                     credentials: 'same-origin',
                     headers: { Accept: 'application/json' },
                     signal: controller.signal,
@@ -150,6 +158,8 @@ export default function JtDashboardPage() {
             let topSenders: JtTopSenderRow[] = [];
             let topSendersCount: JtTopSenderCountRow[] = [];
             let topProducts: JtTopProductRow[] = [];
+            let detailFields = [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
+            let availableDetailFields = [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
             try {
                 const statsRaw = await statsRes.text();
                 let statsJson: {
@@ -228,6 +238,25 @@ export default function JtDashboardPage() {
                 }
             }
 
+            try {
+                const detailRaw = await detailFieldsRes.text();
+                const detailJson = JSON.parse(detailRaw) as {
+                    fields?: unknown;
+                    availableFields?: unknown;
+                    error?: string;
+                };
+                if (detailFieldsRes.ok && Array.isArray(detailJson.fields)) {
+                    detailFields = detailJson.fields.filter((x): x is string => typeof x === 'string');
+                }
+                if (detailFieldsRes.ok && Array.isArray(detailJson.availableFields)) {
+                    availableDetailFields = detailJson.availableFields.filter(
+                        (x): x is string => typeof x === 'string',
+                    );
+                }
+            } catch {
+                // keep defaults
+            }
+
             if (controller.signal.aborted) return;
 
             const successData: SuccessData = {
@@ -287,6 +316,8 @@ export default function JtDashboardPage() {
                 topProducts,
                 customMetricDefinitions: json.custom_metric_definitions ?? [],
                 customMetrics: json.custom_metrics ?? [],
+                detailFields,
+                availableDetailFields,
             };
 
             // Update cache
@@ -364,6 +395,27 @@ export default function JtDashboardPage() {
         [load, parcelDateFrom, parcelDateTo],
     );
 
+    const saveDetailFields = useCallback(async (fields: string[]) => {
+        const res = await fetch('/api/admin/jt-shipments/detail-fields-settings', {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ fields }),
+        });
+        const raw = await res.text();
+        if (!res.ok) {
+            let msg = 'บันทึกการตั้งค่าฟิลด์ไม่สำเร็จ';
+            try {
+                const o = JSON.parse(raw) as { error?: string };
+                if (o.error) msg = o.error;
+            } catch {
+                /* ignore */
+            }
+            throw new Error(msg);
+        }
+        await load(parcelDateFrom, parcelDateTo);
+    }, [load, parcelDateFrom, parcelDateTo]);
+
     const chartsAligned =
         success &&
         Boolean(
@@ -383,7 +435,10 @@ export default function JtDashboardPage() {
             topProducts={success ? state.topProducts : []}
             customMetricDefinitions={success ? state.customMetricDefinitions : []}
             customMetrics={success ? state.customMetrics : []}
+            detailFields={success ? state.detailFields : DEFAULT_JT_SHIPMENT_DETAIL_FIELDS}
+            availableDetailFields={success ? state.availableDetailFields : DEFAULT_JT_SHIPMENT_DETAIL_FIELDS}
             onSaveCustomMetricCards={saveCustomMetricCards}
+            onSaveDetailFields={saveDetailFields}
             loading={loading}
             error={err}
             parcelDateFrom={parcelDateFrom}

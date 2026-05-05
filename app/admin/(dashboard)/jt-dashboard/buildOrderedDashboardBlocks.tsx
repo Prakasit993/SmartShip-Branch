@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { useCallback, useId, useMemo, useRef } from 'react';
 import { defaultUtcMonthRange, JT_CHART_WINDOW_OPTIONS, type JtChartPeriod } from './jtChartPeriod';
@@ -990,11 +989,7 @@ export function buildOrderedDashboardBlocks(ctx: JtOrderedBlocksInput): ReactNod
                     <div className="mb-5">
                         <h2 className="text-lg font-bold flex items-center gap-2 tracking-tight">🛒 แพลตฟอร์ม / ช่องทาง</h2>
                         <p className="text-xs text-zinc-500 mt-1.5 max-w-3xl leading-relaxed">
-                            ลำดับอ่านค่าแพลตฟอร์มตามค่าในระบบ (ค่าเริ่มต้น: platform → order_source) — แก้ข้อมูลที่{' '}
-                            <Link href="/admin/shipments" className="text-blue-400 hover:underline font-medium">
-                                J&T Shipments
-                            </Link>{' '}
-                            หรือ Import / n8n
+                            ลำดับอ่านค่าแพลตฟอร์มตามค่าในระบบ (ค่าเริ่มต้น: platform → order_source) — อัปเดตข้อมูลผ่าน Import / n8n
                         </p>
                     </div>
                     {!stats.platformCounts.length ? (
@@ -1087,12 +1082,9 @@ export function buildOrderedDashboardBlocks(ctx: JtOrderedBlocksInput): ReactNod
                 <div key="recent" className={`${panel} overflow-hidden`}>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-4 md:p-5 border-b border-zinc-800/90 bg-zinc-950/40">
                         <h2 className="text-lg font-bold tracking-tight">📋 รายการล่าสุด</h2>
-                        <Link
-                            href="/admin/shipments"
-                            className="text-sm font-semibold text-sky-400 hover:text-sky-300 transition shrink-0"
-                        >
-                            ดูทั้งหมด →
-                        </Link>
+                        <span className="text-sm font-semibold text-zinc-500 transition shrink-0">
+                            ล่าสุดจากฐานข้อมูล
+                        </span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm min-w-[520px]">

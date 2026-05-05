@@ -45,7 +45,6 @@ export async function updateSettings(formData: FormData) {
 
         revalidatePath('/admin/settings');
         revalidatePath('/admin/jt-dashboard');
-        revalidatePath('/admin/shipments');
         revalidatePath('/');
         revalidatePath('/contact');
 
