@@ -7,12 +7,14 @@ import type { JtDashboardMetrics, JtDashboardShipmentRow } from './jtDashboardTy
 export type { JtDashboardMetrics, JtDashboardShipmentRow } from './jtDashboardTypes';
 export const MOCK_METRICS: JtDashboardMetrics = {
     totalParcels: 1533,
+    closedCount: 1400,
     sumCod: 7812,
     avgShippingFee: 52.35,
     returnCount: 24,
     jmsCount: 612,
     // Business KPIs (P6) — ตัวเลขจำลองให้สอดคล้องกับ RPC `jt_dashboard_fixed_totals`
     sumTotalFeeJms: 11128.5,
+    sumTotalShippingFee: 15000.0,
     codPaidCount: 626,
     codPaidAmount: 138700.68,
     codPendingCount: 747,
