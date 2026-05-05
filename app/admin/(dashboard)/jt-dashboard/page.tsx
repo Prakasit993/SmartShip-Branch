@@ -380,6 +380,7 @@ export default function JtDashboardPage() {
             topProducts={success ? state.topProducts : []}
             customMetricDefinitions={success ? state.customMetricDefinitions : []}
             customMetrics={success ? state.customMetrics : []}
+            recentRows={success ? state.recent : []}
             onSaveCustomMetricCards={saveCustomMetricCards}
             loading={loading}
             error={err}
