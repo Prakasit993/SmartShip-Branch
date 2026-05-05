@@ -353,12 +353,15 @@ export async function GET(req: Request) {
         const needFixedTotalsFallback = rpcTotals === null;
 
         const metricAcc = createMetricAccumulators(customDefs);
-        const needAggregationLoop = needFixedTotalsFallback || customDefs.length > 0;
+        // Force loop to calculate total_shipping_fee since RPC doesn't have it for all rows
+        const needAggregationLoop = true; 
+
+        let sumTotalShippingFee = 0;
 
         if (needAggregationLoop) {
             const baseAggCols = needFixedTotalsFallback
-                ? ['shipping_fee', 'cod_amount', 'latest_scan_type']
-                : [];
+                ? ['shipping_fee', 'cod_amount', 'latest_scan_type', 'total_shipping_fee']
+                : ['total_shipping_fee'];
             const extraCols = unionColumnsForCustomMetrics(customDefs);
             const selectCols = [...new Set([...baseAggCols, ...extraCols])].join(',');
 
@@ -374,6 +377,10 @@ export async function GET(req: Request) {
                 const rows = data ?? [];
                 for (const row of rows) {
                     const r = row as unknown as Record<string, unknown>;
+                    
+                    // Always calculate sumTotalShippingFee
+                    sumTotalShippingFee += parseJtMoneyText(r.total_shipping_fee);
+
                     if (needFixedTotalsFallback) {
                         sumCod += parseJtMoneyText(r.cod_amount);
                         const fee = parseJtMoneyText(r.shipping_fee);
@@ -459,6 +466,7 @@ export async function GET(req: Request) {
             returnCount,
             jmsCount,
             sumTotalFeeJms,
+            sumTotalShippingFee,
             codPaidCount,
             codPaidAmount,
             codPendingCount,

@@ -446,56 +446,21 @@ export function JtDashboardView({
                                 iconRing="ring-emerald-500/25"
                                 iconFg="text-emerald-400"
                                 glowColor="bg-emerald-500/40"
-                                label="รายได้ค่าส่ง (JMS)"
-                                value={metrics.sumTotalFeeJms}
+                                label="รายรับ"
+                                value={metrics.sumTotalShippingFee ?? metrics.sumTotalFeeJms}
                                 prefix="฿"
                                 decimals={2}
                                 delta={
-                                    previousMetrics
+                                    previousMetrics && previousMetrics.sumTotalShippingFee !== undefined
                                         ? {
-                                              previous: previousMetrics.sumTotalFeeJms,
+                                              previous: previousMetrics.sumTotalShippingFee,
                                               previousRangeDays: previousMetrics.range.days,
                                           }
                                         : undefined
                                 }
-                                hint="total_shipping_fee เฉพาะ bucket=jms (เราเก็บเอง)"
+                                hint="ผลรวม total_shipping_fee"
                             />
 
-                            <AnimatedKpiCard
-                                index={3}
-                                icon={<Truck className="h-5 w-5" aria-hidden />}
-                                iconBg="bg-violet-500/15"
-                                iconRing="ring-violet-500/25"
-                                iconFg="text-violet-400"
-                                glowColor="bg-violet-500/40"
-                                label="ส่งโดย JMS"
-                                value={metrics.jmsCount}
-                                delta={
-                                    previousMetrics
-                                        ? {
-                                              previous: previousMetrics.jmsCount,
-                                              previousRangeDays: previousMetrics.range.days,
-                                          }
-                                        : undefined
-                                }
-                                hint={
-                                    metrics.totalParcels > 0 ? (
-                                        <span>
-                                            {metrics.jmsCount.toLocaleString('th-TH')} จาก{' '}
-                                            {metrics.totalParcels.toLocaleString('th-TH')} พัสดุ
-                                            {' · '}
-                                            {(
-                                                Math.round(
-                                                    (metrics.jmsCount / metrics.totalParcels) * 1000,
-                                                ) / 10
-                                            ).toLocaleString('th-TH')}
-                                            %
-                                        </span>
-                                    ) : (
-                                        <span>ช่องทาง = JMS (เราเก็บค่าส่งเอง)</span>
-                                    )
-                                }
-                            />
 
                             <AnimatedKpiCard
                                 index={4}

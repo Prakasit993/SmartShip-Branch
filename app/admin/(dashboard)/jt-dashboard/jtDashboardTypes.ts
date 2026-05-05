@@ -31,6 +31,7 @@ export type JtDashboardMetrics = {
      * double-parse text money columns. See `jt_dashboard_fixed_totals` in Supabase.
      */
     sumTotalFeeJms: number;        // รายได้ค่าส่งจาก JMS (bucket=jms → collects shipping fee)
+    sumTotalShippingFee: number;   // รายได้รวมทั้งหมด (จาก total_shipping_fee)
     codPaidCount: number;          // จำนวนเคสที่ cod_status = 'ชำระเงินแล้ว' และ cod_amount > 0
     codPaidAmount: number;
     codPendingCount: number;       // cod_amount > 0 แต่ cod_status != 'ชำระเงินแล้ว'
@@ -56,6 +57,7 @@ export type JtDashboardPreviousMetrics = {
     returnCount: number;
     jmsCount: number;
     sumTotalFeeJms: number;
+    sumTotalShippingFee?: number;
     codPaidCount: number;
     codPaidAmount: number;
     codPendingCount: number;
