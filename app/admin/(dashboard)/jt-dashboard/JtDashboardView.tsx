@@ -384,7 +384,7 @@ export function JtDashboardView({
                 </div>
 
                 {/* ── KPI Cards ── */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                     {loading ? (
                         <>
                             <SummaryCardSkeleton />
@@ -462,27 +462,6 @@ export function JtDashboardView({
                             />
 
 
-                            <AnimatedKpiCard
-                                index={4}
-                                icon={<RotateCcw className="h-5 w-5" aria-hidden />}
-                                iconBg="bg-rose-500/15"
-                                iconRing="ring-rose-500/25"
-                                iconFg="text-rose-400"
-                                glowColor="bg-rose-500/40"
-                                label="พัสดุตีกลับ"
-                                value={metrics.returnCount}
-                                delta={
-                                    previousMetrics
-                                        ? {
-                                              previous: previousMetrics.returnCount,
-                                              previousRangeDays: previousMetrics.range.days,
-                                              inverseGood: true,
-                                          }
-                                        : undefined
-                                }
-                                hint={'latest_scan_type มีคำว่า "ตีกลับ" หรือ Return'}
-                            />
-
                             {!mockMode ? (
                                 <JtDashboardCustomMetrics
                                     definitions={customMetricDefinitions}
@@ -510,7 +489,7 @@ export function JtDashboardView({
                                 (แยก JMS / Marketplace / Other อัตโนมัติ)
                             </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
                             <AnimatedKpiCard
                                 index={4}
                                 icon={<Banknote className="h-5 w-5" aria-hidden />}
@@ -621,6 +600,27 @@ export function JtDashboardView({
 
                             <AnimatedKpiCard
                                 index={8}
+                                icon={<RotateCcw className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-rose-500/15"
+                                iconRing="ring-rose-500/25"
+                                iconFg="text-rose-400"
+                                glowColor="bg-rose-500/40"
+                                label="พัสดุตีกลับ"
+                                value={metrics.returnCount}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.returnCount,
+                                              previousRangeDays: previousMetrics.range.days,
+                                              inverseGood: true,
+                                          }
+                                        : undefined
+                                }
+                                hint={'latest_scan_type มีคำว่า "ตีกลับ" หรือ Return'}
+                            />
+
+                            <AnimatedKpiCard
+                                index={9}
                                 icon={<AlertCircle className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-rose-500/15"
                                 iconRing="ring-rose-500/25"

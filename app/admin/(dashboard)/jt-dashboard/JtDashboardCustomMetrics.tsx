@@ -7,7 +7,6 @@ import {
     MapPin,
     Package,
     Pencil,
-    Plus,
     RotateCcw,
     Scale,
     Trash2,
@@ -18,7 +17,6 @@ import type { JtCustomMetricCardDefinition, JtCustomMetricIcon } from '@/lib/jtC
 import {
     JT_SHIPMENT_FILTER_COLUMNS,
     JT_SHIPMENT_VALUE_COLUMNS,
-    MAX_CUSTOM_METRIC_CARDS,
 } from '@/lib/jtCustomMetricCards';
 import {
     CUSTOM_METRIC_ICON_TH,
@@ -83,13 +81,6 @@ export function JtDashboardCustomMetrics({
     const [form, setForm] = useState(() => emptyForm());
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState<string | null>(null);
-
-    const openAdd = useCallback(() => {
-        if (definitions.length >= MAX_CUSTOM_METRIC_CARDS) return;
-        setForm(emptyForm());
-        setErr(null);
-        setModal({ open: true, mode: 'add' });
-    }, [definitions.length]);
 
     const openEdit = useCallback((id: string) => {
         const d = definitions.find((x) => x.id === id);
@@ -251,23 +242,6 @@ export function JtDashboardCustomMetrics({
                     </article>
                 );
             })}
-
-            {definitions.length < MAX_CUSTOM_METRIC_CARDS ? (
-                <button
-                    type="button"
-                    disabled={disabled || saving}
-                    onClick={openAdd}
-                    className="flex min-h-[11rem] flex-col items-center justify-center rounded-xl border border-dashed border-slate-600/90 bg-slate-950/40 p-5 text-center ring-1 ring-white/[0.04] transition hover:border-sky-500/45 hover:bg-slate-900/50 hover:ring-sky-500/20"
-                >
-                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800/90 text-sky-400 ring-1 ring-slate-700">
-                        <Plus className="h-7 w-7" strokeWidth={2} aria-hidden />
-                    </div>
-                    <span className="text-sm font-medium text-slate-300">เพิ่มการ์ดสรุป</span>
-                    <span className="mt-1 text-[11px] text-slate-500">
-                        ตั้งชื่อ · เลขคำนวณตามช่วงวันที่กรองด้านบน
-                    </span>
-                </button>
-            ) : null}
 
             {modal.open ? (
                 <div
