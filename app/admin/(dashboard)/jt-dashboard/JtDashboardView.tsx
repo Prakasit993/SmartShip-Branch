@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, CheckSquare, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
@@ -9,7 +9,6 @@ import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
 import type {
     JtDashboardMetrics,
     JtDashboardPreviousMetrics,
-    JtDashboardShipmentRow,
 } from './jtDashboardTypes';
 import { JtDashboardCustomMetrics } from './JtDashboardCustomMetrics';
 import { JtDashboardDailyCharts } from './JtDashboardDailyCharts';
@@ -45,7 +44,6 @@ export type JtDashboardViewProps = {
         display: string;
         format: string;
     }>;
-    recentRows: JtDashboardShipmentRow[];
     onSaveCustomMetricCards: (cards: JtCustomMetricCardDefinition[]) => Promise<void>;
     loading: boolean;
     error: string | null;
@@ -255,7 +253,6 @@ export function JtDashboardView({
     topProducts,
     customMetricDefinitions,
     customMetrics,
-    recentRows,
     onSaveCustomMetricCards,
     loading,
     error,
@@ -273,15 +270,6 @@ export function JtDashboardView({
     const [showAllReturns, setShowAllReturns] = useState(false);
     const [activeDrilldown, setActiveDrilldown] = useState<'exception' | 'return' | null>(null);
     const showContent = !loading && !error;
-    const returnRows = useMemo(
-        () =>
-            recentRows.filter((r) => {
-                const scan = (r.latest_scan_type ?? '').toLowerCase();
-                return scan.includes('ตีกลับ') || scan.includes('return');
-            }),
-        [recentRows],
-    );
-
     return (
         <div className="min-w-0 space-y-5 sm:space-y-6 lg:space-y-8">
             {/* Global animations */}
@@ -655,7 +643,7 @@ export function JtDashboardView({
                                           }
                                         : undefined
                                 }
-                                hint={'latest_scan_type มีคำว่า "ตีกลับ" หรือ Return'}
+                                hint={'อ้างอิงจาก return_type (ตัด EMPTY/NULL/-)'}
                                 onClick={() =>
                                     setActiveDrilldown((prev) => (prev === 'return' ? null : 'return'))
                                 }
@@ -700,6 +688,13 @@ export function JtDashboardView({
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                                     รายการเคสมีปัญหา ({metrics.topReturnTypeCases.length} รายการล่าสุด)
                                 </p>
+                                <div className="mt-2 grid grid-cols-[1.6rem_1fr_1fr_1.5fr_1fr] sm:grid-cols-[1.6rem_1.1fr_1.1fr_2fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                    <span>#</span>
+                                    <span>AWB Number</span>
+                                    <span>Sender Name</span>
+                                    <span>Exception Reason</span>
+                                    <span className="text-right">Issue Registered Time</span>
+                                </div>
                                 <div className="mt-2 space-y-1.5">
                                     {(showAllIssues ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map((r, idx) => (
                                         <div
@@ -736,42 +731,54 @@ export function JtDashboardView({
                         {activeDrilldown === 'return' ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    รายการพัสดุตีกลับ (อ้างอิง latest_scan_type)
+                                    รายการพัสดุตีกลับ (อ้างอิง return_type)
                                 </p>
-                                {returnRows.length > 0 ? (
+                                {metrics.topReturnTypeCases.length > 0 ? (
                                     <>
-                                        <div className="mt-2 space-y-1.5">
-                                            {(showAllReturns ? returnRows : returnRows.slice(0, 3)).map((r, idx) => (
+                                        <div className="mt-2 space-y-1.5 overflow-x-auto">
+                                            <div className="grid min-w-[920px] grid-cols-[1.2fr_1.1fr_1.4fr_1.2fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                                <span>AWB</span>
+                                                <span>Sender</span>
+                                                <span>Exception Reason</span>
+                                                <span>Return Branch</span>
+                                                <span className="text-right">Issue Time</span>
+                                            </div>
+                                            {(showAllReturns ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map((r, idx) => (
                                                 <div
-                                                    key={`${r.awb_number ?? 'awb'}-${idx}`}
-                                                    className="grid grid-cols-[1.6rem_1fr_1.2fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                    key={`${r.awb_number}-${idx}`}
+                                                    className="grid min-w-[920px] grid-cols-[1.2fr_1.1fr_1.4fr_1.2fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
                                                 >
-                                                    <span className="tabular-nums text-slate-500">{idx + 1}</span>
-                                                    <span className="min-w-0 truncate text-sky-300" title={r.awb_number ?? '-'}>
-                                                        {r.awb_number ?? '-'}
+                                                    <span className="min-w-0 truncate text-sky-300" title={r.awb_number}>
+                                                        {r.awb_number}
                                                     </span>
-                                                    <span className="min-w-0 truncate text-slate-300" title={r.latest_scan_type ?? '-'}>
-                                                        {r.latest_scan_type ?? '-'}
+                                                    <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
+                                                        {r.sender_name}
                                                     </span>
-                                                    <span className="min-w-0 truncate text-slate-400 text-right tabular-nums" title={r.booking_date ?? '-'}>
-                                                        {r.booking_date ?? '-'}
+                                                    <span className="min-w-0 truncate text-rose-200" title={r.exception_reason}>
+                                                        {r.exception_reason}
+                                                    </span>
+                                                    <span className="min-w-0 truncate text-slate-300" title={r.return_branch_name}>
+                                                        {r.return_branch_name}
+                                                    </span>
+                                                    <span className="min-w-0 truncate text-slate-400 text-right tabular-nums" title={r.issue_registered_time ?? '-'}>
+                                                        {r.issue_registered_time && r.issue_registered_time !== '-' ? r.issue_registered_time.slice(0, 16) : '-'}
                                                     </span>
                                                 </div>
                                             ))}
                                         </div>
-                                        {returnRows.length > 3 ? (
+                                        {metrics.topReturnTypeCases.length > 3 ? (
                                             <button
                                                 type="button"
                                                 onClick={() => setShowAllReturns(!showAllReturns)}
                                                 className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
                                             >
-                                                {showAllReturns ? 'ย่อเก็บ' : `ดูเพิ่มเติมอีก ${returnRows.length - 3} รายการ`}
+                                                {showAllReturns ? 'ย่อเก็บ' : `ดูเพิ่มเติมอีก ${metrics.topReturnTypeCases.length - 3} รายการ`}
                                             </button>
                                         ) : null}
                                     </>
                                 ) : (
                                     <p className="mt-2 text-xs text-slate-500">
-                                        ไม่พบรายการล่าสุดที่มี latest_scan_type เป็น “ตีกลับ” หรือ “Return”
+                                        ไม่พบรายการล่าสุดที่มีค่า return_type ที่ใช้งานได้
                                     </p>
                                 )}
                             </div>

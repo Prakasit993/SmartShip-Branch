@@ -92,6 +92,32 @@ function hasMeaningfulReturnType(raw: unknown): boolean {
     return upper !== 'EMPTY' && upper !== 'NULL' && upper !== '-';
 }
 
+async function aggregateReturnTypeCount(
+    dateFrom: string,
+    dateTo: string,
+): Promise<number> {
+    let offset = 0;
+    let returnCount = 0;
+
+    for (;;) {
+        let q = supabaseAdmin.from('jt_shipments').select('return_type');
+        q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
+        const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
+        if (error) {
+            console.error('[jt-shipments/dashboard] aggregateReturnTypeCount', error);
+            throw new Error(error.message);
+        }
+        const rows = (data || []) as Array<{ return_type: string | null }>;
+        for (const row of rows) {
+            if (hasMeaningfulReturnType(row.return_type)) returnCount += 1;
+        }
+        if (rows.length < AGG_PAGE) break;
+        offset += AGG_PAGE;
+    }
+
+    return returnCount;
+}
+
 async function aggregateReturnTypeCases(
     dateFrom: string,
     dateTo: string,
@@ -102,6 +128,7 @@ async function aggregateReturnTypeCases(
         awb_number: string;
         sender_name: string;
         exception_reason: string;
+        return_branch_name: string;
         issue_registered_time: string;
     }>;
 }> {
@@ -111,13 +138,14 @@ async function aggregateReturnTypeCases(
         awb_number: string;
         sender_name: string;
         exception_reason: string;
+        return_branch_name: string;
         issue_registered_time: string;
     }> = [];
 
     for (;;) {
         let q = supabaseAdmin
             .from('jt_shipments')
-            .select('awb_number,sender_name,exception_reason,issue_registered_time,booking_date,signer_name')
+            .select('awb_number,sender_name,exception_reason,return_branch_name,issue_registered_time,booking_date,return_type')
             .order('booking_date', { ascending: false, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
@@ -129,18 +157,19 @@ async function aggregateReturnTypeCases(
             awb_number: string | null;
             sender_name: string | null;
             exception_reason: string | null;
+            return_branch_name: string | null;
             issue_registered_time: string | null;
-            signer_name: string | null;
+            return_type: string | null;
         }>;
         for (const row of rows) {
-            if (!hasMeaningfulReturnType(row.issue_registered_time)) continue;
-            if (hasMeaningfulReturnType(row.signer_name)) continue; // ข้ามเคสที่ปิดงานแล้ว (มี signer_name)
+            if (!hasMeaningfulReturnType(row.return_type)) continue;
             returnTypeCaseCount += 1;
             if (topReturnTypeCases.length < topN) {
                 topReturnTypeCases.push({
                     awb_number: String(row.awb_number ?? '-').trim() || '-',
                     sender_name: String(row.sender_name ?? '-').trim() || '-',
                     exception_reason: String(row.exception_reason ?? '-').trim() || '-',
+                    return_branch_name: String(row.return_branch_name ?? '-').trim() || '-',
                     issue_registered_time: String(row.issue_registered_time ?? '-').trim() || '-',
                 });
             }
@@ -272,7 +301,7 @@ export async function GET(req: Request) {
 
         let recentQ = supabaseAdmin
             .from('jt_shipments')
-            .select('awb_number, booking_date, receiver_name, receiver_phone, shipping_fee, cod_amount, latest_scan_type');
+            .select('awb_number, booking_date, sender_name, receiver_name, receiver_phone, shipping_fee, cod_amount, latest_scan_type, return_type, exception_reason, return_branch_name, issue_registered_time');
         recentQ = applyBookingDateRangeFilters(recentQ, dateFrom, dateTo);
 
         // Delta comparison: compute previous period of equal length only when both dates are set.
@@ -297,6 +326,8 @@ export async function GET(req: Request) {
             previousExceptionStats,
             returnTypeCases,
             previousReturnTypeCases,
+            returnTypeCount,
+            previousReturnTypeCount,
         ] = await Promise.all([
             supabaseAdmin
                 .from('settings')
@@ -320,6 +351,8 @@ export async function GET(req: Request) {
             prevRange
                 ? aggregateReturnTypeCases(prevRange.from, prevRange.to, 100)
                 : Promise.resolve({ returnTypeCaseCount: 0, topReturnTypeCases: [] }),
+            aggregateReturnTypeCount(dateFrom, dateTo),
+            prevRange ? aggregateReturnTypeCount(prevRange.from, prevRange.to) : Promise.resolve(0),
         ]);
 
         const { count, error: cErr } = countResult;
@@ -348,7 +381,7 @@ export async function GET(req: Request) {
         let sumCod = rpcTotals?.sumCod ?? 0;
         let sumFeePositive = rpcTotals?.sumFeePositive ?? 0;
         let countFeePositive = rpcTotals?.countFeePositive ?? 0;
-        let returnCount = rpcTotals?.returnCount ?? 0;
+        let returnCount = returnTypeCount;
         const needFixedTotalsFallback = rpcTotals === null;
 
         const metricAcc = createMetricAccumulators(customDefs);
@@ -386,10 +419,6 @@ export async function GET(req: Request) {
                         if (fee > 0) {
                             sumFeePositive += fee;
                             countFeePositive += 1;
-                        }
-                        const scan = String(r.latest_scan_type ?? '');
-                        if (scan.includes('ตีกลับ') || /return/i.test(scan)) {
-                            returnCount += 1;
                         }
                     }
                     feedCustomMetricRow(metricAcc, r, customDefs);
@@ -433,7 +462,7 @@ export async function GET(req: Request) {
                                         100,
                                 ) / 100
                               : 0,
-                      returnCount: previousTotals.returnCount,
+                      returnCount: previousReturnTypeCount,
                       jmsCount: previousJmsCount,
                       sumTotalFeeJms: previousTotals.sumTotalFeeJms,
                       codPaidCount: previousTotals.codPaidCount,

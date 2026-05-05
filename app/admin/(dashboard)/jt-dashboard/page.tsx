@@ -125,6 +125,7 @@ export default function JtDashboardPage() {
                     awb_number: string;
                     sender_name: string;
                     exception_reason: string;
+                    return_branch_name: string;
                     issue_registered_time?: string;
                 }>;
                 codCollectionRate?: number;
@@ -264,12 +265,14 @@ export default function JtDashboardPage() {
                                       awb_number: string;
                                       sender_name: string;
                                       exception_reason: string;
+                                      return_branch_name: string;
                                       issue_registered_time?: string;
                                   } =>
                                       r != null &&
                                       typeof r.awb_number === 'string' &&
                                       typeof r.sender_name === 'string' &&
-                                      typeof r.exception_reason === 'string',
+                                      typeof r.exception_reason === 'string' &&
+                                      typeof r.return_branch_name === 'string',
                               )
                               .slice(0, 100)
                         : [],
@@ -380,7 +383,6 @@ export default function JtDashboardPage() {
             topProducts={success ? state.topProducts : []}
             customMetricDefinitions={success ? state.customMetricDefinitions : []}
             customMetrics={success ? state.customMetrics : []}
-            recentRows={success ? state.recent : []}
             onSaveCustomMetricCards={saveCustomMetricCards}
             loading={loading}
             error={err}

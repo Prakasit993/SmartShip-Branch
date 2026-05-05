@@ -7,11 +7,11 @@
  * | ช่วงวันที่ | booking_date | text |
  * | ยอด COD รวม | cod_amount | text → parse เป็นเลข |
  * | ค่าส่งเฉลี่ย | shipping_fee | text → เฉพาะค่า parse แล้ว > 0 |
- * | พัสดุตีกลับ | latest_scan_type | text (คีย์เวิร์ด ตีกลับ / Return) |
- * | ตารางล่าสุด | awb_number, booking_date, receiver_name, receiver_phone, shipping_fee, cod_amount, latest_scan_type | text |
+ * | พัสดุตีกลับ | return_type | text (ตัด EMPTY/NULL/- และค่าว่าง) |
+ * | ตารางล่าสุด | awb_number, booking_date, receiver_name, receiver_phone, shipping_fee, cod_amount, latest_scan_type, return_type | text |
  *
  * หมายเหตุ: PostgREST อาจส่งค่าเงินเป็น string หรือ number — UI ใช้ `moneyOrZero()` รองรับทั้งคู่
- * คอลัมน์อื่นใน schema (เช่น return_type, platform จาก migration) แดชบอร์ดชุดนี้ยังไม่ใช้
+ * หมายเหตุ: บางกล่องยังอ้าง latest_scan_type เพื่อคำอธิบายสถานะล่าสุด
  */
 
 export type JtDashboardMetrics = {
@@ -43,6 +43,7 @@ export type JtDashboardMetrics = {
         awb_number: string;
         sender_name: string;
         exception_reason: string;
+        return_branch_name: string;
         issue_registered_time?: string;
     }>;
     codCollectionRate: number;     // paid / (paid + pending) × 100  (percent, 2 dp)
@@ -70,9 +71,14 @@ export type JtDashboardPreviousMetrics = {
 export type JtDashboardShipmentRow = {
     awb_number: string | null;
     booking_date: string | null;
+    sender_name: string | null;
     receiver_name: string | null;
     receiver_phone: string | null;
     shipping_fee: string | number | null;
     cod_amount: string | number | null;
     latest_scan_type: string | null;
+    return_type: string | null;
+    exception_reason: string | null;
+    return_branch_name: string | null;
+    issue_registered_time: string | null;
 };
