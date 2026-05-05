@@ -285,6 +285,10 @@ export function JtDashboardView({
     const [savingDetailFields, setSavingDetailFields] = useState(false);
     const [detailFieldsErr, setDetailFieldsErr] = useState<string | null>(null);
     const [showFieldChooser, setShowFieldChooser] = useState(false);
+    const [chatInput, setChatInput] = useState('');
+    const [chatLoading, setChatLoading] = useState(false);
+    const [chatError, setChatError] = useState<string | null>(null);
+    const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
     const showContent = !loading && !error;
     const fieldLabelMap = new Map(
         availableDetailFields.map((key) => [
@@ -362,6 +366,46 @@ export function JtDashboardView({
         }
         setEditableDetailFields([...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS]);
     }
+
+    async function submitAiChat() {
+        const text = chatInput.trim();
+        if (!text || chatLoading) return;
+        setChatLoading(true);
+        setChatError(null);
+        setChatInput('');
+        setChatMessages((prev) => [...prev, { role: 'user', text }]);
+        try {
+            const res = await fetch('/api/admin/ai-chat', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({
+                    message: text,
+                    context: {
+                        appliedRange,
+                        metrics,
+                        topReturnTypeCases: metrics.topReturnTypeCases.slice(0, 10),
+                    },
+                }),
+            });
+            const raw = await res.text();
+            let parsed: { answer?: string; error?: string } = {};
+            try {
+                parsed = JSON.parse(raw) as { answer?: string; error?: string };
+            } catch {
+                parsed = {};
+            }
+            if (!res.ok) {
+                throw new Error(parsed.error || 'ส่งคำถามไม่สำเร็จ');
+            }
+            setChatMessages((prev) => [...prev, { role: 'assistant', text: parsed.answer ?? '-' }]);
+        } catch (e) {
+            setChatError(e instanceof Error ? e.message : 'ส่งคำถามไม่สำเร็จ');
+        } finally {
+            setChatLoading(false);
+        }
+    }
+
     return (
         <div className="min-w-0 space-y-5 sm:space-y-6 lg:space-y-8">
             {/* Global animations */}
@@ -405,6 +449,74 @@ export function JtDashboardView({
                         <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
                             Mock UI
                         </span>
+                    ) : null
+                }
+                actions={
+                    !mockMode ? (
+                        <section className="w-full rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-950/90 via-slate-950/75 to-slate-900/80 p-3 shadow-xl shadow-black/20 ring-1 ring-white/[0.04] sm:w-[500px]">
+                            <div className="mb-2 flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-white">AI Assistant (ผ่าน n8n)</h3>
+                                    <p className="text-[11px] text-slate-400">ถามสรุปตัวเลขหรือแนวโน้มจากข้อมูลหน้า dashboard</p>
+                                </div>
+                                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                                    Beta
+                                </span>
+                            </div>
+                            <div className="mb-2 max-h-28 space-y-1.5 overflow-y-auto rounded-xl border border-slate-800/90 bg-slate-950/80 p-2">
+                                {chatMessages.length === 0 ? (
+                                    <p className="text-xs text-slate-500">
+                                        ลองถาม: "สรุป KPI วันนี้" หรือ "สาเหตุ return_type สูงขึ้นคืออะไร?"
+                                    </p>
+                                ) : (
+                                    chatMessages.slice(-4).map((m, idx) => (
+                                        <div
+                                            key={`${m.role}-${idx}`}
+                                            className={`rounded-lg px-2.5 py-1.5 text-xs leading-relaxed ${
+                                                m.role === 'user'
+                                                    ? 'ml-6 border border-sky-500/30 bg-sky-500/15 text-sky-100'
+                                                    : 'mr-6 border border-slate-700 bg-slate-900/90 text-slate-200'
+                                            }`}
+                                        >
+                                            {m.text}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            void submitAiChat();
+                                        }
+                                    }}
+                                    placeholder="พิมพ์คำถาม..."
+                                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-sky-500/30 focus:border-sky-500/50 focus:ring-2"
+                                />
+                                <button
+                                    type="button"
+                                    disabled={chatLoading || !chatInput.trim()}
+                                    onClick={() => void submitAiChat()}
+                                    className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-sky-900/30 hover:bg-sky-500 disabled:opacity-50"
+                                >
+                                    {chatLoading ? 'กำลังส่ง...' : 'ส่ง'}
+                                </button>
+                            </div>
+                            {chatError ? (
+                                <div className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-2">
+                                    <p className="text-xs text-rose-300">{chatError}</p>
+                                    {chatError.includes('N8N_AI_WEBHOOK_URL') ? (
+                                        <p className="mt-1 text-[11px] text-rose-200/90">
+                                            กรุณาเพิ่ม `N8N_AI_WEBHOOK_URL` ใน `.env.local` แล้วรีสตาร์ทเซิร์ฟเวอร์
+                                        </p>
+                                    ) : null}
+                                </div>
+                            ) : null}
+                        </section>
                     ) : null
                 }
             />
