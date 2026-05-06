@@ -138,6 +138,7 @@ function AnimatedKpiCard({
     delta,
     onClick,
     isActive,
+    className,
 }: {
     icon: React.ReactNode;
     iconBg: string;
@@ -154,6 +155,8 @@ function AnimatedKpiCard({
     delta?: { previous: number; previousRangeDays: number; inverseGood?: boolean };
     onClick?: () => void;
     isActive?: boolean;
+    /** เช่น `h-full` เมื่ออยู่ในกริดที่ต้องการความสูงเท่ากัน */
+    className?: string;
 }) {
     const animated = useAnimatedCounter(value, { duration: 900, decimals: decimals ?? 0 });
     const formatted = (decimals ?? 0) > 0
@@ -162,7 +165,7 @@ function AnimatedKpiCard({
 
     return (
         <article
-            className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-900/60 via-slate-900/50 to-slate-950/80 p-4 sm:p-5 shadow-lg shadow-black/20 ring-1 backdrop-blur-sm transition-all duration-300 ${
+            className={`group relative flex min-h-0 flex-col overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-900/60 via-slate-900/50 to-slate-950/80 p-4 sm:p-5 shadow-lg shadow-black/20 ring-1 backdrop-blur-sm transition-all duration-300 ${
                 onClick
                     ? `cursor-pointer ${
                           isActive
@@ -170,7 +173,7 @@ function AnimatedKpiCard({
                               : 'border-slate-800/80 ring-white/[0.06] hover:border-slate-600/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5'
                       }`
                     : 'border-slate-800/80 ring-white/[0.06] hover:border-slate-600/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5'
-            }`}
+            }${className ? ` ${className}` : ''}`}
             style={{
                 animation: `fadeSlideIn 0.5s ease-out ${index * 80}ms both`,
             }}
@@ -215,7 +218,7 @@ function AnimatedKpiCard({
                 />
             ) : null}
             {hint ? (
-                <div className="mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] leading-snug text-slate-500">
+                <div className="mt-auto pt-1.5 text-[10px] sm:pt-2 sm:text-[11px] leading-snug text-slate-500">
                     {hint}
                 </div>
             ) : null}
@@ -290,6 +293,7 @@ export function JtDashboardView({
     const [savingDetailFields, setSavingDetailFields] = useState(false);
     const [detailFieldsErr, setDetailFieldsErr] = useState<string | null>(null);
     const [showFieldChooser, setShowFieldChooser] = useState(false);
+    const [awbQuickSearch, setAwbQuickSearch] = useState('');
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
     const [chatError, setChatError] = useState<string | null>(null);
@@ -442,11 +446,11 @@ export function JtDashboardView({
             `}</style>
 
             <AdminPageHeader
-                title="แดชบอร์ด J&T"
+                title="Dashboard"
                 description={
                     mockMode
                         ? 'สรุปข้อมูลจากตาราง jt_shipments — โหมดตัวอย่าง UI (Mock data · Step 1)'
-                        : 'สรุปข้อมูลจากตาราง jt_shipments — โหลดแบบเรียลไทม์จาก Supabase'
+                        : 'ข้อมูลสรุปจาก Report - JMS'
                 }
                 tone="dark"
                 meta={
@@ -744,6 +748,7 @@ export function JtDashboardView({
                                 (แยก JMS / Marketplace / Other อัตโนมัติ)
                             </span>
                         </div>
+                        <div className="space-y-3 sm:space-y-4">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
                             <AnimatedKpiCard
                                 index={4}
@@ -852,9 +857,12 @@ export function JtDashboardView({
                                     </span>
                                 }
                             />
+                        </div>
 
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:items-stretch">
                             <AnimatedKpiCard
                                 index={8}
+                                className="h-full"
                                 icon={<RotateCcw className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-rose-500/15"
                                 iconRing="ring-rose-500/25"
@@ -880,12 +888,13 @@ export function JtDashboardView({
 
                             <AnimatedKpiCard
                                 index={9}
+                                className="h-full"
                                 icon={<AlertCircle className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-rose-500/15"
                                 iconRing="ring-rose-500/25"
                                 iconFg="text-rose-300"
                                 glowColor="bg-rose-500/40"
-                                label="เคสมีปัญหา (issue_registered_time)"
+                                label="เคสมีปัญหา"
                                 value={metrics.exceptionCount}
                                 delta={
                                     previousMetrics
@@ -910,6 +919,57 @@ export function JtDashboardView({
                                 }
                                 isActive={activeDrilldown === 'exception'}
                             />
+
+                            <article
+                                className="group relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 via-slate-900/50 to-slate-950/80 p-4 sm:p-5 shadow-lg shadow-black/20 ring-1 ring-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:border-slate-600/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5"
+                                style={{ animation: `fadeSlideIn 0.5s ease-out ${10 * 80}ms both` }}
+                            >
+                                <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-cyan-500/40 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100" />
+                                <div className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-cyan-500/40 opacity-20 blur-2xl" />
+
+                                <div className="relative mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/25 transition-transform duration-300 group-hover:scale-110 sm:mb-4 sm:h-11 sm:w-11">
+                                    <Search className="h-5 w-5" aria-hidden />
+                                </div>
+                                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                    ค้นหาเลขพัสดุ AWB
+                                </p>
+
+                                <form
+                                    className="mt-1.5 flex min-w-0 flex-1 flex-col gap-2 sm:mt-2"
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        void openShipmentDetail(awbQuickSearch);
+                                    }}
+                                >
+                                    <label htmlFor="jt-awb-quick-search" className="sr-only">
+                                        เลขพัสดุ AWB
+                                    </label>
+                                    <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+                                        <input
+                                            id="jt-awb-quick-search"
+                                            type="text"
+                                            value={awbQuickSearch}
+                                            onChange={(e) => setAwbQuickSearch(e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            placeholder="พิมพ์เลข AWB..."
+                                            autoComplete="off"
+                                            className="h-11 min-h-0 w-full min-w-0 flex-1 rounded-xl border border-slate-700/90 bg-slate-950/85 px-3 text-sm tabular-nums text-white shadow-inner outline-none ring-cyan-500/25 placeholder:text-slate-600 focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/25 sm:h-10"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={!awbQuickSearch.trim()}
+                                            className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-cyan-600 px-3.5 text-sm font-semibold text-white shadow-md shadow-cyan-950/30 ring-1 ring-cyan-500/30 transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-45 sm:h-10 sm:px-4"
+                                        >
+                                            <Search className="h-4 w-4 opacity-90" aria-hidden />
+                                            ค้นหา
+                                        </button>
+                                    </div>
+                                </form>
+                                <p className="mt-auto pt-2 text-[10px] leading-snug text-slate-500 sm:text-[11px]">
+                                    Enter / ปุ่ม · เปิดรายละเอียดจาก API
+                                </p>
+                            </article>
+                        </div>
                         </div>
                         {activeDrilldown === 'exception' && metrics.topReturnTypeCases.length > 0 ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
