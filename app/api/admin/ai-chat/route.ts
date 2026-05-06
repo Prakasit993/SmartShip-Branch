@@ -43,11 +43,16 @@ export async function POST(req: Request) {
         }
 
         if (!upstream.ok) {
+            const fallback = `n8n webhook failed: HTTP ${upstream.status}`;
+            const hint404 =
+                upstream.status === 404
+                    ? ' ตรวจสอบ N8N_AI_WEBHOOK_URL ให้ตรงกับ Production URL ใน Webhook node (คัดลอกจาก n8n) และให้ workflow เปิดใช้งาน (Active) แล้ว'
+                    : '';
             return NextResponse.json(
                 {
                     error:
                         (parsed as { error?: string } | null)?.error ||
-                        `n8n webhook failed: HTTP ${upstream.status}`,
+                        fallback + hint404,
                 },
                 { status: 502 },
             );

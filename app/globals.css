@@ -41,3 +41,14 @@ body {
 .animate-shimmer {
   animation: shimmer 3s ease-in-out infinite;
 }
+
+/* ซ่อนแถบเลื่อนแต่ยังเลื่อนได้ด้วยล้อเมาส์ / ทัช / คีย์บอร์ด */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

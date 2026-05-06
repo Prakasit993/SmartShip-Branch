@@ -41,9 +41,10 @@ export function AdminPageHeader({
 
     return (
         <div
-            className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 ${className}`}
+            className={`flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-start lg:gap-6 xl:gap-8 ${className}`}
         >
-            <div className="min-w-0 flex-1">
+            {/* ไม่ใช้ flex-1 + justify-between — ลดช่องว่างกลางจอเมื่อมี actions ด้านขวา */}
+            <div className="min-w-0 w-full lg:max-w-2xl xl:max-w-3xl">
                 <h1
                     className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight ${titleTone} flex flex-wrap items-center gap-2 sm:gap-3 break-words`}
                 >
@@ -66,7 +67,7 @@ export function AdminPageHeader({
                 ) : null}
             </div>
             {actions ? (
-                <div className="flex flex-wrap items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto justify-stretch sm:justify-end">
+                <div className="flex w-full shrink-0 flex-wrap items-stretch justify-start gap-2 lg:w-auto lg:max-w-xl xl:max-w-2xl 2xl:max-w-3xl [&>*]:min-w-0">
                     {actions}
                 </div>
             ) : null}
