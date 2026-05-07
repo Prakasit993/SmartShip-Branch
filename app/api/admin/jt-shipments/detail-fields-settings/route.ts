@@ -6,6 +6,7 @@ import {
     parseJtShipmentDetailFieldsFromSettingsValue,
     sanitizeJtShipmentDetailFieldsWithAllowed,
 } from '@/lib/jtShipmentDetailFields';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 type RpcColumnRow = { column_name: string };
 
@@ -22,6 +23,9 @@ async function loadAvailableFields(): Promise<string[]> {
 
 export async function GET() {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff');
+        if (denied) return denied;
+
         const availableFields = await loadAvailableFields();
         const { data, error } = await supabaseAdmin
             .from('settings')
@@ -43,6 +47,9 @@ export async function GET() {
 
 export async function PUT(req: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        if (denied) return denied;
+
         const availableFields = await loadAvailableFields();
         const body = (await req.json()) as { fields?: unknown };
         const fields = sanitizeJtShipmentDetailFieldsWithAllowed(body.fields, availableFields);

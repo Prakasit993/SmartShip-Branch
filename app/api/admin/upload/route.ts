@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+
+const PRODUCT_IMAGE_PREFIX = 'products/';
+const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
+const EXTENSION_BY_MIME: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+};
+
+function isSafeProductImagePath(fileName: unknown): fileName is string {
+    if (typeof fileName !== 'string') return false;
+    if (!fileName.startsWith(PRODUCT_IMAGE_PREFIX)) return false;
+    if (fileName.includes('..') || fileName.includes('\\')) return false;
+    return /^products\/[a-zA-Z0-9._-]+$/.test(fileName);
+}
 
 export async function POST(request: NextRequest) {
     try {
+        const denied = await requireAdminApiAuth('admin-only', request);
+        if (denied) return denied;
+
         const formData = await request.formData();
         const file = formData.get('file') as File;
 
@@ -10,27 +31,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'ไม่พบไฟล์' }, { status: 400 });
         }
 
-        // Validate file type
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-        if (!allowedTypes.includes(file.type)) {
+        const extension = EXTENSION_BY_MIME[file.type];
+        if (!extension) {
             return NextResponse.json({
                 error: 'ประเภทไฟล์ไม่รองรับ กรุณาใช้ JPG, PNG, WebP หรือ GIF'
             }, { status: 400 });
         }
 
-        // Validate file size (max 5MB)
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        if (file.size > maxSize) {
+        if (file.size > MAX_UPLOAD_SIZE) {
             return NextResponse.json({
                 error: 'ไฟล์ใหญ่เกินไป (สูงสุด 5MB)'
             }, { status: 400 });
         }
 
-        // Generate unique filename
         const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substring(2, 8);
-        const extension = file.name.split('.').pop() || 'jpg';
-        const fileName = `products/${timestamp}-${randomId}.${extension}`;
+        const randomId = crypto.randomUUID();
+        const fileName = `${PRODUCT_IMAGE_PREFIX}${timestamp}-${randomId}.${extension}`;
 
         // Convert file to buffer
         const arrayBuffer = await file.arrayBuffer();
@@ -73,9 +89,12 @@ export async function POST(request: NextRequest) {
 // Delete image
 export async function DELETE(request: NextRequest) {
     try {
+        const denied = await requireAdminApiAuth('admin-only', request);
+        if (denied) return denied;
+
         const { fileName } = await request.json();
 
-        if (!fileName) {
+        if (!isSafeProductImagePath(fileName)) {
             return NextResponse.json({ error: 'ไม่พบชื่อไฟล์' }, { status: 400 });
         }
 

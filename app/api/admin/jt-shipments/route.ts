@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { parseJtChannelPriorityFromSettingValue } from '@/lib/jtChannelSettings';
 import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 // GET: list with pagination + search | count_only + date range
 export async function GET(req: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff');
+        if (denied) return denied;
+
         const { searchParams } = new URL(req.url);
         const countOnly =
             searchParams.get('count_only') === 'true' || searchParams.get('count_only') === '1';
@@ -85,6 +89,9 @@ export async function GET(req: Request) {
 // POST: create single shipment
 export async function POST(req: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        if (denied) return denied;
+
         const body = await req.json();
         const { awb_number, booking_date, sender_name, sender_phone, receiver_name, receiver_phone, shipping_fee, platform } = body;
 
@@ -117,6 +124,9 @@ export async function POST(req: Request) {
 // PUT: update shipment by id
 export async function PUT(req: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        if (denied) return denied;
+
         const body = await req.json();
         const { id, awb_number, booking_date, sender_name, sender_phone, receiver_name, receiver_phone, shipping_fee, platform } = body;
 
@@ -148,6 +158,9 @@ export async function PUT(req: Request) {
 // DELETE: delete shipment by id or all
 export async function DELETE(req: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        if (denied) return denied;
+
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
         const deleteAll = searchParams.get('delete_all') === 'true';

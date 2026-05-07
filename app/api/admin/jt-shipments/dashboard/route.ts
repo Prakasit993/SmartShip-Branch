@@ -9,6 +9,7 @@ import {
 import { JT_CUSTOM_METRIC_SETTINGS_KEY, parseJtCustomMetricCardsFromSettingsValue } from '@/lib/jtCustomMetricCards';
 import { parseJtMoneyText } from '@/lib/jtMoneyText';
 import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 /**
  * Page size for aggregation loop — MUST be ≤ Supabase PostgREST max-rows (default 1000).
@@ -285,6 +286,9 @@ function formatMetricDisplay(raw: number, format: 'count' | 'thb'): string {
 export async function GET(req: Request) {
     const t0 = performance.now();
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff');
+        if (denied) return denied;
+
         const { searchParams } = new URL(req.url);
         const dateFrom = searchParams.get('date_from') || '';
         const dateTo = searchParams.get('date_to') || '';

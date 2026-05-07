@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdminApiAuth, verifyN8nJtSyncSecret } from '@/lib/adminApiAuth';
 
 /**
  * POST /api/admin/jt-shipments/n8n-sync
@@ -10,9 +11,21 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
  * Body ที่ n8n ส่งมาได้ 2 รูปแบบ:
  *   1. { rows: [...] }         ← กำหนด field name ใน n8n เอง
  *   2. [...] (array โดยตรง)   ← ถ้าส่ง body เป็น array
+ *
+ * Auth: ตั้ง N8N_JT_SYNC_SECRET แล้วส่ง Bearer หรือ X-N8N-JT-Sync-Secret
+ *       ถ้ายังไม่ตั้ง secret จะยอมรับเฉพาะ session admin/staff (ไม่แนะนำสำหรับ production)
  */
 export async function POST(req: Request) {
     try {
+        if (process.env.N8N_JT_SYNC_SECRET?.trim()) {
+            if (!verifyN8nJtSyncSecret(req)) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
+        } else {
+            const denied = await requireAdminApiAuth('admin-or-staff', req);
+            if (denied) return denied;
+        }
+
         const body = await req.json();
 
         // Support both { rows: [...] } and [...] directly

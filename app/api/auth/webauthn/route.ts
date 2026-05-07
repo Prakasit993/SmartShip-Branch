@@ -7,6 +7,7 @@ import {
     verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import { buildAdminCookieOptions, getAdminSessionMaxAgeSec, issueAdminSessionToken } from '@app/lib/adminSession';
 
 // WebAuthn configuration
 const rpName = 'SmartShip Admin';
@@ -175,22 +176,13 @@ export async function POST(request: Request) {
                 // Clear challenge
                 challengeStore.delete(adminEmail);
 
-                // Set admin session cookie
+                const maxAgeSec = getAdminSessionMaxAgeSec();
+                const sessionToken = await issueAdminSessionToken(maxAgeSec);
+                const cookieOpts = buildAdminCookieOptions(maxAgeSec);
+
                 const cookieStore = await cookies();
-                cookieStore.set('admin_session', 'admin', {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'strict',
-                    maxAge: 60 * 60,
-                    path: '/',
-                });
-                cookieStore.set('admin_role', 'admin', {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'strict',
-                    maxAge: 60 * 60,
-                    path: '/',
-                });
+                cookieStore.set('admin_session', sessionToken, cookieOpts);
+                cookieStore.set('admin_role', 'admin', cookieOpts);
 
                 // Log the login
                 const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';

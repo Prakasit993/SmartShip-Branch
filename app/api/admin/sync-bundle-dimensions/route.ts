@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 // POST /api/admin/sync-bundle-dimensions
 // Syncs dimensions from the first product in each bundle
 export async function POST(req: NextRequest) {
     try {
+        const denied = await requireAdminApiAuth('admin-only', req);
+        if (denied) return denied;
+
         // First, get all bundles that have items but missing dimensions
         const { data: bundles, error: bundlesError } = await supabaseAdmin
             .from('bundles')

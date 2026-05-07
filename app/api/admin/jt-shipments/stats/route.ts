@@ -16,6 +16,7 @@ import {
     nextUtcCalendarDayYmd,
     utcDayKeyFromIso,
 } from '@/lib/utcDayKey';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 type ChartAxisMode = 'rolling' | 'month' | 'range';
 
@@ -478,6 +479,9 @@ function resolveChartAxis(
 
 export async function GET(request: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff');
+        if (denied) return denied;
+
         const { searchParams } = new URL(request.url);
 
         const [{ data: latestRow }, settingsRes] = await Promise.all([

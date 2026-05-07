@@ -72,6 +72,16 @@ export function clearAttempts(ip: string): void {
     loginAttempts.delete(ip);
 }
 
+/** Remaining failed attempts before lockout (after any just-recorded failure). */
+export function getRemainingAttempts(ip: string): number {
+    const now = Date.now();
+    const attempt = loginAttempts.get(ip);
+    if (!attempt) return MAX_ATTEMPTS;
+    if (attempt.lockedUntil && now < attempt.lockedUntil) return 0;
+    if (now - attempt.firstAttempt > WINDOW_MS) return MAX_ATTEMPTS;
+    return Math.max(0, MAX_ATTEMPTS - attempt.count);
+}
+
 // Cleanup old entries periodically (every 30 minutes)
 setInterval(() => {
     const now = Date.now();

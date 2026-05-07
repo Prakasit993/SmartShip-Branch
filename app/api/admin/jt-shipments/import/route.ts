@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { isAdminApiRequest } from '@/lib/adminApiAuth';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 type RpcRow = { column_name: string; data_type: string };
 
@@ -75,9 +75,8 @@ async function loadColumnMeta(): Promise<RpcRow[]> {
 
 export async function POST(req: Request) {
     try {
-        if (!(await isAdminApiRequest())) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        if (denied) return denied;
 
         const body = await req.json();
         const { rows } = body as { rows: Record<string, string>[] };

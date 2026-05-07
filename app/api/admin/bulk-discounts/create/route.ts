@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 export async function POST(req: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-only', req);
+        if (denied) return denied;
+
         const body = await req.json();
 
         const {

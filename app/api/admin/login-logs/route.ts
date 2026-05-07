@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+    const denied = await requireAdminApiAuth('admin-only');
+    if (denied) return denied;
+
     const { data: logs } = await supabaseAdmin
         .from('admin_login_logs')
         .select('*')

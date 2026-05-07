@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 export async function GET(req: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-or-staff');
+        if (denied) return denied;
+
         const { searchParams } = new URL(req.url);
         const awb = (searchParams.get('awb') || '').trim();
         if (!awb) {

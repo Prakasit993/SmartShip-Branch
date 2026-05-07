@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { revalidatePath } from 'next/cache';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 export async function POST(request: Request) {
     try {
+        const denied = await requireAdminApiAuth('admin-only', request);
+        if (denied) return denied;
+
         const formData = await request.formData();
         const data: Record<string, string> = {};
 

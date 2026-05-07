@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { isAdminApiRequest } from '@/lib/adminApiAuth';
+import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 export async function POST(req: Request) {
     try {
-        if (!(await isAdminApiRequest())) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        if (denied) return denied;
 
         const webhookUrl = process.env.N8N_AI_WEBHOOK_URL;
         if (!webhookUrl) {
