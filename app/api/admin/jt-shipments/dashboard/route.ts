@@ -54,25 +54,62 @@ async function aggregateExceptionReasonStats(
     dateFrom: string,
     dateTo: string,
     topN = 5,
-): Promise<{ exceptionCount: number; topExceptionReasons: Array<{ reason: string; count: number }> }> {
+    topCaseN = 100,
+): Promise<{
+    exceptionCount: number;
+    topExceptionReasons: Array<{ reason: string; count: number }>;
+    topExceptionCases: Array<{
+        awb_number: string;
+        sender_name: string;
+        sender_phone: string;
+        exception_reason: string;
+        issue_registered_time: string;
+    }>;
+}> {
     let offset = 0;
     let exceptionCount = 0;
     const reasonMap: Record<string, number> = {};
+    const topExceptionCases: Array<{
+        awb_number: string;
+        sender_name: string;
+        sender_phone: string;
+        exception_reason: string;
+        issue_registered_time: string;
+    }> = [];
 
     for (;;) {
-        let q = supabaseAdmin.from('jt_shipments').select('exception_reason');
+        let q = supabaseAdmin
+            .from('jt_shipments')
+            .select('awb_number,sender_name,sender_phone,exception_reason,issue_registered_time,booking_date,sign_branch_code')
+            .is('sign_branch_code', null)
+            .order('booking_date', { ascending: false, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
         if (error) {
             console.error('[jt-shipments/dashboard] aggregateExceptionReasonStats', error);
             throw new Error(error.message);
         }
-        const rows = (data || []) as Array<{ exception_reason: string | null }>;
+        const rows = (data || []) as Array<{
+            awb_number: string | null;
+            sender_name: string | null;
+            sender_phone: string | null;
+            exception_reason: string | null;
+            issue_registered_time: string | null;
+        }>;
         for (const row of rows) {
             const reason = String(row.exception_reason ?? '').trim();
             if (!reason || reason.toLowerCase() === 'null') continue;
             exceptionCount += 1;
             reasonMap[reason] = (reasonMap[reason] || 0) + 1;
+            if (topExceptionCases.length < topCaseN) {
+                topExceptionCases.push({
+                    awb_number: String(row.awb_number ?? '-').trim() || '-',
+                    sender_name: String(row.sender_name ?? '-').trim() || '-',
+                    sender_phone: String(row.sender_phone ?? '-').trim() || '-',
+                    exception_reason: reason,
+                    issue_registered_time: String(row.issue_registered_time ?? '-').trim() || '-',
+                });
+            }
         }
         if (rows.length < AGG_PAGE) break;
         offset += AGG_PAGE;
@@ -83,7 +120,7 @@ async function aggregateExceptionReasonStats(
         .slice(0, topN)
         .map(([reason, count]) => ({ reason, count }));
 
-    return { exceptionCount, topExceptionReasons };
+    return { exceptionCount, topExceptionReasons, topExceptionCases };
 }
 
 function hasMeaningfulReturnType(raw: unknown): boolean {
@@ -329,7 +366,6 @@ export async function GET(req: Request) {
             exceptionStats,
             previousExceptionStats,
             returnTypeCases,
-            previousReturnTypeCases,
             returnTypeCount,
             previousReturnTypeCount,
         ] = await Promise.all([
@@ -349,12 +385,9 @@ export async function GET(req: Request) {
             previousJmsCountPromise,
             aggregateExceptionReasonStats(dateFrom, dateTo, 5),
             prevRange
-                ? aggregateExceptionReasonStats(prevRange.from, prevRange.to, 5)
-                : Promise.resolve({ exceptionCount: 0, topExceptionReasons: [] }),
+                ? aggregateExceptionReasonStats(prevRange.from, prevRange.to, 5, 0)
+                : Promise.resolve({ exceptionCount: 0, topExceptionReasons: [], topExceptionCases: [] }),
             aggregateReturnTypeCases(dateFrom, dateTo, 100),
-            prevRange
-                ? aggregateReturnTypeCases(prevRange.from, prevRange.to, 100)
-                : Promise.resolve({ returnTypeCaseCount: 0, topReturnTypeCases: [] }),
             aggregateReturnTypeCount(dateFrom, dateTo),
             prevRange ? aggregateReturnTypeCount(prevRange.from, prevRange.to) : Promise.resolve(0),
         ]);
@@ -474,7 +507,7 @@ export async function GET(req: Request) {
                       codPendingCount: previousTotals.codPendingCount,
                       codPendingAmount: previousTotals.codPendingAmount,
                       codNoCollectionCount: previousTotals.codNoCollectionCount,
-                      exceptionCount: previousReturnTypeCases.returnTypeCaseCount,
+                      exceptionCount: previousExceptionStats.exceptionCount,
                       codCollectionRate:
                           previousTotals.codPaidCount + previousTotals.codPendingCount > 0
                               ? Math.round(
@@ -505,8 +538,9 @@ export async function GET(req: Request) {
             codPendingAmount,
             codNoCollectionCount,
             codCollectionRate,
-            exceptionCount: returnTypeCases.returnTypeCaseCount,
+            exceptionCount: exceptionStats.exceptionCount,
             topExceptionReasons: exceptionStats.topExceptionReasons,
+            topExceptionCases: exceptionStats.topExceptionCases,
             topReturnTypeCases: returnTypeCases.topReturnTypeCases,
             recent: recent ?? [],
             date_from: dateFrom.trim() || null,

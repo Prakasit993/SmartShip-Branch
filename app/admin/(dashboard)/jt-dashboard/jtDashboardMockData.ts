@@ -25,6 +25,22 @@ export const MOCK_METRICS: JtDashboardMetrics = {
         { reason: 'ผู้รับปฏิเสธการชำระเงินหรือปฏิเสธการรับพัสดุ', count: 1 },
         { reason: 'พัสดุคัดแยกผิดร้านสาขานำจ่าย', count: 3 },
     ],
+    topExceptionCases: [
+        {
+            awb_number: '8200011223344',
+            sender_name: 'ร้านตัวอย่าง A',
+            sender_phone: '0812345678',
+            exception_reason: 'ผู้รับปฏิเสธการชำระเงินหรือปฏิเสธการรับพัสดุ',
+            issue_registered_time: '2026-04-30 22:45',
+        },
+        {
+            awb_number: '8200011223345',
+            sender_name: 'ร้านตัวอย่าง B',
+            sender_phone: '0898765432',
+            exception_reason: 'พัสดุคัดแยกผิดร้านสาขานำจ่าย',
+            issue_registered_time: '2026-04-30 18:05',
+        },
+    ],
     topReturnTypeCases: [
         {
             awb_number: '8200011223344',

@@ -151,6 +151,13 @@ export default function JtDashboardPage() {
                 codNoCollectionCount?: number;
                 exceptionCount?: number;
                 topExceptionReasons?: Array<{ reason: string; count: number }>;
+                topExceptionCases?: Array<{
+                    awb_number: string;
+                    sender_name: string;
+                    sender_phone: string;
+                    exception_reason: string;
+                    issue_registered_time?: string;
+                }>;
                 topReturnTypeCases?: Array<{
                     awb_number: string;
                     sender_name: string;
@@ -307,6 +314,26 @@ export default function JtDashboardPage() {
                               )
                               .slice(0, 5)
                         : [],
+                    topExceptionCases: Array.isArray(json.topExceptionCases)
+                        ? json.topExceptionCases
+                              .filter(
+                                  (
+                                      r,
+                                  ): r is {
+                                      awb_number: string;
+                                      sender_name: string;
+                                      sender_phone: string;
+                                      exception_reason: string;
+                                      issue_registered_time?: string;
+                                  } =>
+                                      r != null &&
+                                      typeof r.awb_number === 'string' &&
+                                      typeof r.sender_name === 'string' &&
+                                      typeof r.sender_phone === 'string' &&
+                                      typeof r.exception_reason === 'string',
+                              )
+                              .slice(0, 100)
+                        : [],
                     topReturnTypeCases: Array.isArray(json.topReturnTypeCases)
                         ? json.topReturnTypeCases
                               .filter(
@@ -391,6 +418,7 @@ export default function JtDashboardPage() {
         codNoCollectionCount: 0,
         exceptionCount: 0,
         topExceptionReasons: [],
+        topExceptionCases: [],
         topReturnTypeCases: [],
         codCollectionRate: 0,
     };

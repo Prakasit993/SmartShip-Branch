@@ -37,8 +37,15 @@ export type JtDashboardMetrics = {
     codPendingCount: number;       // cod_amount > 0 แต่ cod_status != 'ชำระเงินแล้ว'
     codPendingAmount: number;
     codNoCollectionCount: number;  // cod_amount = 0 (ส่งแบบไม่เก็บเงินปลายทาง)
-    exceptionCount: number;        // จำนวนเคสที่มี return_type (ตัด EMPTY/ว่าง)
+    exceptionCount: number;        // จำนวนเคสที่มี exception_reason และ sign_branch_code เป็น NULL
     topExceptionReasons: Array<{ reason: string; count: number }>;
+    topExceptionCases: Array<{
+        awb_number: string;
+        sender_name: string;
+        sender_phone: string;
+        exception_reason: string;
+        issue_registered_time?: string;
+    }>;
     topReturnTypeCases: Array<{
         awb_number: string;
         sender_name: string;

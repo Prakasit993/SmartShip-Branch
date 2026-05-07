@@ -1008,12 +1008,12 @@ export function JtDashboardView({
                                         : undefined
                                 }
                                 hint={
-                                    metrics.topReturnTypeCases.length > 0 ? (
+                                    metrics.topExceptionCases.length > 0 ? (
                                         <span>
-                                            {metrics.topReturnTypeCases[0]?.exception_reason || '-'}
+                                            {metrics.topExceptionCases[0]?.exception_reason || '-'}
                                         </span>
                                     ) : (
-                                        'ยังไม่พบรายการที่บันทึกเวลาปัญหา'
+                                        'นับเฉพาะรายการที่ยังไม่มีรหัสสาขาปลายทาง'
                                     )
                                 }
                                 onClick={() =>
@@ -1073,53 +1073,65 @@ export function JtDashboardView({
                             </article>
                         </div>
                         </div>
-                        {activeDrilldown === 'exception' && metrics.topReturnTypeCases.length > 0 ? (
+                        {activeDrilldown === 'exception' ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    รายการพัสดุมีปัญหา ({metrics.topReturnTypeCases.length} รายการล่าสุด)
+                                    รายการพัสดุมีปัญหา (ยังไม่มีรหัสสาขาปลายทาง)
                                 </p>
-                                <div className="mt-2 grid grid-cols-[1.6rem_1fr_1fr_1.5fr_1fr] sm:grid-cols-[1.6rem_1.1fr_1.1fr_2fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                    <span>#</span>
-                                    <span>AWB Number</span>
-                                    <span>Sender Name</span>
-                                    <span>Exception Reason</span>
-                                    <span className="text-right">Issue Registered Time</span>
-                                </div>
-                                <div className="mt-2 space-y-1.5">
-                                    {(showAllIssues ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map((r, idx) => (
-                                        <div
-                                            key={`${r.awb_number}-${idx}`}
-                                            className="grid grid-cols-[1.6rem_1fr_1fr_1.5fr_1fr] sm:grid-cols-[1.6rem_1.1fr_1.1fr_2fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
-                                        >
-                                            <span className="tabular-nums text-slate-500">{idx + 1}</span>
+                                {metrics.topExceptionCases.length > 0 ? (
+                                    <>
+                                        <div className="mt-2 space-y-1.5 overflow-x-auto">
+                                            <div className="grid min-w-[980px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                                <span>#</span>
+                                                <span>เลขพัสดุ</span>
+                                                <span>ผู้ส่ง</span>
+                                                <span>เบอร์ติดต่อ</span>
+                                                <span>เหตุผล</span>
+                                                <span className="text-right">เวลาลงเหตุผล</span>
+                                            </div>
+                                            {(showAllIssues ? metrics.topExceptionCases : metrics.topExceptionCases.slice(0, 3)).map((r, idx) => (
+                                                <div
+                                                    key={`${r.awb_number}-${idx}`}
+                                                    className="grid min-w-[980px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                >
+                                                    <span className="tabular-nums text-slate-500">{idx + 1}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void openShipmentDetail(r.awb_number)}
+                                                        className="min-w-0 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                        title={`เปิดรายละเอียด ${r.awb_number}`}
+                                                    >
+                                                        {r.awb_number}
+                                                    </button>
+                                                    <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
+                                                        {r.sender_name}
+                                                    </span>
+                                                    <span className="min-w-0 truncate tabular-nums text-slate-400" title={r.sender_phone}>
+                                                        {r.sender_phone}
+                                                    </span>
+                                                    <span className="min-w-0 truncate text-rose-200" title={r.exception_reason}>
+                                                        {r.exception_reason}
+                                                    </span>
+                                                    <span className="min-w-0 truncate text-right tabular-nums text-slate-400" title={r.issue_registered_time ?? '-'}>
+                                                        {r.issue_registered_time && r.issue_registered_time !== '-' ? r.issue_registered_time.slice(0, 16) : '-'}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {metrics.topExceptionCases.length > 3 ? (
                                             <button
                                                 type="button"
-                                                onClick={() => void openShipmentDetail(r.awb_number)}
-                                                className="min-w-0 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
-                                                title={`เปิดรายละเอียด ${r.awb_number}`}
+                                                onClick={() => setShowAllIssues(!showAllIssues)}
+                                                className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
                                             >
-                                                {r.awb_number}
+                                                {showAllIssues ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${metrics.topExceptionCases.length - 3} รายการ`}
                                             </button>
-                                            <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
-                                                {r.sender_name}
-                                            </span>
-                                            <span className="min-w-0 truncate text-rose-200" title={r.exception_reason}>
-                                                {r.exception_reason}
-                                            </span>
-                                            <span className="min-w-0 truncate text-slate-400 text-right tabular-nums" title={r.issue_registered_time}>
-                                                {r.issue_registered_time && r.issue_registered_time !== '-' ? r.issue_registered_time.slice(0, 16) : '-'}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                                {metrics.topReturnTypeCases.length > 3 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAllIssues(!showAllIssues)}
-                                        className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
-                                    >
-                                        {showAllIssues ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${metrics.topReturnTypeCases.length - 3} รายการ`}
-                                    </button>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        ยังไม่พบรายการที่มีเหตุผลปัญหาและยังไม่มีรหัสสาขาปลายทางในช่วงนี้
+                                    </p>
                                 )}
                             </div>
                         ) : null}
