@@ -49,6 +49,7 @@ export type JtDashboardViewProps = {
     availableDetailFields: string[];
     onSaveCustomMetricCards: (cards: JtCustomMetricCardDefinition[]) => Promise<void>;
     onSaveDetailFields: (fields: string[]) => Promise<void>;
+    onAcknowledgeReturn: (awbNumber: string, reason: string) => Promise<void>;
     loading: boolean;
     error: string | null;
     parcelDateFrom: string;
@@ -302,6 +303,7 @@ export function JtDashboardView({
     availableDetailFields,
     onSaveCustomMetricCards,
     onSaveDetailFields,
+    onAcknowledgeReturn,
     loading,
     error,
     parcelDateFrom,
@@ -331,6 +333,10 @@ export function JtDashboardView({
     const [chatLoading, setChatLoading] = useState(false);
     const [chatError, setChatError] = useState<string | null>(null);
     const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
+    const [ackReturnAwb, setAckReturnAwb] = useState('');
+    const [ackReason, setAckReason] = useState('');
+    const [ackLoading, setAckLoading] = useState(false);
+    const [ackError, setAckError] = useState<string | null>(null);
     const showContent = !loading && !error;
     const dateRangeError =
         parcelDateFrom && parcelDateTo && parcelDateFrom > parcelDateTo
@@ -453,6 +459,33 @@ export function JtDashboardView({
             setChatError(e instanceof Error ? e.message : 'ส่งคำถามไม่สำเร็จ');
         } finally {
             setChatLoading(false);
+        }
+    }
+
+    function openReturnAcknowledgement(awb: string) {
+        setAckReturnAwb(awb);
+        setAckReason('');
+        setAckError(null);
+    }
+
+    async function submitReturnAcknowledgement() {
+        const awb = ackReturnAwb.trim();
+        const reason = ackReason.trim();
+        if (!awb || ackLoading) return;
+        if (!reason) {
+            setAckError('กรุณาใส่เหตุผลที่รับทราบ');
+            return;
+        }
+        setAckLoading(true);
+        setAckError(null);
+        try {
+            await onAcknowledgeReturn(awb, reason);
+            setAckReturnAwb('');
+            setAckReason('');
+        } catch (e) {
+            setAckError(e instanceof Error ? e.message : 'บันทึกการรับทราบไม่สำเร็จ');
+        } finally {
+            setAckLoading(false);
         }
     }
 
@@ -1081,18 +1114,18 @@ export function JtDashboardView({
                                 {metrics.topExceptionCases.length > 0 ? (
                                     <>
                                         <div className="mt-2 space-y-1.5 overflow-x-auto">
-                                            <div className="grid min-w-[980px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                            <div className="grid min-w-[940px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                                 <span>#</span>
                                                 <span>เลขพัสดุ</span>
                                                 <span>ผู้ส่ง</span>
                                                 <span>เบอร์ติดต่อ</span>
                                                 <span>เหตุผล</span>
-                                                <span className="text-right">เวลาลงเหตุผล</span>
+                                                <span className="text-right">เวลา</span>
                                             </div>
                                             {(showAllIssues ? metrics.topExceptionCases : metrics.topExceptionCases.slice(0, 3)).map((r, idx) => (
                                                 <div
                                                     key={`${r.awb_number}-${idx}`}
-                                                    className="grid min-w-[980px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                    className="grid min-w-[940px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
                                                 >
                                                     <span className="tabular-nums text-slate-500">{idx + 1}</span>
                                                     <button
@@ -1106,8 +1139,8 @@ export function JtDashboardView({
                                                     <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
                                                         {r.sender_name}
                                                     </span>
-                                                    <span className="min-w-0 truncate tabular-nums text-slate-400" title={r.sender_phone}>
-                                                        {r.sender_phone}
+                                                    <span className="min-w-0 truncate tabular-nums text-slate-400" title={r.receiver_phone}>
+                                                        {r.receiver_phone}
                                                     </span>
                                                     <span className="min-w-0 truncate text-rose-200" title={r.exception_reason}>
                                                         {r.exception_reason}
@@ -1138,23 +1171,26 @@ export function JtDashboardView({
                         {activeDrilldown === 'return' ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    รายการพัสดุถูกตีกลับ
+                                    รายการพัสดุถูกตีกลับ (ตัดรายการที่รับทราบแล้ว)
                                 </p>
                                 {metrics.topReturnTypeCases.length > 0 ? (
                                     <>
                                         <div className="mt-2 space-y-1.5 overflow-x-auto">
-                                            <div className="grid min-w-[920px] grid-cols-[1.2fr_1.1fr_1.4fr_1.2fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                                <span>AWB</span>
-                                                <span>Sender</span>
-                                                <span>Exception Reason</span>
-                                                <span>Return Branch</span>
-                                                <span className="text-right">Issue Time</span>
+                                            <div className="grid min-w-[1040px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr_6rem] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                                <span>#</span>
+                                                <span>เลขพัสดุ</span>
+                                                <span>ผู้ส่ง</span>
+                                                <span>เบอร์ติดต่อ</span>
+                                                <span>เหตุผล</span>
+                                                <span className="text-right">เวลา</span>
+                                                <span className="text-right">จัดการ</span>
                                             </div>
                                             {(showAllReturns ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map((r, idx) => (
                                                 <div
                                                     key={`${r.awb_number}-${idx}`}
-                                                    className="grid min-w-[920px] grid-cols-[1.2fr_1.1fr_1.4fr_1.2fr_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                    className="grid min-w-[1040px] grid-cols-[1.6rem_1fr_1.1fr_1fr_1.7fr_1fr_6rem] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
                                                 >
+                                                    <span className="tabular-nums text-slate-500">{idx + 1}</span>
                                                     <button
                                                         type="button"
                                                         onClick={() => void openShipmentDetail(r.awb_number)}
@@ -1166,15 +1202,22 @@ export function JtDashboardView({
                                                     <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
                                                         {r.sender_name}
                                                     </span>
+                                                    <span className="min-w-0 truncate tabular-nums text-slate-400" title={r.receiver_phone}>
+                                                        {r.receiver_phone}
+                                                    </span>
                                                     <span className="min-w-0 truncate text-rose-200" title={r.exception_reason}>
                                                         {r.exception_reason}
-                                                    </span>
-                                                    <span className="min-w-0 truncate text-slate-300" title={r.return_branch_name}>
-                                                        {r.return_branch_name}
                                                     </span>
                                                     <span className="min-w-0 truncate text-slate-400 text-right tabular-nums" title={r.issue_registered_time ?? '-'}>
                                                         {r.issue_registered_time && r.issue_registered_time !== '-' ? r.issue_registered_time.slice(0, 16) : '-'}
                                                     </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openReturnAcknowledgement(r.awb_number)}
+                                                        className="justify-self-end rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 transition-colors hover:border-emerald-400/50 hover:bg-emerald-500/20"
+                                                    >
+                                                        รับทราบ
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
@@ -1190,7 +1233,7 @@ export function JtDashboardView({
                                     </>
                                 ) : (
                                     <p className="mt-2 text-xs text-slate-500">
-                                        ยังไม่พบรายการพัสดุตีกลับในช่วงนี้
+                                        ยังไม่พบรายการพัสดุตีกลับที่ยังไม่ได้รับทราบในช่วงนี้
                                     </p>
                                 )}
                             </div>
@@ -1223,6 +1266,66 @@ export function JtDashboardView({
                             </div>
                         </div>
                     ) : null}
+                </div>
+            ) : null}
+
+            {ackReturnAwb ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="jt-return-ack-title"
+                >
+                    <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl ring-1 ring-white/10">
+                        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+                            <h3 id="jt-return-ack-title" className="text-lg font-semibold text-white">
+                                รับทราบพัสดุตีกลับ
+                            </h3>
+                            <button
+                                type="button"
+                                disabled={ackLoading}
+                                onClick={() => setAckReturnAwb('')}
+                                className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                            >
+                                ปิด
+                            </button>
+                        </div>
+                        <div className="space-y-3 px-4 py-4">
+                            <p className="text-sm text-slate-300">
+                                เลขพัสดุ <span className="font-semibold text-sky-300">{ackReturnAwb}</span> จะไม่แสดงในรายการตีกลับอีกหลังบันทึก
+                            </p>
+                            <label className="block">
+                                <span className="text-xs font-medium text-slate-400">เหตุผลที่รับทราบ</span>
+                                <textarea
+                                    value={ackReason}
+                                    onChange={(e) => setAckReason(e.target.value)}
+                                    rows={4}
+                                    maxLength={500}
+                                    placeholder="เช่น ตรวจสอบแล้วเป็นรายการที่ดำเนินการเรียบร้อย"
+                                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-emerald-500/25 placeholder:text-slate-600 focus:border-emerald-500/50 focus:ring-2"
+                                />
+                            </label>
+                            {ackError ? <p className="text-sm text-rose-400">{ackError}</p> : null}
+                            <div className="flex justify-end gap-2 border-t border-slate-800 pt-3">
+                                <button
+                                    type="button"
+                                    disabled={ackLoading}
+                                    onClick={() => setAckReturnAwb('')}
+                                    className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={ackLoading || !ackReason.trim()}
+                                    onClick={() => void submitReturnAcknowledgement()}
+                                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {ackLoading ? 'กำลังบันทึก...' : 'บันทึกรับทราบ'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             ) : null}
 

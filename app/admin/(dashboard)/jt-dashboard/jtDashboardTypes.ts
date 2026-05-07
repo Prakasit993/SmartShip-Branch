@@ -42,13 +42,16 @@ export type JtDashboardMetrics = {
     topExceptionCases: Array<{
         awb_number: string;
         sender_name: string;
-        sender_phone: string;
+        receiver_name: string;
+        receiver_phone: string;
         exception_reason: string;
         issue_registered_time?: string;
     }>;
     topReturnTypeCases: Array<{
         awb_number: string;
         sender_name: string;
+        receiver_name: string;
+        receiver_phone: string;
         exception_reason: string;
         return_branch_name: string;
         issue_registered_time?: string;

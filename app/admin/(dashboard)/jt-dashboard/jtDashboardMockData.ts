@@ -29,14 +29,16 @@ export const MOCK_METRICS: JtDashboardMetrics = {
         {
             awb_number: '8200011223344',
             sender_name: 'ร้านตัวอย่าง A',
-            sender_phone: '0812345678',
+            receiver_name: 'คุณสมชาย ใจดี',
+            receiver_phone: '0812345678',
             exception_reason: 'ผู้รับปฏิเสธการชำระเงินหรือปฏิเสธการรับพัสดุ',
             issue_registered_time: '2026-04-30 22:45',
         },
         {
             awb_number: '8200011223345',
             sender_name: 'ร้านตัวอย่าง B',
-            sender_phone: '0898765432',
+            receiver_name: 'คุณหนูแดง',
+            receiver_phone: '0898765432',
             exception_reason: 'พัสดุคัดแยกผิดร้านสาขานำจ่าย',
             issue_registered_time: '2026-04-30 18:05',
         },
@@ -45,6 +47,8 @@ export const MOCK_METRICS: JtDashboardMetrics = {
         {
             awb_number: '8200011223344',
             sender_name: 'ร้านตัวอย่าง A',
+            receiver_name: 'คุณสมชาย ใจดี',
+            receiver_phone: '0812345678',
             exception_reason: 'ผู้รับปฏิเสธการชำระเงินหรือปฏิเสธการรับพัสดุ',
             return_branch_name: 'ศูนย์คัดแยกบางนา',
             issue_registered_time: '2026-04-30 22:45',
@@ -52,6 +56,8 @@ export const MOCK_METRICS: JtDashboardMetrics = {
         {
             awb_number: '8200011223345',
             sender_name: 'ร้านตัวอย่าง B',
+            receiver_name: 'คุณหนูแดง',
+            receiver_phone: '0898765432',
             exception_reason: 'พัสดุคัดแยกผิดร้านสาขานำจ่าย',
             return_branch_name: 'ศูนย์คัดแยกลาดกระบัง',
             issue_registered_time: '2026-04-30 18:05',

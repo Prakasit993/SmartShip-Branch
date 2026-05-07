@@ -154,13 +154,16 @@ export default function JtDashboardPage() {
                 topExceptionCases?: Array<{
                     awb_number: string;
                     sender_name: string;
-                    sender_phone: string;
+                    receiver_name: string;
+                    receiver_phone: string;
                     exception_reason: string;
                     issue_registered_time?: string;
                 }>;
                 topReturnTypeCases?: Array<{
                     awb_number: string;
                     sender_name: string;
+                    receiver_name: string;
+                    receiver_phone: string;
                     exception_reason: string;
                     return_branch_name: string;
                     issue_registered_time?: string;
@@ -322,14 +325,16 @@ export default function JtDashboardPage() {
                                   ): r is {
                                       awb_number: string;
                                       sender_name: string;
-                                      sender_phone: string;
+                                      receiver_name: string;
+                                      receiver_phone: string;
                                       exception_reason: string;
                                       issue_registered_time?: string;
                                   } =>
                                       r != null &&
                                       typeof r.awb_number === 'string' &&
                                       typeof r.sender_name === 'string' &&
-                                      typeof r.sender_phone === 'string' &&
+                                      typeof r.receiver_name === 'string' &&
+                                      typeof r.receiver_phone === 'string' &&
                                       typeof r.exception_reason === 'string',
                               )
                               .slice(0, 100)
@@ -342,6 +347,8 @@ export default function JtDashboardPage() {
                                   ): r is {
                                       awb_number: string;
                                       sender_name: string;
+                                      receiver_name: string;
+                                      receiver_phone: string;
                                       exception_reason: string;
                                       return_branch_name: string;
                                       issue_registered_time?: string;
@@ -349,6 +356,8 @@ export default function JtDashboardPage() {
                                       r != null &&
                                       typeof r.awb_number === 'string' &&
                                       typeof r.sender_name === 'string' &&
+                                      typeof r.receiver_name === 'string' &&
+                                      typeof r.receiver_phone === 'string' &&
                                       typeof r.exception_reason === 'string' &&
                                       typeof r.return_branch_name === 'string',
                               )
@@ -468,6 +477,27 @@ export default function JtDashboardPage() {
         await load(parcelDateFrom, parcelDateTo);
     }, [load, parcelDateFrom, parcelDateTo]);
 
+    const acknowledgeReturn = useCallback(async (awbNumber: string, reason: string) => {
+        const res = await fetch('/api/admin/jt-shipments/return-acknowledgements', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ awb_number: awbNumber, reason }),
+        });
+        const raw = await res.text();
+        if (!res.ok) {
+            let msg = 'บันทึกการรับทราบไม่สำเร็จ';
+            try {
+                const o = JSON.parse(raw) as { error?: string };
+                if (o.error) msg = o.error;
+            } catch {
+                /* ignore */
+            }
+            throw new Error(msg);
+        }
+        await load(parcelDateFrom, parcelDateTo);
+    }, [load, parcelDateFrom, parcelDateTo]);
+
     const chartsAligned =
         success &&
         Boolean(
@@ -491,6 +521,7 @@ export default function JtDashboardPage() {
             availableDetailFields={success ? state.availableDetailFields : DEFAULT_JT_SHIPMENT_DETAIL_FIELDS}
             onSaveCustomMetricCards={saveCustomMetricCards}
             onSaveDetailFields={saveDetailFields}
+            onAcknowledgeReturn={acknowledgeReturn}
             loading={loading}
             error={err}
             parcelDateFrom={parcelDateFrom}

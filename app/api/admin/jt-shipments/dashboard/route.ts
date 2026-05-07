@@ -10,6 +10,7 @@ import { JT_CUSTOM_METRIC_SETTINGS_KEY, parseJtCustomMetricCardsFromSettingsValu
 import { parseJtMoneyText } from '@/lib/jtMoneyText';
 import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { JT_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/jtReturnAcknowledgements';
 
 /**
  * Page size for aggregation loop — MUST be ≤ Supabase PostgREST max-rows (default 1000).
@@ -61,7 +62,8 @@ async function aggregateExceptionReasonStats(
     topExceptionCases: Array<{
         awb_number: string;
         sender_name: string;
-        sender_phone: string;
+        receiver_name: string;
+        receiver_phone: string;
         exception_reason: string;
         issue_registered_time: string;
     }>;
@@ -72,7 +74,8 @@ async function aggregateExceptionReasonStats(
     const topExceptionCases: Array<{
         awb_number: string;
         sender_name: string;
-        sender_phone: string;
+        receiver_name: string;
+        receiver_phone: string;
         exception_reason: string;
         issue_registered_time: string;
     }> = [];
@@ -80,7 +83,7 @@ async function aggregateExceptionReasonStats(
     for (;;) {
         let q = supabaseAdmin
             .from('jt_shipments')
-            .select('awb_number,sender_name,sender_phone,exception_reason,issue_registered_time,booking_date,sign_branch_code')
+            .select('awb_number,sender_name,receiver_name,receiver_phone,exception_reason,issue_registered_time,booking_date,sign_branch_code')
             .is('sign_branch_code', null)
             .order('booking_date', { ascending: false, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
@@ -92,7 +95,8 @@ async function aggregateExceptionReasonStats(
         const rows = (data || []) as Array<{
             awb_number: string | null;
             sender_name: string | null;
-            sender_phone: string | null;
+            receiver_name: string | null;
+            receiver_phone: string | null;
             exception_reason: string | null;
             issue_registered_time: string | null;
         }>;
@@ -105,7 +109,8 @@ async function aggregateExceptionReasonStats(
                 topExceptionCases.push({
                     awb_number: String(row.awb_number ?? '-').trim() || '-',
                     sender_name: String(row.sender_name ?? '-').trim() || '-',
-                    sender_phone: String(row.sender_phone ?? '-').trim() || '-',
+                    receiver_name: String(row.receiver_name ?? '-').trim() || '-',
+                    receiver_phone: String(row.receiver_phone ?? '-').trim() || '-',
                     exception_reason: reason,
                     issue_registered_time: String(row.issue_registered_time ?? '-').trim() || '-',
                 });
@@ -130,23 +135,47 @@ function hasMeaningfulReturnType(raw: unknown): boolean {
     return upper !== 'EMPTY' && upper !== 'NULL' && upper !== '-';
 }
 
+const EXCLUDED_RETURN_SIGN_BRANCH_NAME = '04Lam Luk Ka067';
+const EXCLUDED_RETURN_DELIVERY_STAFF_IDS = new Set(['604911501', '604911502', '604911503']);
+
+function isExcludedSignedReturn(row: {
+    sign_branch_name: string | null;
+    delivery_staff_id: string | null;
+}): boolean {
+    const signBranchName = String(row.sign_branch_name ?? '').trim();
+    const deliveryStaffId = String(row.delivery_staff_id ?? '').trim();
+    return (
+        signBranchName === EXCLUDED_RETURN_SIGN_BRANCH_NAME ||
+        EXCLUDED_RETURN_DELIVERY_STAFF_IDS.has(deliveryStaffId)
+    );
+}
+
 async function aggregateReturnTypeCount(
     dateFrom: string,
     dateTo: string,
+    acknowledgedAwbs: Set<string>,
 ): Promise<number> {
     let offset = 0;
     let returnCount = 0;
 
     for (;;) {
-        let q = supabaseAdmin.from('jt_shipments').select('return_type');
+        let q = supabaseAdmin.from('jt_shipments').select('awb_number,return_type,sign_branch_name,delivery_staff_id');
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
         if (error) {
             console.error('[jt-shipments/dashboard] aggregateReturnTypeCount', error);
             throw new Error(error.message);
         }
-        const rows = (data || []) as Array<{ return_type: string | null }>;
+        const rows = (data || []) as Array<{
+            awb_number: string | null;
+            return_type: string | null;
+            sign_branch_name: string | null;
+            delivery_staff_id: string | null;
+        }>;
         for (const row of rows) {
+            const awb = String(row.awb_number ?? '').trim();
+            if (awb && acknowledgedAwbs.has(awb)) continue;
+            if (isExcludedSignedReturn(row)) continue;
             if (hasMeaningfulReturnType(row.return_type)) returnCount += 1;
         }
         if (rows.length < AGG_PAGE) break;
@@ -159,12 +188,15 @@ async function aggregateReturnTypeCount(
 async function aggregateReturnTypeCases(
     dateFrom: string,
     dateTo: string,
+    acknowledgedAwbs: Set<string>,
     topN = 10,
 ): Promise<{
     returnTypeCaseCount: number;
     topReturnTypeCases: Array<{
         awb_number: string;
         sender_name: string;
+        receiver_name: string;
+        receiver_phone: string;
         exception_reason: string;
         return_branch_name: string;
         issue_registered_time: string;
@@ -175,6 +207,8 @@ async function aggregateReturnTypeCases(
     const topReturnTypeCases: Array<{
         awb_number: string;
         sender_name: string;
+        receiver_name: string;
+        receiver_phone: string;
         exception_reason: string;
         return_branch_name: string;
         issue_registered_time: string;
@@ -183,7 +217,7 @@ async function aggregateReturnTypeCases(
     for (;;) {
         let q = supabaseAdmin
             .from('jt_shipments')
-            .select('awb_number,sender_name,exception_reason,return_branch_name,issue_registered_time,booking_date,return_type')
+            .select('awb_number,sender_name,receiver_name,receiver_phone,exception_reason,return_branch_name,issue_registered_time,booking_date,return_type,sign_branch_name,delivery_staff_id')
             .order('booking_date', { ascending: false, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
@@ -194,18 +228,27 @@ async function aggregateReturnTypeCases(
         const rows = (data || []) as Array<{
             awb_number: string | null;
             sender_name: string | null;
+            receiver_name: string | null;
+            receiver_phone: string | null;
             exception_reason: string | null;
             return_branch_name: string | null;
             issue_registered_time: string | null;
             return_type: string | null;
+            sign_branch_name: string | null;
+            delivery_staff_id: string | null;
         }>;
         for (const row of rows) {
+            const awb = String(row.awb_number ?? '').trim();
+            if (awb && acknowledgedAwbs.has(awb)) continue;
+            if (isExcludedSignedReturn(row)) continue;
             if (!hasMeaningfulReturnType(row.return_type)) continue;
             returnTypeCaseCount += 1;
             if (topReturnTypeCases.length < topN) {
                 topReturnTypeCases.push({
                     awb_number: String(row.awb_number ?? '-').trim() || '-',
                     sender_name: String(row.sender_name ?? '-').trim() || '-',
+                    receiver_name: String(row.receiver_name ?? '-').trim() || '-',
+                    receiver_phone: String(row.receiver_phone ?? '-').trim() || '-',
                     exception_reason: String(row.exception_reason ?? '-').trim() || '-',
                     return_branch_name: String(row.return_branch_name ?? '-').trim() || '-',
                     issue_registered_time: String(row.issue_registered_time ?? '-').trim() || '-',
@@ -354,8 +397,33 @@ export async function GET(req: Request) {
             ? fetchJmsCountViaRpc(prevRange.from, prevRange.to)
             : Promise.resolve(0);
 
+        const [customMetricSettingsRes, returnAcknowledgementsRes] = await Promise.all([
+            supabaseAdmin
+                .from('settings')
+                .select('value')
+                .eq('key', JT_CUSTOM_METRIC_SETTINGS_KEY)
+                .maybeSingle(),
+            supabaseAdmin
+                .from(JT_RETURN_ACKNOWLEDGEMENTS_TABLE)
+                .select('awb_number')
+                .eq('status', 'active'),
+        ]);
+        if (customMetricSettingsRes.error) {
+            console.error('[jt-shipments/dashboard] custom metric settings', customMetricSettingsRes.error);
+            return NextResponse.json({ error: customMetricSettingsRes.error.message }, { status: 500 });
+        }
+        if (returnAcknowledgementsRes.error) {
+            console.error('[jt-shipments/dashboard] return acknowledgements', returnAcknowledgementsRes.error);
+            return NextResponse.json({ error: returnAcknowledgementsRes.error.message }, { status: 500 });
+        }
+        const customDefs = parseJtCustomMetricCardsFromSettingsValue(customMetricSettingsRes.data?.value);
+        const acknowledgedReturnAwbs = new Set(
+            ((returnAcknowledgementsRes.data || []) as Array<{ awb_number: string | null }>)
+                .map((row) => String(row.awb_number ?? '').trim())
+                .filter(Boolean),
+        );
+
         const [
-            settingsResult,
             countResult,
             closedCountResult,
             recentResult,
@@ -369,11 +437,6 @@ export async function GET(req: Request) {
             returnTypeCount,
             previousReturnTypeCount,
         ] = await Promise.all([
-            supabaseAdmin
-                .from('settings')
-                .select('value')
-                .eq('key', JT_CUSTOM_METRIC_SETTINGS_KEY)
-                .maybeSingle(),
             countQ,
             closedCountQ,
             recentQ
@@ -387,9 +450,11 @@ export async function GET(req: Request) {
             prevRange
                 ? aggregateExceptionReasonStats(prevRange.from, prevRange.to, 5, 0)
                 : Promise.resolve({ exceptionCount: 0, topExceptionReasons: [], topExceptionCases: [] }),
-            aggregateReturnTypeCases(dateFrom, dateTo, 100),
-            aggregateReturnTypeCount(dateFrom, dateTo),
-            prevRange ? aggregateReturnTypeCount(prevRange.from, prevRange.to) : Promise.resolve(0),
+            aggregateReturnTypeCases(dateFrom, dateTo, acknowledgedReturnAwbs, 100),
+            aggregateReturnTypeCount(dateFrom, dateTo, acknowledgedReturnAwbs),
+            prevRange
+                ? aggregateReturnTypeCount(prevRange.from, prevRange.to, acknowledgedReturnAwbs)
+                : Promise.resolve(0),
         ]);
 
         const { count, error: cErr } = countResult;
@@ -409,8 +474,6 @@ export async function GET(req: Request) {
             console.error('[jt-shipments/dashboard] recent', rErr);
             return NextResponse.json({ error: rErr.message }, { status: 500 });
         }
-
-        const customDefs = parseJtCustomMetricCardsFromSettingsValue(settingsResult.data?.value);
 
         // ── Phase 2: Aggregation ──
         // Fixed totals: prefer RPC (O(1) round-trip). TS pagination only if RPC missing.
