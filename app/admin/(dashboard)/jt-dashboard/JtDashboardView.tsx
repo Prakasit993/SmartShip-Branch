@@ -334,7 +334,7 @@ export function JtDashboardView({
     const showContent = !loading && !error;
     const dateRangeError =
         parcelDateFrom && parcelDateTo && parcelDateFrom > parcelDateTo
-            ? 'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด'
+            ? 'วันที่เริ่มต้นต้องมาก่อนวันที่สิ้นสุด'
             : null;
     const hasDateDraft = Boolean(parcelDateFrom || parcelDateTo);
     const appliedFrom = appliedRange?.from ?? '';
@@ -503,8 +503,8 @@ export function JtDashboardView({
                 title="Dashboard"
                 description={
                     mockMode
-                        ? 'สรุปข้อมูลจากตาราง jt_shipments — โหมดตัวอย่าง UI (Mock data · Step 1)'
-                        : 'ข้อมูลสรุปจาก Report - JMS'
+                        ? 'ตัวอย่างหน้าสรุปข้อมูล J&T จากตาราง jt_shipments'
+                        : 'สรุปภาพรวมการจัดส่งจาก Report - JMS'
                 }
                 tone="dark"
                 meta={
@@ -519,8 +519,8 @@ export function JtDashboardView({
                         <section className="w-full max-w-full rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-950/90 via-slate-950/75 to-slate-900/80 p-3 shadow-xl shadow-black/20 ring-1 ring-white/[0.04] sm:p-3.5 lg:max-w-md xl:max-w-lg 2xl:max-w-xl">
                             <div className="mb-2 flex items-start justify-between gap-3">
                                 <div>
-                                    <h3 className="text-sm font-semibold text-white">AI Assistant (ผ่าน n8n)</h3>
-                                    <p className="text-[11px] text-slate-400">ถามสรุปตัวเลขหรือแนวโน้มจากข้อมูลหน้า dashboard</p>
+                                    <h3 className="text-sm font-semibold text-white">ผู้ช่วยวิเคราะห์ข้อมูล</h3>
+                                    <p className="text-[11px] text-slate-400">ถามสรุปตัวเลข แนวโน้ม หรือรายการผิดปกติจากหน้านี้</p>
                                 </div>
                                 <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-300">
                                     Beta
@@ -529,7 +529,7 @@ export function JtDashboardView({
                             <div className="scrollbar-hide mb-2 max-h-56 space-y-2 overflow-y-auto overscroll-contain rounded-xl border border-slate-800/90 bg-slate-950/80 p-2.5">
                                 {chatMessages.length === 0 ? (
                                     <p className="text-sm leading-relaxed text-slate-400">
-                                        ลองถาม: "สรุป KPI วันนี้" หรือ "สาเหตุ return_type สูงขึ้นคืออะไร?"
+                                        ลองถาม: "วันนี้ภาพรวมเป็นอย่างไร" หรือ "สาเหตุพัสดุตีกลับที่พบบ่อยคืออะไร?"
                                     </p>
                                 ) : (
                                     chatMessages.slice(-4).map((m, idx) => (
@@ -574,7 +574,7 @@ export function JtDashboardView({
                                             void submitAiChat();
                                         }
                                     }}
-                                    placeholder="พิมพ์คำถาม..."
+                                    placeholder="พิมพ์คำถามเกี่ยวกับข้อมูลในหน้านี้..."
                                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none ring-sky-500/30 placeholder:text-slate-500 focus:border-sky-500/50 focus:ring-2"
                                 />
                                 <button
@@ -591,7 +591,7 @@ export function JtDashboardView({
                                     <p className="text-sm leading-relaxed text-rose-200">{chatError}</p>
                                     {chatError.includes('N8N_AI_WEBHOOK_URL') ? (
                                         <p className="mt-1 text-[11px] text-rose-200/90">
-                                            กรุณาเพิ่ม `N8N_AI_WEBHOOK_URL` ใน `.env.local` แล้วรีสตาร์ทเซิร์ฟเวอร์
+                                            กรุณาตั้งค่า `N8N_AI_WEBHOOK_URL` ใน `.env.local` แล้วรีสตาร์ทเซิร์ฟเวอร์
                                         </p>
                                     ) : null}
                                 </div>
@@ -610,7 +610,7 @@ export function JtDashboardView({
                     <div className="flex items-start gap-3">
                         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" aria-hidden />
                         <div>
-                            <p className="font-medium text-red-200">โหลดข้อมูลไม่สำเร็จ</p>
+                            <p className="font-medium text-red-200">ยังโหลดข้อมูลไม่ได้</p>
                             <p className="mt-1 text-sm text-red-300/90">{error}</p>
                         </div>
                     </div>
@@ -648,23 +648,23 @@ export function JtDashboardView({
                             </div>
                             <div className="min-w-0">
                                 <p className="text-xs font-semibold text-slate-400">
-                                    กรองตามวันที่จอง
+                                    กรองตามวันที่จองพัสดุ
                                 </p>
                                 <p className="mt-0.5 hidden text-[10px] leading-snug text-slate-600 sm:block sm:text-[11px]">
                                     {mockMode
-                                        ? 'โหมดจำลอง: ไม่ยิง API'
-                                        : 'booking_date · เว้นทั้งคู่ = ทั้งตาราง'}
+                                        ? 'โหมดตัวอย่าง: ไม่เรียก API จริง'
+                                        : 'ใช้วันที่จองพัสดุเป็นเกณฑ์ · เว้นว่างเพื่อดูทั้งหมด'}
                                 </p>
                                 {appliedRange && (appliedRange.from || appliedRange.to) ? (
                                     <p className="mt-1 text-[11px] font-medium text-sky-300">
-                                        ใช้อยู่: {appliedRange.from || 'ไม่กำหนด'} ถึง {appliedRange.to || 'ไม่กำหนด'}
+                                        กำลังดูช่วง: {appliedRange.from || 'ไม่กำหนด'} ถึง {appliedRange.to || 'ไม่กำหนด'}
                                     </p>
                                 ) : null}
                             </div>
                         </div>
                         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:col-span-5 xl:grid-cols-2 xl:gap-3">
                             <label className="flex min-w-0 flex-col gap-1 text-sm text-slate-400">
-                                <span className="text-[10px] font-medium text-slate-500">ตั้งแต่</span>
+                                <span className="text-[10px] font-medium text-slate-500">วันที่เริ่มต้น</span>
                                 <input
                                     type="date"
                                     value={parcelDateFrom}
@@ -678,7 +678,7 @@ export function JtDashboardView({
                                 />
                             </label>
                             <label className="flex min-w-0 flex-col gap-1 text-sm text-slate-400">
-                                <span className="text-[10px] font-medium text-slate-500">ถึง</span>
+                                <span className="text-[10px] font-medium text-slate-500">วันที่สิ้นสุด</span>
                                 <input
                                     type="date"
                                     value={parcelDateTo}
@@ -717,7 +717,7 @@ export function JtDashboardView({
                                 className="flex min-h-[36px] items-center gap-1 rounded-full border border-slate-700/80 bg-slate-950/50 px-3 text-[11px] font-semibold text-slate-400 transition-colors hover:border-slate-500 hover:bg-slate-800/70 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 <X className="h-3 w-3" aria-hidden />
-                                ล้าง
+                                ล้างวันที่
                             </button>
                             <button
                                 type="submit"
@@ -725,7 +725,7 @@ export function JtDashboardView({
                                 className="group/btn flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/30 transition-all hover:from-sky-500 hover:to-sky-400 hover:shadow-sky-800/40 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] min-[420px]:w-auto sm:min-h-0 lg:min-w-[9.5rem]"
                             >
                                 <Search className="h-3.5 w-3.5 transition-transform group-hover/btn:scale-110" aria-hidden />
-                                <span className="hidden sm:inline">{dateDraftChanged ? 'ใช้ช่วงวันที่' : 'กรองข้อมูล'}</span>
+                                <span className="hidden sm:inline">{dateDraftChanged ? 'ใช้ช่วงนี้' : 'กรองข้อมูล'}</span>
                                 <span className="sm:hidden">กรอง</span>
                             </button>
                         </div>
@@ -739,7 +739,7 @@ export function JtDashboardView({
                     {lastRefreshed ? (
                         <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-600">
                             <Clock className="h-3 w-3 shrink-0" aria-hidden />
-                            <span>อัปเดตล่าสุด: {formatTimeAgo(lastRefreshed)}</span>
+                            <span>โหลดข้อมูลล่าสุด: {formatTimeAgo(lastRefreshed)}</span>
                         </div>
                     ) : null}
                 </form>
@@ -762,7 +762,7 @@ export function JtDashboardView({
                                 iconRing="ring-sky-500/25"
                                 iconFg="text-sky-400"
                                 glowColor="bg-sky-500/40"
-                                label="พัสดุทั้งหมด"
+                                label="จำนวนพัสดุ"
                                 value={metrics.totalParcels}
                                 delta={
                                     previousMetrics
@@ -775,10 +775,10 @@ export function JtDashboardView({
                                 hint={
                                     appliedRange && (appliedRange.from || appliedRange.to) ? (
                                         <span className="text-sky-400/90">
-                                            ช่วง: {appliedRange.from || '…'} → {appliedRange.to || '…'}
+                                            ช่วงวันที่: {appliedRange.from || '…'} ถึง {appliedRange.to || '…'}
                                         </span>
                                     ) : (
-                                        <span className="text-slate-600">ทั้งระบบ (ไม่กรองวันที่)</span>
+                                        <span className="text-slate-600">ข้อมูลทั้งหมด ไม่จำกัดวันที่</span>
                                     )
                                 }
                             />
@@ -790,12 +790,12 @@ export function JtDashboardView({
                                 iconRing="ring-indigo-500/25"
                                 iconFg="text-indigo-400"
                                 glowColor="bg-indigo-500/40"
-                                label="ปิดงาน (มีผู้จัดส่ง)"
+                                label="ปิดงานแล้ว"
                                 value={metrics.closedCount}
                                 hint={
                                     <span>
-                                        ยอดรวม {metrics.totalParcels.toLocaleString('th-TH')} ชิ้น ·
-                                        เหลือ {(metrics.totalParcels - metrics.closedCount).toLocaleString('th-TH')} ชิ้น
+                                        จากทั้งหมด {metrics.totalParcels.toLocaleString('th-TH')} ชิ้น ·
+                                        ยังไม่ปิดงาน {(metrics.totalParcels - metrics.closedCount).toLocaleString('th-TH')} ชิ้น
                                     </span>
                                 }
                             />
@@ -807,7 +807,7 @@ export function JtDashboardView({
                                 iconRing="ring-emerald-500/25"
                                 iconFg="text-emerald-400"
                                 glowColor="bg-emerald-500/40"
-                                label="รายรับ"
+                                label="ค่าจัดส่งรวม"
                                 value={metrics.sumTotalShippingFee ?? metrics.sumTotalFeeJms}
                                 prefix="฿"
                                 decimals={2}
@@ -819,7 +819,7 @@ export function JtDashboardView({
                                           }
                                         : undefined
                                 }
-                                hint="ผลรวม total_shipping_fee"
+                                hint="รวมค่าส่งทั้งหมดในช่วงที่เลือก"
                             />
 
 
@@ -844,10 +844,10 @@ export function JtDashboardView({
                                 aria-hidden
                             />
                             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                สรุปรายได้ &amp; สถานะ COD
+                                รายได้และสถานะเก็บเงินปลายทาง
                             </h3>
                             <span className="text-[10px] text-slate-600">
-                                (แยก JMS / Marketplace / Other อัตโนมัติ)
+                                แยกช่องทาง JMS / Marketplace / อื่นๆ ให้อัตโนมัติ
                             </span>
                         </div>
                         <div className="space-y-3 sm:space-y-4">
@@ -859,7 +859,7 @@ export function JtDashboardView({
                                 iconRing="ring-amber-500/25"
                                 iconFg="text-amber-400"
                                 glowColor="bg-amber-500/40"
-                                label="ยอดเก็บปลายทาง (COD)"
+                                label="ยอด COD ทั้งหมด"
                                 value={metrics.sumCod}
                                 prefix="฿"
                                 decimals={2}
@@ -871,7 +871,7 @@ export function JtDashboardView({
                                           }
                                         : undefined
                                 }
-                                hint="ผลรวม cod_amount"
+                                hint="รวมยอดเก็บเงินปลายทางในช่วงที่เลือก"
                             />
 
                             <AnimatedKpiCard
@@ -881,7 +881,7 @@ export function JtDashboardView({
                                 iconRing="ring-teal-500/25"
                                 iconFg="text-teal-400"
                                 glowColor="bg-teal-500/40"
-                                label="COD เก็บแล้ว"
+                                label="COD ชำระแล้ว"
                                 value={metrics.codPaidAmount}
                                 prefix="฿"
                                 decimals={2}
@@ -896,7 +896,7 @@ export function JtDashboardView({
                                 hint={
                                     <span>
                                         {metrics.codPaidCount.toLocaleString('th-TH')} เคส ·
-                                        สถานะ &ldquo;ชำระเงินแล้ว&rdquo;
+                                        ชำระเงินแล้ว
                                     </span>
                                 }
                             />
@@ -908,7 +908,7 @@ export function JtDashboardView({
                                 iconRing="ring-orange-500/25"
                                 iconFg="text-orange-400"
                                 glowColor="bg-orange-500/40"
-                                label="COD รอเก็บ"
+                                label="COD ค้างชำระ"
                                 value={metrics.codPendingAmount}
                                 prefix="฿"
                                 decimals={2}
@@ -923,8 +923,8 @@ export function JtDashboardView({
                                 }
                                 hint={
                                     <span>
-                                        {metrics.codPendingCount.toLocaleString('th-TH')} เคสค้าง ·
-                                        ยังไม่จ่าย
+                                        {metrics.codPendingCount.toLocaleString('th-TH')} เคส ·
+                                        ยังรอชำระ
                                     </span>
                                 }
                             />
@@ -936,7 +936,7 @@ export function JtDashboardView({
                                 iconRing="ring-indigo-500/25"
                                 iconFg="text-indigo-400"
                                 glowColor="bg-indigo-500/40"
-                                label="อัตราเก็บ COD"
+                                label="อัตราชำระ COD"
                                 value={metrics.codCollectionRate}
                                 suffix="%"
                                 decimals={2}
@@ -954,7 +954,7 @@ export function JtDashboardView({
                                         {(
                                             metrics.codPaidCount + metrics.codPendingCount
                                         ).toLocaleString('th-TH')}{' '}
-                                        เคส · ไม่เก็บ COD อีก{' '}
+                                        เคส · ไม่มี COD{' '}
                                         {metrics.codNoCollectionCount.toLocaleString('th-TH')}
                                     </span>
                                 }
@@ -970,7 +970,7 @@ export function JtDashboardView({
                                 iconRing="ring-rose-500/25"
                                 iconFg="text-rose-400"
                                 glowColor="bg-rose-500/40"
-                                label="พัสดุตีกลับ"
+                                label="พัสดุถูกตีกลับ"
                                 value={metrics.returnCount}
                                 delta={
                                     previousMetrics
@@ -981,7 +981,7 @@ export function JtDashboardView({
                                           }
                                         : undefined
                                 }
-                                hint={'อ้างอิงจาก return_type (ตัด EMPTY/NULL/-)'}
+                                hint={'นับจากรายการที่มีสถานะตีกลับ'}
                                 onClick={() =>
                                     setActiveDrilldown((prev) => (prev === 'return' ? null : 'return'))
                                 }
@@ -996,7 +996,7 @@ export function JtDashboardView({
                                 iconRing="ring-rose-500/25"
                                 iconFg="text-rose-300"
                                 glowColor="bg-rose-500/40"
-                                label="เคสมีปัญหา"
+                                label="พัสดุมีปัญหา"
                                 value={metrics.exceptionCount}
                                 delta={
                                     previousMetrics
@@ -1013,7 +1013,7 @@ export function JtDashboardView({
                                             {metrics.topReturnTypeCases[0]?.exception_reason || '-'}
                                         </span>
                                     ) : (
-                                        'ไม่พบเคสจาก issue_registered_time'
+                                        'ยังไม่พบรายการที่บันทึกเวลาปัญหา'
                                     )
                                 }
                                 onClick={() =>
@@ -1033,7 +1033,7 @@ export function JtDashboardView({
                                     <Search className="h-5 w-5" aria-hidden />
                                 </div>
                                 <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                                    ค้นหาเลขพัสดุ AWB
+                                    ค้นหาเลขพัสดุ
                                 </p>
 
                                 <form
@@ -1068,7 +1068,7 @@ export function JtDashboardView({
                                     </div>
                                 </form>
                                 <p className="mt-auto pt-2 text-[10px] leading-snug text-slate-500 sm:text-[11px]">
-                                    Enter / ปุ่ม · เปิดรายละเอียดจาก API
+                                    กด Enter หรือปุ่มค้นหาเพื่อดูรายละเอียด
                                 </p>
                             </article>
                         </div>
@@ -1076,7 +1076,7 @@ export function JtDashboardView({
                         {activeDrilldown === 'exception' && metrics.topReturnTypeCases.length > 0 ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    รายการเคสมีปัญหา ({metrics.topReturnTypeCases.length} รายการล่าสุด)
+                                    รายการพัสดุมีปัญหา ({metrics.topReturnTypeCases.length} รายการล่าสุด)
                                 </p>
                                 <div className="mt-2 grid grid-cols-[1.6rem_1fr_1fr_1.5fr_1fr] sm:grid-cols-[1.6rem_1.1fr_1.1fr_2fr_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                     <span>#</span>
@@ -1118,7 +1118,7 @@ export function JtDashboardView({
                                         onClick={() => setShowAllIssues(!showAllIssues)}
                                         className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
                                     >
-                                        {showAllIssues ? 'ย่อเก็บ' : `ดูเพิ่มเติมอีก ${metrics.topReturnTypeCases.length - 3} รายการ`}
+                                        {showAllIssues ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${metrics.topReturnTypeCases.length - 3} รายการ`}
                                     </button>
                                 )}
                             </div>
@@ -1126,7 +1126,7 @@ export function JtDashboardView({
                         {activeDrilldown === 'return' ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    รายการพัสดุตีกลับ (อ้างอิง return_type)
+                                    รายการพัสดุถูกตีกลับ
                                 </p>
                                 {metrics.topReturnTypeCases.length > 0 ? (
                                     <>
@@ -1172,13 +1172,13 @@ export function JtDashboardView({
                                                 onClick={() => setShowAllReturns(!showAllReturns)}
                                                 className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
                                             >
-                                                {showAllReturns ? 'ย่อเก็บ' : `ดูเพิ่มเติมอีก ${metrics.topReturnTypeCases.length - 3} รายการ`}
+                                                {showAllReturns ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${metrics.topReturnTypeCases.length - 3} รายการ`}
                                             </button>
                                         ) : null}
                                     </>
                                 ) : (
                                     <p className="mt-2 text-xs text-slate-500">
-                                        ไม่พบรายการล่าสุดที่มีค่า return_type ที่ใช้งานได้
+                                        ยังไม่พบรายการพัสดุตีกลับในช่วงนี้
                                     </p>
                                 )}
                             </div>
@@ -1224,7 +1224,7 @@ export function JtDashboardView({
                     <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl ring-1 ring-white/10">
                         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                             <h3 id="jt-awb-detail-title" className="text-lg font-semibold text-white">
-                                รายละเอียดพัสดุ: {detailAwb}
+                                รายละเอียดพัสดุ {detailAwb}
                             </h3>
                             <button
                                 type="button"
@@ -1266,14 +1266,14 @@ export function JtDashboardView({
             {!mockMode ? (
                 <section className="rounded-2xl border border-slate-800/70 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-semibold text-white">ตั้งค่าฟิลด์รายละเอียดพัสดุ</h3>
-                        <span className="text-[11px] text-slate-500">กำหนดฟิลด์ที่จะแสดงเมื่อกดเลข AWB</span>
+                        <h3 className="text-sm font-semibold text-white">ตั้งค่าข้อมูลที่แสดงในรายละเอียดพัสดุ</h3>
+                        <span className="text-[11px] text-slate-500">เลือกฟิลด์ที่ต้องการเห็นเมื่อเปิดรายละเอียดเลขพัสดุ</span>
                         <button
                             type="button"
                             onClick={() => setShowFieldChooser((v) => !v)}
                             className="ml-auto rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-600"
                         >
-                            {showFieldChooser ? 'ซ่อนรายการฟิลด์' : 'แสดงรายการฟิลด์'}
+                            {showFieldChooser ? 'ซ่อนตัวเลือกฟิลด์' : 'เลือกฟิลด์ที่แสดง'}
                         </button>
                     </div>
                     {showFieldChooser ? (
@@ -1284,14 +1284,14 @@ export function JtDashboardView({
                                     onClick={() => applyPreset('default')}
                                     className="rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-600"
                                 >
-                                    ค่าเริ่มต้น
+                                    ใช้ค่าเริ่มต้น
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => applyPreset('all')}
                                     className="rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-600"
                                 >
-                                    ทั้งหมด
+                                    เลือกทั้งหมด
                                 </button>
                             </div>
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

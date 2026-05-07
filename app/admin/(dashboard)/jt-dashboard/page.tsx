@@ -169,11 +169,11 @@ export default function JtDashboardPage() {
             } catch {
                 throw new Error(
                     !res.ok
-                        ? `HTTP ${res.status} — เซิร์ฟเวอร์ส่งไม่ใช่ JSON (อาจเป็นหน้า error HTML). ตรวจสอบ API และ env SUPABASE`
-                        : 'การตอบกลับไม่ใช่ JSON — ตรวจสอบ /api/admin/jt-shipments/dashboard',
+                        ? `โหลดข้อมูลหลักไม่สำเร็จ (HTTP ${res.status}) เซิร์ฟเวอร์ตอบกลับมาไม่ใช่ JSON กรุณาตรวจสอบ API และค่า SUPABASE`
+                        : 'รูปแบบข้อมูลหลักไม่ถูกต้อง กรุณาตรวจสอบ /api/admin/jt-shipments/dashboard',
                 );
             }
-            if (!res.ok) throw new Error(json.error || 'โหลดข้อมูลไม่สำเร็จ');
+            if (!res.ok) throw new Error(json.error || 'โหลดข้อมูลหลักไม่สำเร็จ');
 
             let charts: JtDashboardChartsPayload | null = null;
             let chartError: string | null = null;
@@ -198,8 +198,8 @@ export default function JtDashboardPage() {
                     statsJson = JSON.parse(statsRaw) as typeof statsJson;
                 } catch {
                     chartError = !statsRes.ok
-                        ? `สถิติรายวัน: HTTP ${statsRes.status} — ไม่ใช่ JSON`
-                        : 'สถิติรายวัน: การตอบกลับไม่ใช่ JSON';
+                        ? `โหลดสถิติรายวันไม่สำเร็จ (HTTP ${statsRes.status}) เซิร์ฟเวอร์ตอบกลับมาไม่ใช่ JSON`
+                        : 'รูปแบบข้อมูลสถิติรายวันไม่ถูกต้อง';
                     throw new Error('parse');
                 }
                 if (!statsRes.ok) {
@@ -351,7 +351,7 @@ export default function JtDashboardPage() {
         } catch (e) {
             if (controller.signal.aborted) return;
             const message =
-                e instanceof Error ? e.message : 'โหลดข้อมูลไม่สำเร็จ';
+                e instanceof Error ? e.message : 'โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
             setState({ status: 'error', message });
         }
     }, []);
@@ -405,7 +405,7 @@ export default function JtDashboardPage() {
             });
             const raw = await res.text();
             if (!res.ok) {
-                let msg = 'บันทึกการ์ดไม่สำเร็จ';
+                let msg = 'บันทึกการ์ดสรุปข้อมูลไม่สำเร็จ';
                 try {
                     const o = JSON.parse(raw) as { error?: string };
                     if (o.error) msg = o.error;
@@ -428,7 +428,7 @@ export default function JtDashboardPage() {
         });
         const raw = await res.text();
         if (!res.ok) {
-            let msg = 'บันทึกการตั้งค่าฟิลด์ไม่สำเร็จ';
+            let msg = 'บันทึกการตั้งค่าฟิลด์รายละเอียดพัสดุไม่สำเร็จ';
             try {
                 const o = JSON.parse(raw) as { error?: string };
                 if (o.error) msg = o.error;
