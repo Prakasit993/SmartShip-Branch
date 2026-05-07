@@ -51,10 +51,32 @@ type FetchState =
     | { status: 'error'; message: string }
     | { status: 'success' } & SuccessData;
 
+function toLocalYmd(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function addLocalDays(date: Date, days: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+}
+
+function getDefaultParcelDateRange(): { from: string; to: string } {
+    const today = new Date();
+    return {
+        from: toLocalYmd(addLocalDays(today, -6)),
+        to: toLocalYmd(today),
+    };
+}
+
 export default function JtDashboardPage() {
+    const [initialDateRange] = useState(() => getDefaultParcelDateRange());
     const [state, setState] = useState<FetchState>({ status: 'idle' });
-    const [parcelDateFrom, setParcelDateFrom] = useState('');
-    const [parcelDateTo, setParcelDateTo] = useState('');
+    const [parcelDateFrom, setParcelDateFrom] = useState(initialDateRange.from);
+    const [parcelDateTo, setParcelDateTo] = useState(initialDateRange.to);
     const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
     const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
@@ -335,11 +357,11 @@ export default function JtDashboardPage() {
     }, []);
 
     useEffect(() => {
-        void load('', '');
+        void load(initialDateRange.from, initialDateRange.to);
         return () => {
             if (abortRef.current) abortRef.current.abort();
         };
-    }, [load]);
+    }, [initialDateRange, load]);
 
     const handleApplyRange = useCallback((range?: { from: string; to: string }) => {
         const nextFrom = range?.from ?? parcelDateFrom;

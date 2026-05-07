@@ -263,7 +263,9 @@ function addLocalDays(date: Date, days: number): Date {
     return next;
 }
 
-function getPresetDateRange(preset: 'today' | 'last7' | 'last30' | 'thisMonth'): { from: string; to: string } {
+type DateRangePreset = 'today' | 'last7' | 'last14' | 'last30' | 'thisMonth';
+
+function getPresetDateRange(preset: DateRangePreset): { from: string; to: string } {
     const today = new Date();
     if (preset === 'today') {
         const value = toLocalYmd(today);
@@ -271,6 +273,9 @@ function getPresetDateRange(preset: 'today' | 'last7' | 'last30' | 'thisMonth'):
     }
     if (preset === 'last7') {
         return { from: toLocalYmd(addLocalDays(today, -6)), to: toLocalYmd(today) };
+    }
+    if (preset === 'last14') {
+        return { from: toLocalYmd(addLocalDays(today, -13)), to: toLocalYmd(today) };
     }
     if (preset === 'last30') {
         return { from: toLocalYmd(addLocalDays(today, -29)), to: toLocalYmd(today) };
@@ -451,7 +456,7 @@ export function JtDashboardView({
         }
     }
 
-    function applyDatePreset(preset: 'today' | 'last7' | 'last30' | 'thisMonth') {
+    function applyDatePreset(preset: DateRangePreset) {
         const next = getPresetDateRange(preset);
         onParcelDateFromChange(next.from);
         onParcelDateToChange(next.to);
@@ -691,6 +696,7 @@ export function JtDashboardView({
                             {[
                                 { key: 'today', label: 'วันนี้' },
                                 { key: 'last7', label: '7 วัน' },
+                                { key: 'last14', label: '14 วัน' },
                                 { key: 'last30', label: '30 วัน' },
                                 { key: 'thisMonth', label: 'เดือนนี้' },
                             ].map((preset) => (
@@ -698,7 +704,7 @@ export function JtDashboardView({
                                     key={preset.key}
                                     type="button"
                                     disabled={loading}
-                                    onClick={() => applyDatePreset(preset.key as 'today' | 'last7' | 'last30' | 'thisMonth')}
+                                    onClick={() => applyDatePreset(preset.key as DateRangePreset)}
                                     className="min-h-[36px] rounded-full border border-slate-700/80 bg-slate-950/50 px-3 text-[11px] font-semibold text-slate-300 transition-colors hover:border-sky-500/45 hover:bg-sky-500/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {preset.label}
