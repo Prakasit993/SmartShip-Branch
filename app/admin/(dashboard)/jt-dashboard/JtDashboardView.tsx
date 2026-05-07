@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, CheckSquare, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck } from 'lucide-react';
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, CheckSquare, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck, X } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
@@ -55,7 +55,7 @@ export type JtDashboardViewProps = {
     parcelDateTo: string;
     onParcelDateFromChange: (v: string) => void;
     onParcelDateToChange: (v: string) => void;
-    onApplyRange: () => void;
+    onApplyRange: (range?: { from: string; to: string }) => void;
     onRetry?: () => void;
     /** ช่วงวันที่ที่กด "ใช้ช่วงนี้" แล้ว (แสดงใต้การ์ดพัสดุทั้งหมด) */
     appliedRange: { from: string; to: string } | null;
@@ -250,6 +250,34 @@ function normalizeChatText(text: string): string {
     return text.replace(/\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function toLocalYmd(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function addLocalDays(date: Date, days: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+}
+
+function getPresetDateRange(preset: 'today' | 'last7' | 'last30' | 'thisMonth'): { from: string; to: string } {
+    const today = new Date();
+    if (preset === 'today') {
+        const value = toLocalYmd(today);
+        return { from: value, to: value };
+    }
+    if (preset === 'last7') {
+        return { from: toLocalYmd(addLocalDays(today, -6)), to: toLocalYmd(today) };
+    }
+    if (preset === 'last30') {
+        return { from: toLocalYmd(addLocalDays(today, -29)), to: toLocalYmd(today) };
+    }
+    return { from: toLocalYmd(new Date(today.getFullYear(), today.getMonth(), 1)), to: toLocalYmd(today) };
+}
+
 /**
  * โครง UI หลักของแดชบอร์ด J&T — พื้นหลังเข้ม slate-950/900 ตามธีมแอดมิน
  * (Sidebar / ภาษา TH|EN อยู่ที่ layout แม่ — ไม่ซ้ำในไฟล์นี้)
@@ -299,6 +327,14 @@ export function JtDashboardView({
     const [chatError, setChatError] = useState<string | null>(null);
     const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
     const showContent = !loading && !error;
+    const dateRangeError =
+        parcelDateFrom && parcelDateTo && parcelDateFrom > parcelDateTo
+            ? 'วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด'
+            : null;
+    const hasDateDraft = Boolean(parcelDateFrom || parcelDateTo);
+    const appliedFrom = appliedRange?.from ?? '';
+    const appliedTo = appliedRange?.to ?? '';
+    const dateDraftChanged = parcelDateFrom !== appliedFrom || parcelDateTo !== appliedTo;
     const fieldLabelMap = new Map(
         availableDetailFields.map((key) => [
             key,
@@ -413,6 +449,19 @@ export function JtDashboardView({
         } finally {
             setChatLoading(false);
         }
+    }
+
+    function applyDatePreset(preset: 'today' | 'last7' | 'last30' | 'thisMonth') {
+        const next = getPresetDateRange(preset);
+        onParcelDateFromChange(next.from);
+        onParcelDateToChange(next.to);
+        onApplyRange(next);
+    }
+
+    function clearDateRange() {
+        onParcelDateFromChange('');
+        onParcelDateToChange('');
+        onApplyRange({ from: '', to: '' });
     }
 
     return (
@@ -579,13 +628,17 @@ export function JtDashboardView({
                 </h2>
 
                 {/* ── Date Filter Bar ── */}
-                <div
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!dateRangeError) onApplyRange();
+                    }}
                     className="mb-4 sm:mb-5 rounded-2xl border border-slate-800/70 bg-gradient-to-r from-slate-900/50 via-slate-900/40 to-slate-950/60 p-3 sm:p-4 ring-1 ring-white/[0.04]"
                     style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
                 >
-                    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:items-end lg:gap-x-4 lg:gap-y-3">
-                        <div className="flex min-w-0 items-start gap-2 lg:col-span-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/25">
+                    <div className="flex flex-col gap-4 xl:grid xl:grid-cols-12 xl:items-end xl:gap-x-4 xl:gap-y-3">
+                        <div className="flex min-w-0 items-start gap-3 xl:col-span-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/25">
                                 <Calendar className="h-4 w-4" aria-hidden />
                             </div>
                             <div className="min-w-0">
@@ -597,16 +650,26 @@ export function JtDashboardView({
                                         ? 'โหมดจำลอง: ไม่ยิง API'
                                         : 'booking_date · เว้นทั้งคู่ = ทั้งตาราง'}
                                 </p>
+                                {appliedRange && (appliedRange.from || appliedRange.to) ? (
+                                    <p className="mt-1 text-[11px] font-medium text-sky-300">
+                                        ใช้อยู่: {appliedRange.from || 'ไม่กำหนด'} ถึง {appliedRange.to || 'ไม่กำหนด'}
+                                    </p>
+                                ) : null}
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:col-span-6 lg:grid-cols-2 lg:gap-3">
+                        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:col-span-5 xl:grid-cols-2 xl:gap-3">
                             <label className="flex min-w-0 flex-col gap-1 text-sm text-slate-400">
                                 <span className="text-[10px] font-medium text-slate-500">ตั้งแต่</span>
                                 <input
                                     type="date"
                                     value={parcelDateFrom}
                                     onChange={(e) => onParcelDateFromChange(e.target.value)}
-                                    className="min-h-[44px] w-full rounded-xl border border-slate-700/80 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/40 transition-all focus:border-sky-500/50 focus:ring-2 hover:border-slate-600 sm:min-h-0"
+                                    max={parcelDateTo || undefined}
+                                    className={`min-h-[44px] w-full rounded-xl border bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/40 transition-all focus:ring-2 hover:border-slate-600 sm:min-h-0 ${
+                                        dateRangeError
+                                            ? 'border-rose-500/60 focus:border-rose-400 focus:ring-rose-500/30'
+                                            : 'border-slate-700/80 focus:border-sky-500/50'
+                                    }`}
                                 />
                             </label>
                             <label className="flex min-w-0 flex-col gap-1 text-sm text-slate-400">
@@ -615,23 +678,56 @@ export function JtDashboardView({
                                     type="date"
                                     value={parcelDateTo}
                                     onChange={(e) => onParcelDateToChange(e.target.value)}
-                                    className="min-h-[44px] w-full rounded-xl border border-slate-700/80 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/40 transition-all focus:border-sky-500/50 focus:ring-2 hover:border-slate-600 sm:min-h-0"
+                                    min={parcelDateFrom || undefined}
+                                    className={`min-h-[44px] w-full rounded-xl border bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/40 transition-all focus:ring-2 hover:border-slate-600 sm:min-h-0 ${
+                                        dateRangeError
+                                            ? 'border-rose-500/60 focus:border-rose-400 focus:ring-rose-500/30'
+                                            : 'border-slate-700/80 focus:border-sky-500/50'
+                                    }`}
                                 />
                             </label>
                         </div>
-                        <div className="flex lg:col-span-3 lg:justify-end">
+                        <div className="flex flex-wrap items-center gap-2 xl:col-span-4 xl:justify-end">
+                            {[
+                                { key: 'today', label: 'วันนี้' },
+                                { key: 'last7', label: '7 วัน' },
+                                { key: 'last30', label: '30 วัน' },
+                                { key: 'thisMonth', label: 'เดือนนี้' },
+                            ].map((preset) => (
+                                <button
+                                    key={preset.key}
+                                    type="button"
+                                    disabled={loading}
+                                    onClick={() => applyDatePreset(preset.key as 'today' | 'last7' | 'last30' | 'thisMonth')}
+                                    className="min-h-[36px] rounded-full border border-slate-700/80 bg-slate-950/50 px-3 text-[11px] font-semibold text-slate-300 transition-colors hover:border-sky-500/45 hover:bg-sky-500/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {preset.label}
+                                </button>
+                            ))}
                             <button
                                 type="button"
-                                onClick={onApplyRange}
-                                disabled={loading}
+                                disabled={loading || !hasDateDraft}
+                                onClick={clearDateRange}
+                                className="flex min-h-[36px] items-center gap-1 rounded-full border border-slate-700/80 bg-slate-950/50 px-3 text-[11px] font-semibold text-slate-400 transition-colors hover:border-slate-500 hover:bg-slate-800/70 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <X className="h-3 w-3" aria-hidden />
+                                ล้าง
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading || Boolean(dateRangeError)}
                                 className="group/btn flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/30 transition-all hover:from-sky-500 hover:to-sky-400 hover:shadow-sky-800/40 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] min-[420px]:w-auto sm:min-h-0 lg:min-w-[9.5rem]"
                             >
                                 <Search className="h-3.5 w-3.5 transition-transform group-hover/btn:scale-110" aria-hidden />
-                                <span className="hidden sm:inline">กรองข้อมูล</span>
+                                <span className="hidden sm:inline">{dateDraftChanged ? 'ใช้ช่วงวันที่' : 'กรองข้อมูล'}</span>
                                 <span className="sm:hidden">กรอง</span>
                             </button>
                         </div>
                     </div>
+
+                    {dateRangeError ? (
+                        <p className="mt-2 text-[11px] font-medium text-rose-300">{dateRangeError}</p>
+                    ) : null}
 
                     {/* Refresh timestamp */}
                     {lastRefreshed ? (
@@ -640,7 +736,7 @@ export function JtDashboardView({
                             <span>อัปเดตล่าสุด: {formatTimeAgo(lastRefreshed)}</span>
                         </div>
                     ) : null}
-                </div>
+                </form>
 
                 {/* ── KPI Cards ── */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">

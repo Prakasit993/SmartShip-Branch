@@ -341,10 +341,12 @@ export default function JtDashboardPage() {
         };
     }, [load]);
 
-    const handleApplyRange = useCallback(() => {
+    const handleApplyRange = useCallback((range?: { from: string; to: string }) => {
+        const nextFrom = range?.from ?? parcelDateFrom;
+        const nextTo = range?.to ?? parcelDateTo;
         // Clear cache when filter changes so loading state shows
         cacheRef.current = null;
-        void load(parcelDateFrom, parcelDateTo);
+        void load(nextFrom, nextTo);
     }, [load, parcelDateFrom, parcelDateTo]);
 
     const loading = state.status === 'loading' || state.status === 'idle';
