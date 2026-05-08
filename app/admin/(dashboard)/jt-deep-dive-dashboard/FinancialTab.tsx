@@ -10,6 +10,7 @@ type FinancialSummary = {
     totalCost: number;
     totalProfit: number;
     shipmentCount: number;
+    costModel?: string;
     dailyProfit: FinancialDailyProfitRow[];
     missingCostPrices: FinancialMissingCostPriceRow[];
 };
@@ -139,6 +140,7 @@ export function FinancialTab() {
                 totalCost: Number(json.totalCost) || 0,
                 totalProfit: Number(json.totalProfit) || 0,
                 shipmentCount: Number(json.shipmentCount) || 0,
+                costModel: typeof json.costModel === 'string' ? json.costModel : undefined,
                 dailyProfit: Array.isArray(json.dailyProfit)
                     ? json.dailyProfit.map((r) => ({
                           date: String((r as FinancialDailyProfitRow).date || ''),
@@ -253,7 +255,7 @@ export function FinancialTab() {
                     ใช้ช่วงวันที่กำหนดเอง
                 </button>
                 <p className="text-xs text-slate-500">
-                    อ้างอิง `booking_date` และจับคู่ต้นทุนจาก `shipping_cost_master`
+                    อ้างอิง `booking_date` และคำนวณต้นทุนจากน้ำหนักคิดเงินล่าสุดก่อน fallback ไปตารางต้นทุนเดิม
                 </p>
             </div>
 
@@ -267,13 +269,13 @@ export function FinancialTab() {
                 <FinancialMetricCard
                     label="ต้นทุนรวม"
                     value={data ? formatThb(data.totalCost) : isLoading ? 'กำลังโหลด...' : '-'}
-                    hint="จับคู่ราคาขายกับต้นทุนจาก shipping_cost_master"
+                    hint="ใช้ปลายทาง + billable weight จาก gateway/น้ำหนักจริง แล้ว fallback ด้วย shipping_cost_master"
                     icon={<Database className="h-5 w-5" aria-hidden />}
                 />
                 <FinancialMetricCard
                     label="กำไรรวม"
                     value={data ? formatThb(data.totalProfit) : isLoading ? 'กำลังโหลด...' : '-'}
-                    hint="กำไร = ค่าขนส่ง - ต้นทุน"
+                    hint="กำไร = ค่าขนส่งที่ร้านเก็บจริง - ต้นทุนขนส่งที่คำนวณล่าสุด"
                     icon={<Calculator className="h-5 w-5" aria-hidden />}
                 />
             </div>
@@ -419,7 +421,7 @@ function MissingCostPricesTable({ rows }: { rows: FinancialMissingCostPriceRow[]
             <div className="mb-4">
                 <h3 className="text-sm font-semibold text-white">ราคาที่ยังไม่มีต้นทุน</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                    รายการนี้ยังใช้ต้นทุน default 15 บาท ควรเติมใน `shipping_cost_master`
+                    รายการนี้ยังใช้ต้นทุน default 15 บาท ควรเติมเรตใน `jt_shipping_cost_rates` หรือ fallback ใน `shipping_cost_master`
                 </p>
             </div>
 

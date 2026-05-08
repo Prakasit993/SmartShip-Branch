@@ -75,7 +75,7 @@ export async function GET(req: Request) {
             return NextResponse.json(
                 {
                     error: firstError.message,
-                    hint: 'ตรวจสอบว่ารัน migrations financial summary/deep dive และมีตาราง shipping_cost_master แล้ว',
+                    hint: 'ตรวจสอบว่ารัน migrations financial billable weight cost และมีตาราง shipping_cost_master / jt_shipping_cost_rates แล้ว',
                 },
                 { status: 500 },
             );
@@ -92,6 +92,7 @@ export async function GET(req: Request) {
             totalCost: toNumber(row?.total_cost),
             totalProfit: toNumber(row?.total_profit),
             shipmentCount: Math.trunc(toNumber(row?.shipment_count)),
+            costModel: 'billable_weight_with_sale_price_fallback',
             dailyProfit: dailyRows.map((r) => ({
                 date: String(r.day || '').slice(0, 10),
                 totalRevenue: toNumber(r.total_revenue),
