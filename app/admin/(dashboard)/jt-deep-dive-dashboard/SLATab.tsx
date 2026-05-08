@@ -5,7 +5,7 @@ import { AlertTriangle, Clock3, PackageCheck } from 'lucide-react';
 export function SLATab() {
     return (
         <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <SlaMetricCard
                     label="ส่งสำเร็จแล้ว"
                     value="รอต่อ API"
@@ -61,13 +61,13 @@ function SlaMetricCard({
     icon: React.ReactNode;
 }) {
     return (
-        <article className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/75 to-slate-950/80 p-4 ring-1 ring-white/[0.03]">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/25">
+        <article className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900/75 to-slate-950/80 p-3 ring-1 ring-white/[0.03]">
+            <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/25">
                 {icon}
             </div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-            <p className="mt-2 text-xl font-bold text-white">{value}</p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500">{hint}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+            <p className="mt-1 text-lg font-bold text-white">{value}</p>
+            <p className="mt-1 text-[11px] leading-snug text-slate-500">{hint}</p>
         </article>
     );
 }

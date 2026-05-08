@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, Loader2, Send, Sparkles, UserRound } from 'lucide-react';
+import { Bot, ChevronDown, Loader2, Send, Sparkles, UserRound } from 'lucide-react';
 import { useState } from 'react';
 
 type ChatMessage = {
@@ -39,6 +39,7 @@ function normalizeChatText(text: string): string {
 
 export function DeepDiveAiAssistant() {
     const [input, setInput] = useState('');
+    const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -85,11 +86,11 @@ export function DeepDiveAiAssistant() {
 
     return (
         <section className="overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-950/95 via-slate-950/80 to-slate-900/75 shadow-xl shadow-black/20 ring-1 ring-white/[0.04]">
-            <div className="border-b border-slate-800/80 p-4 sm:p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className={`${open ? 'border-b border-slate-800/80' : ''} p-3 sm:p-4`}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30">
-                            <Bot className="h-5 w-5" aria-hidden />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30">
+                            <Bot className="h-4 w-4" aria-hidden />
                         </div>
                         <div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -100,63 +101,78 @@ export function DeepDiveAiAssistant() {
                                     AI Agent
                                 </span>
                             </div>
-                            <p className="mt-1 text-sm leading-relaxed text-slate-400">
+                            <p className="mt-0.5 text-xs leading-relaxed text-slate-400 sm:text-sm">
                                 ถามสรุปกำไร COD เคสผิดปกติ หรือแนวโน้มการจัดส่งจากหน้าวิเคราะห์เชิงลึก
                             </p>
                         </div>
                     </div>
-                    <Sparkles className="hidden h-5 w-5 text-sky-300/70 sm:block" aria-hidden />
+                    <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() => setOpen((value) => !value)}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 text-sm font-semibold text-sky-200 transition-colors hover:border-sky-400/50 hover:bg-sky-500/15"
+                    >
+                        {open ? 'ปิดแชท' : 'เปิดแชท'}
+                        <ChevronDown
+                            className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
+                            aria-hidden
+                        />
+                    </button>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                    {SUGGESTIONS.map((suggestion) => (
-                        <button
-                            key={suggestion}
-                            type="button"
-                            disabled={loading}
-                            onClick={() => void submitChat(suggestion)}
-                            className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {suggestion}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="p-4 sm:p-5">
-                <div className="min-h-[18rem] rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-                    <div className="scrollbar-hide flex max-h-[24rem] min-h-[16rem] flex-col-reverse gap-3 overflow-y-auto overscroll-contain pr-1">
-                        {loading ? (
-                            <div className="mr-8 flex items-center gap-2 rounded-2xl border border-slate-700/90 bg-slate-900/95 px-3 py-2 text-sm text-slate-300">
-                                <Loader2 className="h-4 w-4 animate-spin text-sky-300" aria-hidden />
-                                กำลังวิเคราะห์ข้อมูล...
-                            </div>
-                        ) : null}
-                        {messages.length === 0 ? (
-                            <div className="flex min-h-[16rem] items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-900/25 px-4 text-center">
-                                <p className="max-w-md text-sm leading-relaxed text-slate-500">
-                                    เริ่มจากคำถามด้านบน หรือพิมพ์คำถามเอง เช่น “วันนี้มีเคสไหนที่ควรรีบตามเงิน COD?”
-                                </p>
-                            </div>
-                        ) : (
-                            [...messages].reverse().map((message, index) => (
-                                <ChatBubble
-                                    key={`${message.role}-${index}`}
-                                    message={message}
-                                />
-                            ))
-                        )}
+                {open ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {SUGGESTIONS.map((suggestion) => (
+                            <button
+                                key={suggestion}
+                                type="button"
+                                disabled={loading}
+                                onClick={() => void submitChat(suggestion)}
+                                className="rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
                     </div>
-                </div>
+                ) : null}
             </div>
 
-            <form
-                className="border-t border-slate-800/80 p-4 sm:p-5"
-                onSubmit={(e) => {
-                    e.preventDefault();
-                    void submitChat();
-                }}
-            >
+            {open ? (
+                <>
+                    <div className="p-3 sm:p-4">
+                        <div className="min-h-[14rem] rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+                            <div className="scrollbar-hide flex max-h-[18rem] min-h-[12rem] flex-col-reverse gap-3 overflow-y-auto overscroll-contain pr-1">
+                                {loading ? (
+                                    <div className="mr-8 flex items-center gap-2 rounded-2xl border border-slate-700/90 bg-slate-900/95 px-3 py-2 text-sm text-slate-300">
+                                        <Loader2 className="h-4 w-4 animate-spin text-sky-300" aria-hidden />
+                                        กำลังวิเคราะห์ข้อมูล...
+                                    </div>
+                                ) : null}
+                                {messages.length === 0 ? (
+                                    <div className="flex min-h-[12rem] items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-900/25 px-4 text-center">
+                                        <p className="max-w-md text-sm leading-relaxed text-slate-500">
+                                            เริ่มจากคำถามด้านบน หรือพิมพ์คำถามเอง เช่น “วันนี้มีเคสไหนที่ควรรีบตามเงิน COD?”
+                                        </p>
+                                    </div>
+                                ) : (
+                                    [...messages].reverse().map((message, index) => (
+                                        <ChatBubble
+                                            key={`${message.role}-${index}`}
+                                            message={message}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <form
+                        className="border-t border-slate-800/80 p-3 sm:p-4"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            void submitChat();
+                        }}
+                    >
                 <label htmlFor="deep-dive-ai-input" className="sr-only">
                     พิมพ์คำถามสำหรับผู้ช่วยวิเคราะห์ข้อมูล
                 </label>
@@ -216,7 +232,9 @@ export function DeepDiveAiAssistant() {
                         ) : null}
                     </div>
                 ) : null}
-            </form>
+                    </form>
+                </>
+            ) : null}
         </section>
     );
 }
