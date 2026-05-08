@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, CheckCircle2, CheckSquare, Clock, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck, X } from 'lucide-react';
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, Check, CheckCircle2, CheckSquare, Clock, Copy, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck, X } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
@@ -334,6 +334,8 @@ export function JtDashboardView({
     const [ackReason, setAckReason] = useState('');
     const [ackLoading, setAckLoading] = useState(false);
     const [ackError, setAckError] = useState<string | null>(null);
+    const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
+    const [copyMessage, setCopyMessage] = useState<string | null>(null);
     const showContent = !loading && !error;
     const dateRangeError =
         parcelDateFrom && parcelDateTo && parcelDateFrom > parcelDateTo
@@ -385,6 +387,36 @@ export function JtDashboardView({
             setDetailError(e instanceof Error ? e.message : 'โหลดรายละเอียดพัสดุไม่สำเร็จ');
         } finally {
             setDetailLoading(false);
+        }
+    }
+
+    async function copyAwb(awb: string) {
+        const value = awb.trim();
+        if (!value) return;
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopiedAwb(value);
+            setCopyMessage(`คัดลอก AWB ${value} แล้ว`);
+            window.setTimeout(() => {
+                setCopiedAwb((prev) => (prev === value ? null : prev));
+            }, 1800);
+            window.setTimeout(() => setCopyMessage(null), 2200);
+        } catch {
+            setCopyMessage('คัดลอกไม่สำเร็จ กรุณาลองใหม่');
+            window.setTimeout(() => setCopyMessage(null), 2200);
+        }
+    }
+
+    async function copyAwbList(awbs: string[]) {
+        const clean = awbs.map((x) => x.trim()).filter(Boolean);
+        if (clean.length === 0) return;
+        try {
+            await navigator.clipboard.writeText(clean.join('\n'));
+            setCopyMessage(`คัดลอก AWB ${clean.length.toLocaleString('th-TH')} รายการแล้ว`);
+            window.setTimeout(() => setCopyMessage(null), 2500);
+        } catch {
+            setCopyMessage('คัดลอกชุด AWB ไม่สำเร็จ');
+            window.setTimeout(() => setCopyMessage(null), 2200);
         }
     }
 
@@ -1012,9 +1044,25 @@ export function JtDashboardView({
                         </div>
                         {activeDrilldown === 'exception' ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    รายการพัสดุมีปัญหา (ยังไม่มีรหัสสาขาปลายทาง)
-                                </p>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                        รายการพัสดุมีปัญหา (ยังไม่มีรหัสสาขาปลายทาง)
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void copyAwbList(
+                                                (showAllIssues ? metrics.topExceptionCases : metrics.topExceptionCases.slice(0, 3)).map(
+                                                    (r) => r.awb_number,
+                                                ),
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white"
+                                    >
+                                        <Copy className="h-3.5 w-3.5" aria-hidden />
+                                        คัดลอก AWB ทั้งชุด
+                                    </button>
+                                </div>
                                 {metrics.topExceptionCases.length > 0 ? (
                                     <>
                                         <div className="mt-2 space-y-1.5 overflow-x-auto">
@@ -1034,11 +1082,17 @@ export function JtDashboardView({
                                                     <span className="tabular-nums text-slate-500">{idx + 1}</span>
                                                     <button
                                                         type="button"
-                                                        onClick={() => void openShipmentDetail(r.awb_number)}
-                                                        className="min-w-0 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
-                                                        title={`เปิดรายละเอียด ${r.awb_number}`}
+                                                        onClick={() => void copyAwb(r.awb_number)}
+                                                        onDoubleClick={() => void openShipmentDetail(r.awb_number)}
+                                                        className="inline-flex min-w-0 items-center gap-1 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                        title={`คลิกเพื่อคัดลอก • ดับเบิลคลิกเพื่อเปิดรายละเอียด ${r.awb_number}`}
                                                     >
                                                         {r.awb_number}
+                                                        {copiedAwb === r.awb_number ? (
+                                                            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+                                                        ) : (
+                                                            <Copy className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                                                        )}
                                                     </button>
                                                     <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
                                                         {r.sender_name}
@@ -1074,9 +1128,25 @@ export function JtDashboardView({
                         ) : null}
                         {activeDrilldown === 'return' ? (
                             <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    รายการพัสดุถูกตีกลับ (ตัดรายการที่รับทราบแล้ว)
-                                </p>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                        รายการพัสดุถูกตีกลับ (ตัดรายการที่รับทราบแล้ว)
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void copyAwbList(
+                                                (showAllReturns ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map(
+                                                    (r) => r.awb_number,
+                                                ),
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white"
+                                    >
+                                        <Copy className="h-3.5 w-3.5" aria-hidden />
+                                        คัดลอก AWB ทั้งชุด
+                                    </button>
+                                </div>
                                 {metrics.topReturnTypeCases.length > 0 ? (
                                     <>
                                         <div className="mt-2 space-y-1.5 overflow-x-auto">
@@ -1097,11 +1167,17 @@ export function JtDashboardView({
                                                     <span className="tabular-nums text-slate-500">{idx + 1}</span>
                                                     <button
                                                         type="button"
-                                                        onClick={() => void openShipmentDetail(r.awb_number)}
-                                                        className="min-w-0 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
-                                                        title={`เปิดรายละเอียด ${r.awb_number}`}
+                                                        onClick={() => void copyAwb(r.awb_number)}
+                                                        onDoubleClick={() => void openShipmentDetail(r.awb_number)}
+                                                        className="inline-flex min-w-0 items-center gap-1 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                        title={`คลิกเพื่อคัดลอก • ดับเบิลคลิกเพื่อเปิดรายละเอียด ${r.awb_number}`}
                                                     >
                                                         {r.awb_number}
+                                                        {copiedAwb === r.awb_number ? (
+                                                            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+                                                        ) : (
+                                                            <Copy className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                                                        )}
                                                     </button>
                                                     <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
                                                         {r.sender_name}
@@ -1343,6 +1419,12 @@ export function JtDashboardView({
                         </button>
                     </div>
                 </section>
+            ) : null}
+
+            {copyMessage ? (
+                <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs font-medium text-slate-200 shadow-xl shadow-black/30">
+                    {copyMessage}
+                </div>
             ) : null}
 
         </div>
