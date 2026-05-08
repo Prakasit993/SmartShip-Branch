@@ -7,7 +7,7 @@ import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 // GET: list with pagination + search | count_only + date range
 export async function GET(req: Request) {
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff');
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
         const { searchParams } = new URL(req.url);

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { getAdminSessionMaxAgeSec, isPasswordAdminSessionCookie } from '@app/lib/adminSession';
+import {
+    adminSessionContextFromRequest,
+    getAdminSessionMaxAgeSec,
+    isPasswordAdminSessionCookie,
+} from '@app/lib/adminSession';
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -21,7 +25,12 @@ export async function middleware(request: NextRequest) {
 
         // Check for password-based admin session first
         const adminSession = request.cookies.get('admin_session');
-        if (await isPasswordAdminSessionCookie(adminSession?.value)) {
+        if (
+            await isPasswordAdminSessionCookie(
+                adminSession?.value,
+                adminSessionContextFromRequest(request)
+            )
+        ) {
             const maxAge = getAdminSessionMaxAgeSec();
             response.cookies.set('admin_role', 'admin', {
                 httpOnly: true,

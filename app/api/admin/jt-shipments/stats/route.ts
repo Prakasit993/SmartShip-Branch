@@ -479,7 +479,7 @@ function resolveChartAxis(
 
 export async function GET(request: Request) {
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff');
+        const denied = await requireAdminApiAuth('admin-or-staff', request);
         if (denied) return denied;
 
         const { searchParams } = new URL(request.url);

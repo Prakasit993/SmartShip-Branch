@@ -5,9 +5,9 @@ import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 type RpcRow = { column_name: string; data_type: string };
 
 /** GET — รายชื่อคอลัมน์จริงของตาราง jt_shipments (ใช้เช็คกับไฟล์ Import) */
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff');
+        const denied = await requireAdminApiAuth('admin-or-staff', request);
         if (denied) return denied;
 
         const { data, error } = await supabaseAdmin.rpc('jt_shipments_import_columns');

@@ -11,6 +11,7 @@ import {
 import { verifyTurnstileToken } from '@app/lib/turnstile';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import {
+    adminSessionContextFromRequest,
     buildAdminCookieOptions,
     getAdminSessionMaxAgeSec,
     issueAdminSessionToken,
@@ -40,16 +41,9 @@ async function saveLoginLog(
     }
 }
 
-function clientIp(request: Request): string {
-    return (
-        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        request.headers.get('x-real-ip') ||
-        'unknown'
-    );
-}
-
 export async function POST(request: Request) {
-    const ip = clientIp(request);
+    const sessionContext = adminSessionContextFromRequest(request);
+    const ip = sessionContext.ip;
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     const rateLimitResult = checkRateLimit(ip);
@@ -159,7 +153,7 @@ export async function POST(request: Request) {
     clearAttempts(ip);
 
     const maxAgeSec = getAdminSessionMaxAgeSec();
-    const sessionValue = await issueAdminSessionToken(maxAgeSec);
+    const sessionValue = await issueAdminSessionToken(maxAgeSec, sessionContext);
     const cookieOpts = buildAdminCookieOptions(maxAgeSec);
 
     const cookieStore = await cookies();

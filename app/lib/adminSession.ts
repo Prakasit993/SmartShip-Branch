@@ -1,4 +1,4 @@
-const SESSION_VERSION = '1';
+const SESSION_VERSION = '2';
 
 /** Cookie max-age in seconds — override with ADMIN_SESSION_MAX_AGE_SEC */
 export function getAdminSessionMaxAgeSec(): number {
@@ -28,6 +28,40 @@ export function buildAdminCookieOptions(maxAgeSec: number) {
         maxAge: maxAgeSec,
         path: '/',
     };
+}
+
+export type AdminSessionContext = {
+    ip: string;
+    userAgent: string;
+};
+
+function clientIpFromHeaders(headers: Headers): string {
+    return (
+        headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        headers.get('x-real-ip')?.trim() ||
+        'unknown'
+    );
+}
+
+export function adminSessionContextFromRequest(request: Request): AdminSessionContext {
+    return {
+        ip: clientIpFromHeaders(request.headers),
+        userAgent: request.headers.get('user-agent')?.trim() || 'unknown',
+    };
+}
+
+function normalizeIpForBinding(ip: string): string {
+    const mode = (process.env.ADMIN_SESSION_IP_BIND_MODE || 'subnet').toLowerCase();
+    if (mode === 'none') return 'ip:none';
+    if (mode === 'exact') return `ip:${ip}`;
+
+    const ipv4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/);
+    if (ipv4) return `ip:${ipv4[1]}.${ipv4[2]}.${ipv4[3]}.0/24`;
+
+    const ipv6Parts = ip.split(':');
+    if (ipv6Parts.length >= 4) return `ip:${ipv6Parts.slice(0, 4).join(':')}::/64`;
+
+    return `ip:${ip}`;
 }
 
 function bytesToBase64Url(buf: ArrayBuffer): string {
@@ -81,18 +115,31 @@ async function hmacSha256Base64Url(secret: string, message: string): Promise<str
     return bytesToBase64Url(sig);
 }
 
-/** Issue signed token, or legacy fixed value when no secret material exists (local dev only). Edge-safe (Web Crypto). */
-export async function issueAdminSessionToken(maxAgeSec: number): Promise<string> {
+async function contextFingerprint(secret: string, context: AdminSessionContext): Promise<string> {
+    const userAgent = context.userAgent.trim().slice(0, 300);
+    const ipKey = normalizeIpForBinding(context.ip.trim() || 'unknown');
+    return hmacSha256Base64Url(secret, `admin-session-context:${userAgent}|${ipKey}`);
+}
+
+/** Issue signed token bound to the current browser/network context. Edge-safe (Web Crypto). */
+export async function issueAdminSessionToken(
+    maxAgeSec: number,
+    context: AdminSessionContext
+): Promise<string> {
     const secret = resolveAdminSessionSecret();
     const expUnix = Math.floor(Date.now() / 1000) + maxAgeSec;
     if (!secret) return 'admin';
-    const payload = `${SESSION_VERSION}:${expUnix}`;
+    const fp = await contextFingerprint(secret, context);
+    const payload = `${SESSION_VERSION}:${expUnix}:${fp}`;
     const sig = await hmacSha256Base64Url(secret, payload);
     return `${payload}.${sig}`;
 }
 
 /** Edge-safe verification (crypto.subtle, no Node `crypto`). */
-export async function verifyAdminSessionToken(token: string): Promise<boolean> {
+export async function verifyAdminSessionToken(
+    token: string,
+    context: AdminSessionContext
+): Promise<boolean> {
     const secret = resolveAdminSessionSecret();
     if (!secret) {
         return token === 'admin' || token === 'true';
@@ -104,10 +151,16 @@ export async function verifyAdminSessionToken(token: string): Promise<boolean> {
     const payload = token.slice(0, dot);
     const sigB64 = token.slice(dot + 1);
     const parts = payload.split(':');
-    if (parts.length !== 2 || parts[0] !== SESSION_VERSION) return false;
+    if (parts.length !== 3 || parts[0] !== SESSION_VERSION) return false;
 
     const expUnix = Number(parts[1]);
     if (!Number.isFinite(expUnix) || expUnix < Math.floor(Date.now() / 1000)) return false;
+
+    const expectedFingerprint = await contextFingerprint(secret, context);
+    const gotFingerprint = base64UrlToBytes(parts[2]);
+    const expectedFingerprintBytes = base64UrlToBytes(expectedFingerprint);
+    if (gotFingerprint == null || expectedFingerprintBytes == null) return false;
+    if (!timingSafeEqualBytes(gotFingerprint, expectedFingerprintBytes)) return false;
 
     const expectedB64 = await hmacSha256Base64Url(secret, payload);
     const got = base64UrlToBytes(sigB64);
@@ -116,13 +169,14 @@ export async function verifyAdminSessionToken(token: string): Promise<boolean> {
     return timingSafeEqualBytes(got, expected);
 }
 
-/**
- * Password-based admin session: signed cookie, or legacy `admin` / `true` (older deploys until cookies rotate).
- */
-export async function isPasswordAdminSessionCookie(value: string | undefined): Promise<boolean> {
+/** Password-based admin session: signed cookie bound to the current request context. */
+export async function isPasswordAdminSessionCookie(
+    value: string | undefined,
+    context: AdminSessionContext
+): Promise<boolean> {
     if (value == null || value === '') return false;
     if (resolveAdminSessionSecret()) {
-        return (await verifyAdminSessionToken(value)) || value === 'admin' || value === 'true';
+        return verifyAdminSessionToken(value, context);
     }
-    return verifyAdminSessionToken(value);
+    return verifyAdminSessionToken(value, context);
 }

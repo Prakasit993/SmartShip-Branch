@@ -4,8 +4,8 @@ import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-    const denied = await requireAdminApiAuth('admin-only');
+export async function GET(request: Request) {
+    const denied = await requireAdminApiAuth('admin-only', request);
     if (denied) return denied;
 
     const { data: logs } = await supabaseAdmin

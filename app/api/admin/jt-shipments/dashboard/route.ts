@@ -366,7 +366,7 @@ function formatMetricDisplay(raw: number, format: 'count' | 'thb'): string {
 export async function GET(req: Request) {
     const t0 = performance.now();
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff');
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
         const { searchParams } = new URL(req.url);

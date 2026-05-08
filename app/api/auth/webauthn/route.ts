@@ -7,7 +7,12 @@ import {
     verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
-import { buildAdminCookieOptions, getAdminSessionMaxAgeSec, issueAdminSessionToken } from '@app/lib/adminSession';
+import {
+    adminSessionContextFromRequest,
+    buildAdminCookieOptions,
+    getAdminSessionMaxAgeSec,
+    issueAdminSessionToken,
+} from '@app/lib/adminSession';
 
 // WebAuthn configuration
 const rpName = 'SmartShip Admin';
@@ -177,7 +182,10 @@ export async function POST(request: Request) {
                 challengeStore.delete(adminEmail);
 
                 const maxAgeSec = getAdminSessionMaxAgeSec();
-                const sessionToken = await issueAdminSessionToken(maxAgeSec);
+                const sessionToken = await issueAdminSessionToken(
+                    maxAgeSec,
+                    adminSessionContextFromRequest(request)
+                );
                 const cookieOpts = buildAdminCookieOptions(maxAgeSec);
 
                 const cookieStore = await cookies();

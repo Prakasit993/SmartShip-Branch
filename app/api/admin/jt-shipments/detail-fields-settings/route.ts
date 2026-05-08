@@ -21,9 +21,9 @@ async function loadAvailableFields(): Promise<string[]> {
     return names.length > 0 ? names : JT_SHIPMENT_DETAIL_FIELDS.map((f) => f.key);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff');
+        const denied = await requireAdminApiAuth('admin-or-staff', request);
         if (denied) return denied;
 
         const availableFields = await loadAvailableFields();

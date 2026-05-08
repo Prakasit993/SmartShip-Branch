@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { isPasswordAdminSessionCookie } from '@app/lib/adminSession';
+import { adminSessionContextFromRequest, isPasswordAdminSessionCookie } from '@app/lib/adminSession';
 
 export type AdminApiRole = 'admin' | 'staff';
 export type AdminApiPolicy = 'admin-only' | 'admin-or-staff';
@@ -12,10 +12,12 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * Resolves admin/staff for /api/admin/* (these routes are NOT covered by middleware).
  * Password login: signed `admin_session` cookie. OAuth: Supabase session + email allowlist.
  */
-export async function getAdminApiAccess(): Promise<{ allowed: boolean; role: AdminApiRole | null }> {
+export async function getAdminApiAccess(
+    request?: Request
+): Promise<{ allowed: boolean; role: AdminApiRole | null }> {
     const store = await cookies();
     const sessionVal = store.get('admin_session')?.value;
-    if (await isPasswordAdminSessionCookie(sessionVal)) {
+    if (request && (await isPasswordAdminSessionCookie(sessionVal, adminSessionContextFromRequest(request)))) {
         return { allowed: true, role: 'admin' };
     }
 
@@ -133,7 +135,7 @@ export async function requireAdminApiAuth(
         return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
     }
 
-    const access = await getAdminApiAccess();
+    const access = await getAdminApiAccess(request);
     if (!access.allowed) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

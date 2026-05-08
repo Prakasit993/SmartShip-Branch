@@ -7,9 +7,9 @@ import {
 } from '@/lib/jtCustomMetricCards';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff');
+        const denied = await requireAdminApiAuth('admin-or-staff', request);
         if (denied) return denied;
 
         const { data, error } = await supabaseAdmin

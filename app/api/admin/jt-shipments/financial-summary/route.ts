@@ -37,7 +37,7 @@ function toNumber(v: unknown): number {
 
 export async function GET(req: Request) {
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff');
+        const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
         const { dateFrom, dateTo } = readDateRange(req);
