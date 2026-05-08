@@ -3,6 +3,7 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
+import { AiFinancialReportCard } from './AiFinancialReportCard';
 import { DeepDiveAiAssistant } from './DeepDiveAiAssistant';
 import { DeepDiveDashboardTabs } from './DeepDiveDashboardTabs';
 
@@ -40,6 +41,8 @@ export function DeepDiveDashboardPageClient() {
                     {hideAllNumbers ? 'แสดงตัวเลขทั้งหมด' : 'ซ่อนตัวเลขทั้งหมด'}
                 </button>
             </section>
+
+            <AiFinancialReportCard />
 
             <div className="relative">
                 <div
