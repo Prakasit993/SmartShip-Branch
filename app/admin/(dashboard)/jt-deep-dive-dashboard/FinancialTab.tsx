@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertCircle, Calculator, Database, RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertCircle, Calculator, Database, Eye, EyeOff, RefreshCw, TrendingUp } from 'lucide-react';
 
 type FinancialSummary = {
     date_from: string;
@@ -10,12 +10,40 @@ type FinancialSummary = {
     totalCost: number;
     totalProfit: number;
     shipmentCount: number;
+    dailyProfit: FinancialDailyProfitRow[];
+    missingCostPrices: FinancialMissingCostPriceRow[];
+};
+
+type FinancialDailyProfitRow = {
+    date: string;
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+    shipmentCount: number;
+};
+
+type FinancialMissingCostPriceRow = {
+    salePrice: number;
+    shipmentCount: number;
+    totalRevenue: number;
+    defaultCostTotal: number;
+    estimatedProfitWithDefaultCost: number;
 };
 
 type FinancialSummaryState =
     | { status: 'loading'; data: FinancialSummary | null; error: null }
     | { status: 'success'; data: FinancialSummary; error: null }
     | { status: 'error'; data: FinancialSummary | null; error: string };
+
+type FinancialRangePreset = '7d' | '30d' | '3m' | '6m' | '1y' | 'custom';
+
+const RANGE_PRESETS: Array<{ key: Exclude<FinancialRangePreset, 'custom'>; label: string }> = [
+    { key: '7d', label: '7 วันย้อนหลัง' },
+    { key: '30d', label: '30 วันย้อนหลัง' },
+    { key: '3m', label: '3 เดือนย้อนหลัง' },
+    { key: '6m', label: '6 เดือนย้อนหลัง' },
+    { key: '1y', label: '1 ปีย้อนหลัง' },
+];
 
 function toYmd(d: Date): string {
     const year = d.getFullYear();
@@ -30,6 +58,31 @@ function addDays(d: Date, days: number): Date {
     return next;
 }
 
+function addMonths(d: Date, months: number): Date {
+    const next = new Date(d);
+    next.setMonth(next.getMonth() + months);
+    return next;
+}
+
+function rangeForPreset(preset: Exclude<FinancialRangePreset, 'custom'>): { from: string; to: string } {
+    const today = new Date();
+    const from =
+        preset === '7d'
+            ? addDays(today, -6)
+            : preset === '30d'
+                ? addDays(today, -29)
+                : preset === '3m'
+                    ? addMonths(today, -3)
+                    : preset === '6m'
+                        ? addMonths(today, -6)
+                        : addMonths(today, -12);
+
+    return {
+        from: toYmd(from),
+        to: toYmd(today),
+    };
+}
+
 function formatThb(value: number): string {
     return value.toLocaleString('th-TH', {
         style: 'currency',
@@ -42,22 +95,24 @@ function formatCount(value: number): string {
     return `${value.toLocaleString('th-TH')} ชิ้น`;
 }
 
+function formatDayLabel(ymd: string): string {
+    const t = Date.parse(`${ymd}T12:00:00.000Z`);
+    if (Number.isNaN(t)) return ymd;
+    return new Date(t).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+}
+
 export function FinancialTab() {
-    const initialRange = useMemo(() => {
-        const today = new Date();
-        return {
-            from: toYmd(addDays(today, -29)),
-            to: toYmd(today),
-        };
-    }, []);
+    const initialRange = useMemo(() => rangeForPreset('30d'), []);
     const [dateFrom, setDateFrom] = useState(initialRange.from);
     const [dateTo, setDateTo] = useState(initialRange.to);
     const [appliedRange, setAppliedRange] = useState(initialRange);
+    const [activePreset, setActivePreset] = useState<FinancialRangePreset>('30d');
     const [state, setState] = useState<FinancialSummaryState>({
         status: 'loading',
         data: null,
         error: null,
     });
+    const [showProfitAnalysis, setShowProfitAnalysis] = useState(false);
 
     const loadSummary = useCallback(async (range: { from: string; to: string }, signal?: AbortSignal) => {
         setState((prev) => ({ status: 'loading', data: prev.data, error: null }));
@@ -84,6 +139,25 @@ export function FinancialTab() {
                 totalCost: Number(json.totalCost) || 0,
                 totalProfit: Number(json.totalProfit) || 0,
                 shipmentCount: Number(json.shipmentCount) || 0,
+                dailyProfit: Array.isArray(json.dailyProfit)
+                    ? json.dailyProfit.map((r) => ({
+                          date: String((r as FinancialDailyProfitRow).date || ''),
+                          totalRevenue: Number((r as FinancialDailyProfitRow).totalRevenue) || 0,
+                          totalCost: Number((r as FinancialDailyProfitRow).totalCost) || 0,
+                          totalProfit: Number((r as FinancialDailyProfitRow).totalProfit) || 0,
+                          shipmentCount: Number((r as FinancialDailyProfitRow).shipmentCount) || 0,
+                      }))
+                    : [],
+                missingCostPrices: Array.isArray(json.missingCostPrices)
+                    ? json.missingCostPrices.map((r) => ({
+                          salePrice: Number((r as FinancialMissingCostPriceRow).salePrice) || 0,
+                          shipmentCount: Number((r as FinancialMissingCostPriceRow).shipmentCount) || 0,
+                          totalRevenue: Number((r as FinancialMissingCostPriceRow).totalRevenue) || 0,
+                          defaultCostTotal: Number((r as FinancialMissingCostPriceRow).defaultCostTotal) || 0,
+                          estimatedProfitWithDefaultCost:
+                              Number((r as FinancialMissingCostPriceRow).estimatedProfitWithDefaultCost) || 0,
+                      }))
+                    : [],
             },
             error: null,
         });
@@ -106,15 +180,51 @@ export function FinancialTab() {
     const isLoading = state.status === 'loading';
     const canApply = dateFrom.trim() !== '' && dateTo.trim() !== '' && dateFrom <= dateTo;
 
+    const applyPreset = (preset: Exclude<FinancialRangePreset, 'custom'>) => {
+        const range = rangeForPreset(preset);
+        setActivePreset(preset);
+        setDateFrom(range.from);
+        setDateTo(range.to);
+        setAppliedRange(range);
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+                <div className="basis-full">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        เลือกช่วงเวลาที่ต้องการดึงข้อมูล
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {RANGE_PRESETS.map((preset) => {
+                            const active = activePreset === preset.key;
+                            return (
+                                <button
+                                    key={preset.key}
+                                    type="button"
+                                    onClick={() => applyPreset(preset.key)}
+                                    disabled={isLoading && active}
+                                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                        active
+                                            ? 'border-sky-400/60 bg-sky-500/20 text-sky-200 ring-1 ring-sky-500/25'
+                                            : 'border-slate-700 bg-slate-950/70 text-slate-400 hover:border-slate-600 hover:bg-slate-900 hover:text-slate-100'
+                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                >
+                                    {preset.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
                 <label className="space-y-1 text-xs font-medium text-slate-400">
                     <span>วันที่เริ่มต้น</span>
                     <input
                         type="date"
                         value={dateFrom}
-                        onChange={(e) => setDateFrom(e.target.value)}
+                        onChange={(e) => {
+                            setActivePreset('custom');
+                            setDateFrom(e.target.value);
+                        }}
                         className="block rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/20 focus:border-sky-500 focus:ring-2"
                     />
                 </label>
@@ -123,18 +233,24 @@ export function FinancialTab() {
                     <input
                         type="date"
                         value={dateTo}
-                        onChange={(e) => setDateTo(e.target.value)}
+                        onChange={(e) => {
+                            setActivePreset('custom');
+                            setDateTo(e.target.value);
+                        }}
                         className="block rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/20 focus:border-sky-500 focus:ring-2"
                     />
                 </label>
                 <button
                     type="button"
                     disabled={!canApply || isLoading}
-                    onClick={() => setAppliedRange({ from: dateFrom, to: dateTo })}
+                    onClick={() => {
+                        setActivePreset('custom');
+                        setAppliedRange({ from: dateFrom, to: dateTo });
+                    }}
                     className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-950/30 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 >
                     <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} aria-hidden />
-                    ใช้ช่วงนี้
+                    ใช้ช่วงวันที่กำหนดเอง
                 </button>
                 <p className="text-xs text-slate-500">
                     อ้างอิง `booking_date` และจับคู่ต้นทุนจาก `shipping_cost_master`
@@ -173,22 +289,50 @@ export function FinancialTab() {
                             {data ? ` รวม ${formatCount(data.shipmentCount)}` : ''}
                         </p>
                     </div>
-                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-                        Financial
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+                            Financial
+                        </span>
+                        <button
+                            type="button"
+                            aria-expanded={showProfitAnalysis}
+                            aria-controls="financial-profit-analysis-body"
+                            onClick={() => setShowProfitAnalysis((v) => !v)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white"
+                        >
+                            {showProfitAnalysis ? (
+                                <EyeOff className="h-3.5 w-3.5" aria-hidden />
+                            ) : (
+                                <Eye className="h-3.5 w-3.5" aria-hidden />
+                            )}
+                            {showProfitAnalysis ? 'ซ่อน' : 'แสดง'}
+                        </button>
+                    </div>
                 </div>
 
-                {state.status === 'error' ? (
-                    <div className="mt-4 flex gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                        <div>
-                            <p className="font-semibold">โหลดข้อมูล financial ไม่สำเร็จ</p>
-                            <p className="mt-1 text-rose-200/80">{state.error}</p>
-                        </div>
+                {showProfitAnalysis ? (
+                    <div id="financial-profit-analysis-body">
+                        {state.status === 'error' ? (
+                            <div className="mt-4 flex gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                                <div>
+                                    <p className="font-semibold">โหลดข้อมูล financial ไม่สำเร็จ</p>
+                                    <p className="mt-1 text-rose-200/80">{state.error}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+                                <DailyProfitChart rows={data?.dailyProfit ?? []} />
+                                <MissingCostPricesTable rows={data?.missingCostPrices ?? []} />
+                            </div>
+                        )}
                     </div>
                 ) : (
-                    <div className="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-950/50 p-5 text-sm text-slate-500">
-                        API พร้อมแล้วสำหรับขยายต่อเป็นกราฟกำไรรายวัน ตารางราคาขายที่ยังไม่มีต้นทุน และรายละเอียดแยกตามช่วงวันที่
+                    <div
+                        id="financial-profit-analysis-body"
+                        className="mt-4 rounded-xl border border-dashed border-slate-800 bg-slate-950/35 p-4 text-sm text-slate-500"
+                    >
+                        ซ่อนรายละเอียดกำไรรายวันและตารางราคาที่ยังไม่มีต้นทุนไว้
                     </div>
                 )}
             </section>
@@ -216,5 +360,105 @@ function FinancialMetricCard({
             <p className="mt-1 text-lg font-bold text-white">{value}</p>
             <p className="mt-1 text-[11px] leading-snug text-slate-500">{hint}</p>
         </article>
+    );
+}
+
+function DailyProfitChart({ rows }: { rows: FinancialDailyProfitRow[] }) {
+    const maxAbsProfit = Math.max(1, ...rows.map((r) => Math.abs(r.totalProfit)));
+
+    return (
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h3 className="text-sm font-semibold text-white">กำไรรายวัน</h3>
+                    <p className="mt-1 text-xs text-slate-500">แถบเขียวคือกำไรบวก แถบแดงคือขาดทุน</p>
+                </div>
+                <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                    {rows.length.toLocaleString('th-TH')} วัน
+                </span>
+            </div>
+
+            {rows.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-800 p-5 text-sm text-slate-500">
+                    ยังไม่มีข้อมูลรายวันในช่วงนี้
+                </div>
+            ) : (
+                <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                    {rows.map((row) => {
+                        const widthPct = Math.max(2, (Math.abs(row.totalProfit) / maxAbsProfit) * 100);
+                        const positive = row.totalProfit >= 0;
+                        return (
+                            <div key={row.date} className="grid grid-cols-[58px_minmax(0,1fr)_92px] items-center gap-2 text-xs">
+                                <span className="font-medium tabular-nums text-slate-500">{formatDayLabel(row.date)}</span>
+                                <div className="h-7 overflow-hidden rounded-full bg-slate-900 ring-1 ring-slate-800">
+                                    <div
+                                        className={`flex h-full items-center justify-end rounded-full px-2 text-[10px] font-semibold text-white ${
+                                            positive ? 'bg-emerald-500/80' : 'bg-rose-500/80'
+                                        }`}
+                                        style={{ width: `${widthPct}%` }}
+                                        title={`${formatThb(row.totalProfit)} จาก ${formatCount(row.shipmentCount)}`}
+                                    >
+                                        {row.shipmentCount.toLocaleString('th-TH')}
+                                    </div>
+                                </div>
+                                <span className={`text-right font-semibold tabular-nums ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    {formatThb(row.totalProfit)}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function MissingCostPricesTable({ rows }: { rows: FinancialMissingCostPriceRow[] }) {
+    return (
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+            <div className="mb-4">
+                <h3 className="text-sm font-semibold text-white">ราคาที่ยังไม่มีต้นทุน</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                    รายการนี้ยังใช้ต้นทุน default 15 บาท ควรเติมใน `shipping_cost_master`
+                </p>
+            </div>
+
+            {rows.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-800 p-5 text-sm text-emerald-300">
+                    ไม่พบราคาขายที่ขาดต้นทุนในช่วงนี้
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-xs">
+                        <thead className="text-slate-500">
+                            <tr className="border-b border-slate-800">
+                                <th className="whitespace-nowrap px-2 py-2 font-semibold">ราคาขาย</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">จำนวน</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">รายได้</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">กำไร default</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-900 text-slate-300">
+                            {rows.map((row) => (
+                                <tr key={row.salePrice} className="hover:bg-slate-900/60">
+                                    <td className="whitespace-nowrap px-2 py-2 font-semibold text-white">
+                                        {formatThb(row.salePrice)}
+                                    </td>
+                                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                                        {row.shipmentCount.toLocaleString('th-TH')}
+                                    </td>
+                                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                                        {formatThb(row.totalRevenue)}
+                                    </td>
+                                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-amber-300">
+                                        {formatThb(row.estimatedProfitWithDefaultCost)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
     );
 }

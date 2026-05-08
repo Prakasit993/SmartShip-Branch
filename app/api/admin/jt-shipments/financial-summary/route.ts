@@ -11,6 +11,18 @@ type FinancialSummaryRpcRow = {
     shipment_count: number | string | null;
 };
 
+type FinancialDailyProfitRpcRow = FinancialSummaryRpcRow & {
+    day: string | null;
+};
+
+type FinancialMissingCostRpcRow = {
+    sale_price: number | string | null;
+    shipment_count: number | string | null;
+    total_revenue: number | string | null;
+    default_cost_total: number | string | null;
+    estimated_profit_with_default_cost: number | string | null;
+};
+
 function readDateRange(req: Request) {
     const { searchParams } = new URL(req.url);
     const dateFrom = (searchParams.get('date_from') || searchParams.get('start_date') || '').trim();
@@ -42,23 +54,36 @@ export async function GET(req: Request) {
             );
         }
 
-        const { data, error } = await supabaseAdmin.rpc('get_financial_summary', {
-            start_date: dateFrom,
-            end_date: dateTo,
-        });
+        const [summaryRes, dailyRes, missingCostRes] = await Promise.all([
+            supabaseAdmin.rpc('get_financial_summary', {
+                start_date: dateFrom,
+                end_date: dateTo,
+            }),
+            supabaseAdmin.rpc('get_financial_daily_profit', {
+                start_date: dateFrom,
+                end_date: dateTo,
+            }),
+            supabaseAdmin.rpc('get_financial_missing_cost_prices', {
+                start_date: dateFrom,
+                end_date: dateTo,
+            }),
+        ]);
 
-        if (error) {
-            console.error('[jt-shipments/financial-summary] get_financial_summary', error);
+        const firstError = summaryRes.error || dailyRes.error || missingCostRes.error;
+        if (firstError) {
+            console.error('[jt-shipments/financial-summary] RPC error', firstError);
             return NextResponse.json(
                 {
-                    error: error.message,
-                    hint: 'ตรวจสอบว่ารัน migration get_financial_summary และมีตาราง shipping_cost_master แล้ว',
+                    error: firstError.message,
+                    hint: 'ตรวจสอบว่ารัน migrations financial summary/deep dive และมีตาราง shipping_cost_master แล้ว',
                 },
                 { status: 500 },
             );
         }
 
-        const row = (Array.isArray(data) ? data[0] : data) as FinancialSummaryRpcRow | null;
+        const row = (Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data) as FinancialSummaryRpcRow | null;
+        const dailyRows = (Array.isArray(dailyRes.data) ? dailyRes.data : []) as FinancialDailyProfitRpcRow[];
+        const missingCostRows = (Array.isArray(missingCostRes.data) ? missingCostRes.data : []) as FinancialMissingCostRpcRow[];
 
         return NextResponse.json({
             date_from: dateFrom,
@@ -67,6 +92,20 @@ export async function GET(req: Request) {
             totalCost: toNumber(row?.total_cost),
             totalProfit: toNumber(row?.total_profit),
             shipmentCount: Math.trunc(toNumber(row?.shipment_count)),
+            dailyProfit: dailyRows.map((r) => ({
+                date: String(r.day || '').slice(0, 10),
+                totalRevenue: toNumber(r.total_revenue),
+                totalCost: toNumber(r.total_cost),
+                totalProfit: toNumber(r.total_profit),
+                shipmentCount: Math.trunc(toNumber(r.shipment_count)),
+            })),
+            missingCostPrices: missingCostRows.map((r) => ({
+                salePrice: toNumber(r.sale_price),
+                shipmentCount: Math.trunc(toNumber(r.shipment_count)),
+                totalRevenue: toNumber(r.total_revenue),
+                defaultCostTotal: toNumber(r.default_cost_total),
+                estimatedProfitWithDefaultCost: toNumber(r.estimated_profit_with_default_cost),
+            })),
         });
     } catch (e) {
         console.error('[jt-shipments/financial-summary]', e);
