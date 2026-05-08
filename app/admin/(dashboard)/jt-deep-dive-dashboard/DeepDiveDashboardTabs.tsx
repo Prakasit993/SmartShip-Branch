@@ -28,13 +28,13 @@ const TABS: Array<{
 }> = [
     {
         key: 'financial',
-        label: 'วิเคราะห์กำไร (Financial)',
-        description: 'รายได้ ต้นทุน และกำไรค่าขนส่ง',
+        label: 'วิเคราะห์กำไร',
+        description: 'รายได้ ต้นทุน และกำไรจากงานขนส่ง',
         icon: <BarChart3 className="h-4 w-4" aria-hidden />,
     },
     {
         key: 'sla',
-        label: 'วิเคราะห์การจัดส่ง (SLA & Operations)',
+        label: 'วิเคราะห์การจัดส่ง',
         description: 'เคสล่าช้า COD ผิดปกติ และงานปฏิบัติการ',
         icon: <Clock3 className="h-4 w-4" aria-hidden />,
     },
@@ -47,7 +47,7 @@ export function DeepDiveDashboardTabs() {
         <section className="rounded-2xl border border-slate-800/70 bg-slate-950/45 p-3 shadow-xl shadow-black/10 ring-1 ring-white/[0.03] sm:p-4">
             <div
                 role="tablist"
-                aria-label="Deep Dive Dashboard Tabs"
+                aria-label="แท็บแดชบอร์ดวิเคราะห์เชิงลึก"
                 className="grid gap-2 md:grid-cols-2"
             >
                 {TABS.map((tab) => {

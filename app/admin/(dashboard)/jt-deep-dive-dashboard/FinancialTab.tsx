@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertCircle, Calculator, Database, Eye, EyeOff, RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertCircle, Calculator, ChevronDown, Database, Eye, EyeOff, Info, RefreshCw, TrendingUp } from 'lucide-react';
 
 type FinancialSummary = {
     date_from: string;
@@ -333,7 +333,7 @@ export function FinancialTab() {
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-                            Financial
+                            กำไร
                         </span>
                         <button
                             type="button"
@@ -363,9 +363,11 @@ export function FinancialTab() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+                            <div className="mt-4 space-y-4">
                                 <DailyProfitChart rows={data?.dailyProfit ?? []} />
-                                <MissingCostPricesTable rows={data?.missingCostPrices ?? []} />
+                                {data && data.missingCostPrices.length > 0 ? (
+                                    <MissingCostPricesTable rows={data.missingCostPrices} />
+                                ) : null}
                             </div>
                         )}
                     </div>
@@ -394,14 +396,38 @@ function FinancialMetricCard({
     icon: ReactNode;
 }) {
     return (
-        <article className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900/75 to-slate-950/80 p-3 ring-1 ring-white/[0.03]">
-            <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25">
-                {icon}
+        <article className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900/85 to-slate-950/90 p-2.5 ring-1 ring-white/[0.03]">
+            <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25">
+                    {icon}
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <span>{label}</span>
+                    <InlineInfoTooltip content={hint} />
+                </div>
             </div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-            <p className="mt-1 text-lg font-bold text-white">{value}</p>
-            <p className="mt-1 text-[11px] leading-snug text-slate-500">{hint}</p>
+            <p className="text-2xl font-black leading-tight text-white sm:text-[1.7rem]">{value}</p>
         </article>
+    );
+}
+
+function InlineInfoTooltip({ content }: { content: string }) {
+    return (
+        <span className="group relative inline-flex">
+            <button
+                type="button"
+                aria-label="คำอธิบายการคำนวณ"
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-500 outline-none transition hover:text-slate-300 focus-visible:ring-2 focus-visible:ring-sky-500/40"
+            >
+                <Info className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <span
+                role="tooltip"
+                className="pointer-events-none absolute right-0 top-5 z-20 w-56 rounded-lg border border-slate-700 bg-slate-950/95 p-2 text-[11px] normal-case leading-relaxed text-slate-300 opacity-0 shadow-xl shadow-black/30 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+            >
+                {content}
+            </span>
+        </span>
     );
 }
 
@@ -418,6 +444,7 @@ function FinancialBreakdownPanel({
     totalCost: number;
     totalProfit: number;
 }) {
+    const [showDetails, setShowDetails] = useState(false);
     const revenueRows = [
         { label: 'ค่าส่งฐานที่ร้านคีย์', value: revenueBreakdown.shippingFeeRevenue },
         { label: 'ส่วนต่างที่เก็บเพิ่ม', value: revenueBreakdown.extraFeeRevenue },
@@ -434,30 +461,51 @@ function FinancialBreakdownPanel({
     ];
 
     return (
-        <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_260px]">
-            <BreakdownCard
-                title="รายได้ที่เก็บจริง"
-                subtitle="แยก shipping_fee ออกจากส่วนต่าง เช่น COD fee/ค่ากล่อง/ค่าซอง"
-                rows={revenueRows}
-                accent="sky"
-            />
-            <BreakdownCard
-                title="ต้นทุนขนส่ง"
-                subtitle="รวมต้นทุนฐานตาม zone/weight และ fee เสริมจาก J&T"
-                rows={costRows}
-                accent="amber"
-            />
-            <article className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300/80">
-                    Net Profit
-                </p>
-                <p className={`mt-2 text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
-                    {formatThb(totalProfit)}
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-emerald-100/65">
-                    กำไรสุทธิหลังใช้ total_shipping_fee เป็นรายได้ และรวมต้นทุนค่าส่ง/พื้นที่ห่างไกล/COD 3%
-                </p>
-            </article>
+        <section className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 className="text-sm font-semibold text-white">สรุปรายได้และต้นทุน</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        แสดงภาพรวมก่อน และซ่อนรายละเอียดการคำนวณไว้จนกว่าจะกดดูเพิ่มเติม
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setShowDetails((v) => !v)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white"
+                    aria-expanded={showDetails}
+                >
+                    {showDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
+                    <ChevronDown className={`h-3.5 w-3.5 transition ${showDetails ? 'rotate-180' : ''}`} aria-hidden />
+                </button>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <CompactSummaryCard label="รายได้รวมที่เก็บจริง" value={totalRevenue} tone="sky" />
+                <CompactSummaryCard label="ต้นทุนรวม" value={totalCost} tone="amber" />
+                <CompactSummaryCard label="กำไรสุทธิ" value={totalProfit} tone={totalProfit >= 0 ? 'emerald' : 'rose'} />
+            </div>
+
+            {showDetails ? (
+                <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                    <BreakdownCard
+                        title="แจกแจงรายได้"
+                        subtitle="แยกค่าส่งฐานออกจากรายได้ส่วนต่างที่ร้านเก็บเพิ่ม"
+                        rows={revenueRows}
+                        accent="sky"
+                    />
+                    <BreakdownCard
+                        title="แจกแจงต้นทุน"
+                        subtitle="รวมต้นทุนค่าส่งฐาน พื้นที่ห่างไกล COD และค่าธรรมเนียมอื่น ๆ"
+                        rows={costRows}
+                        accent="amber"
+                    />
+                </div>
+            ) : (
+                <div className="mt-3 rounded-lg border border-dashed border-slate-800 bg-slate-900/40 px-3 py-2 text-xs text-slate-500">
+                    ซ่อนตารางแจกแจงรายได้และต้นทุนไว้ กดปุ่ม "ดูรายละเอียด" เพื่อเปิดรายการคำนวณทั้งหมด
+                </div>
+            )}
         </section>
     );
 }
@@ -503,50 +551,182 @@ function BreakdownCard({
     );
 }
 
+function CompactSummaryCard({
+    label,
+    value,
+    tone,
+    isCount = false,
+}: {
+    label: string;
+    value: number;
+    tone: 'sky' | 'amber' | 'emerald' | 'rose';
+    isCount?: boolean;
+}) {
+    const toneClass =
+        tone === 'sky'
+            ? 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+            : tone === 'amber'
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                : tone === 'rose'
+                    ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+                    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200';
+
+    return (
+        <article className={`rounded-lg border px-3 py-2 ${toneClass}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">{label}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums">
+                {isCount ? `${Math.trunc(value).toLocaleString('th-TH')} วัน` : formatThb(value)}
+            </p>
+        </article>
+    );
+}
+
 function DailyProfitChart({ rows }: { rows: FinancialDailyProfitRow[] }) {
-    const maxAbsProfit = Math.max(1, ...rows.map((r) => Math.abs(r.totalProfit)));
+    const [activeIndex, setActiveIndex] = useState<number | null>(null);
+    const orderedRows = [...rows].sort((a, b) => a.date.localeCompare(b.date));
+    const maxProfit = Math.max(0, ...orderedRows.map((r) => r.totalProfit));
+    const minProfit = Math.min(0, ...orderedRows.map((r) => r.totalProfit));
+    const range = Math.max(1, maxProfit - minProfit);
+    const chartWidth = Math.max(680, orderedRows.length * 34);
+    const chartHeight = 260;
+    const padding = { top: 20, right: 18, bottom: 42, left: 18 };
+    const innerWidth = chartWidth - padding.left - padding.right;
+    const innerHeight = chartHeight - padding.top - padding.bottom;
+    const stepX = orderedRows.length > 1 ? innerWidth / (orderedRows.length - 1) : innerWidth;
+    const barWidth = Math.max(8, Math.min(22, stepX * 0.62));
+    const yOf = (value: number) => padding.top + ((maxProfit - value) / range) * innerHeight;
+    const zeroY = yOf(0);
+    const labelEvery = Math.max(1, Math.ceil(orderedRows.length / 8));
+    const avgProfit = orderedRows.length > 0 ? orderedRows.reduce((s, r) => s + r.totalProfit, 0) / orderedRows.length : 0;
+    const activeRow = activeIndex != null ? orderedRows[activeIndex] : null;
 
     return (
         <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
             <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="text-sm font-semibold text-white">กำไรรายวัน</h3>
-                    <p className="mt-1 text-xs text-slate-500">แถบเขียวคือกำไรบวก แถบแดงคือขาดทุน</p>
+                    <p className="mt-1 text-xs text-slate-500">กราฟแท่งแสดงกำไร/ขาดทุนต่อวัน โดยเทียบกับเส้นฐานศูนย์</p>
                 </div>
-                <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
-                    {rows.length.toLocaleString('th-TH')} วัน
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                        {orderedRows.length.toLocaleString('th-TH')} วัน
+                    </span>
+                    <span className="rounded-full border border-sky-500/35 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200">
+                        เฉลี่ย/วัน {formatThb(avgProfit)}
+                    </span>
+                </div>
             </div>
 
-            {rows.length === 0 ? (
+            {orderedRows.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-slate-800 p-5 text-sm text-slate-500">
                     ยังไม่มีข้อมูลรายวันในช่วงนี้
                 </div>
             ) : (
-                <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-                    {rows.map((row) => {
-                        const widthPct = Math.max(2, (Math.abs(row.totalProfit) / maxAbsProfit) * 100);
-                        const positive = row.totalProfit >= 0;
-                        return (
-                            <div key={row.date} className="grid grid-cols-[58px_minmax(0,1fr)_92px] items-center gap-2 text-xs">
-                                <span className="font-medium tabular-nums text-slate-500">{formatDayLabel(row.date)}</span>
-                                <div className="h-7 overflow-hidden rounded-full bg-slate-900 ring-1 ring-slate-800">
-                                    <div
-                                        className={`flex h-full items-center justify-end rounded-full px-2 text-[10px] font-semibold text-white ${
-                                            positive ? 'bg-emerald-500/80' : 'bg-rose-500/80'
-                                        }`}
-                                        style={{ width: `${widthPct}%` }}
-                                        title={`${formatThb(row.totalProfit)} จาก ${formatCount(row.shipmentCount)}`}
+                <div className="space-y-3">
+                    <div className="scrollbar-hide overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/45 p-2">
+                        <svg
+                            width={chartWidth}
+                            height={chartHeight}
+                            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                            className="min-w-full"
+                            role="img"
+                            aria-label="กราฟกำไรรายวัน"
+                            onMouseLeave={() => setActiveIndex(null)}
+                        >
+                            {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+                                const y = padding.top + ratio * innerHeight;
+                                return (
+                                    <line
+                                        key={ratio}
+                                        x1={padding.left}
+                                        y1={y}
+                                        x2={chartWidth - padding.right}
+                                        y2={y}
+                                        stroke="rgba(148,163,184,0.18)"
+                                        strokeWidth="1"
+                                    />
+                                );
+                            })}
+
+                            <line
+                                x1={padding.left}
+                                y1={zeroY}
+                                x2={chartWidth - padding.right}
+                                y2={zeroY}
+                                stroke="rgba(248,250,252,0.35)"
+                                strokeDasharray="4 3"
+                                strokeWidth="1.2"
+                            />
+
+                            {orderedRows.map((row, idx) => {
+                                const xCenter = padding.left + idx * stepX;
+                                const yValue = yOf(row.totalProfit);
+                                const top = Math.min(yValue, zeroY);
+                                const height = Math.max(2, Math.abs(zeroY - yValue));
+                                const positive = row.totalProfit >= 0;
+                                const active = activeIndex === idx;
+                                const valueLabelY = Math.max(12, top - 8);
+                                return (
+                                    <g
+                                        key={row.date}
+                                        onMouseEnter={() => setActiveIndex(idx)}
+                                        onFocus={() => setActiveIndex(idx)}
+                                        onBlur={() => setActiveIndex(null)}
                                     >
-                                        {row.shipmentCount.toLocaleString('th-TH')}
-                                    </div>
-                                </div>
-                                <span className={`text-right font-semibold tabular-nums ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>
-                                    {formatThb(row.totalProfit)}
-                                </span>
-                            </div>
-                        );
-                    })}
+                                        <rect
+                                            x={xCenter - barWidth / 2}
+                                            y={top}
+                                            width={barWidth}
+                                            height={height}
+                                            rx={4}
+                                            fill={positive ? 'rgba(16,185,129,0.9)' : 'rgba(244,63,94,0.9)'}
+                                            stroke={active ? 'rgba(248,250,252,0.9)' : 'none'}
+                                            strokeWidth={active ? 1.2 : 0}
+                                            className="cursor-pointer"
+                                        >
+                                            <title>{`${row.date} · ${formatThb(row.totalProfit)} · ${formatCount(row.shipmentCount)}`}</title>
+                                        </rect>
+                                        {active ? (
+                                            <text
+                                                x={xCenter}
+                                                y={valueLabelY}
+                                                textAnchor="middle"
+                                                fill={positive ? 'rgba(110,231,183,1)' : 'rgba(253,164,175,1)'}
+                                                fontSize="11"
+                                                fontWeight="700"
+                                                stroke="rgba(15,23,42,0.92)"
+                                                strokeWidth="3"
+                                                paintOrder="stroke"
+                                            >
+                                                {formatThb(row.totalProfit)}
+                                            </text>
+                                        ) : null}
+                                        {idx % labelEvery === 0 || idx === orderedRows.length - 1 ? (
+                                            <text
+                                                x={xCenter}
+                                                y={chartHeight - 12}
+                                                textAnchor="middle"
+                                                fill="rgba(148,163,184,0.9)"
+                                                fontSize="10"
+                                            >
+                                                {formatDayLabel(row.date)}
+                                            </text>
+                                        ) : null}
+                                    </g>
+                                );
+                            })}
+                        </svg>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-800 bg-slate-900/45 px-3 py-2 text-xs text-slate-400">
+                        {activeRow ? (
+                            <span className="font-medium text-slate-200">
+                                {formatDayLabel(activeRow.date)} · กำไร {formatThb(activeRow.totalProfit)} · {formatCount(activeRow.shipmentCount)}
+                            </span>
+                        ) : (
+                            <span>เลื่อนเมาส์บนแท่งเพื่อดูตัวเลขกำไรของวันนั้น</span>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
@@ -554,51 +734,46 @@ function DailyProfitChart({ rows }: { rows: FinancialDailyProfitRow[] }) {
 }
 
 function MissingCostPricesTable({ rows }: { rows: FinancialMissingCostPriceRow[] }) {
+    if (rows.length === 0) return null;
+
     return (
         <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
             <div className="mb-4">
-                <h3 className="text-sm font-semibold text-white">ราคาที่ยังไม่มีต้นทุน</h3>
+                <h3 className="text-sm font-semibold text-white">ตารางราคาที่ยังไม่มีต้นทุน</h3>
                 <p className="mt-1 text-xs text-slate-500">
                     รายการนี้ยังใช้ต้นทุน default 15 บาท ควรเติมเรตใน `jt_shipping_cost_rates` หรือ fallback ใน `shipping_cost_master`
                 </p>
             </div>
-
-            {rows.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-800 p-5 text-sm text-emerald-300">
-                    ไม่พบราคาขายที่ขาดต้นทุนในช่วงนี้
-                </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-left text-xs">
-                        <thead className="text-slate-500">
-                            <tr className="border-b border-slate-800">
-                                <th className="whitespace-nowrap px-2 py-2 font-semibold">ราคาขาย</th>
-                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">จำนวน</th>
-                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">รายได้</th>
-                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">กำไร default</th>
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                    <thead className="text-slate-500">
+                        <tr className="border-b border-slate-800">
+                            <th className="whitespace-nowrap px-2 py-2 font-semibold">ราคาขาย</th>
+                            <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">จำนวน</th>
+                            <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">รายได้</th>
+                            <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">กำไร default</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-900 text-slate-300">
+                        {rows.map((row) => (
+                            <tr key={row.salePrice} className="hover:bg-slate-900/60">
+                                <td className="whitespace-nowrap px-2 py-2 font-semibold text-white">
+                                    {formatThb(row.salePrice)}
+                                </td>
+                                <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                                    {row.shipmentCount.toLocaleString('th-TH')}
+                                </td>
+                                <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                                    {formatThb(row.totalRevenue)}
+                                </td>
+                                <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-amber-300">
+                                    {formatThb(row.estimatedProfitWithDefaultCost)}
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-900 text-slate-300">
-                            {rows.map((row) => (
-                                <tr key={row.salePrice} className="hover:bg-slate-900/60">
-                                    <td className="whitespace-nowrap px-2 py-2 font-semibold text-white">
-                                        {formatThb(row.salePrice)}
-                                    </td>
-                                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
-                                        {row.shipmentCount.toLocaleString('th-TH')}
-                                    </td>
-                                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
-                                        {formatThb(row.totalRevenue)}
-                                    </td>
-                                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-amber-300">
-                                        {formatThb(row.estimatedProfitWithDefaultCost)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

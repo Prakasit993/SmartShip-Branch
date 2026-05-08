@@ -17,7 +17,7 @@ export default async function AdminLayout({
 
     return (
         <AdminClientWrapper>
-            <div className="flex min-h-[100dvh] min-h-screen bg-gradient-to-b from-[#050913] via-[#070c18] to-[#090f1f] text-zinc-100">
+            <div className="admin-scrollbar-hide flex min-h-[100dvh] min-h-screen bg-gradient-to-b from-[#050913] via-[#070c18] to-[#090f1f] text-zinc-100">
                 <AdminSidebar role={role} />
 
                 <div className="flex flex-1 flex-col min-w-0 min-h-0 md:ml-64 transition-all duration-300">

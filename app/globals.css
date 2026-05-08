@@ -52,3 +52,17 @@ body {
   width: 0;
   height: 0;
 }
+
+/* ซ่อน scrollbar ทั้งหมดเฉพาะฝั่ง admin (ยังเลื่อนได้ปกติ) */
+.admin-scrollbar-hide,
+.admin-scrollbar-hide * {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.admin-scrollbar-hide::-webkit-scrollbar,
+.admin-scrollbar-hide *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
