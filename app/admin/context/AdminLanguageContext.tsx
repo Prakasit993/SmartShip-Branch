@@ -8,9 +8,11 @@ type Language = 'th' | 'en';
 const adminTranslations = {
     th: {
         // Sidebar
-        'nav.overview': 'ภาพรวม',
-        'nav.dashboard': 'แดชบอร์ด',
+        'nav.overview': 'รายงานหลัก',
+        'nav.dashboard': 'ภาพรวมร้านค้า',
         'nav.orders': 'คำสั่งซื้อ',
+        'nav.jtDashboard': 'แดชบอร์ดขนส่ง',
+        'nav.jtDeepDive': 'วิเคราะห์เชิงลึก',
         'nav.management': 'จัดการข้อมูล',
         'nav.products': 'สินค้า',
         'nav.bundles': 'ชุดสินค้า',
@@ -119,9 +121,11 @@ const adminTranslations = {
     },
     en: {
         // Sidebar
-        'nav.overview': 'Overview',
-        'nav.dashboard': 'Dashboard',
+        'nav.overview': 'Core Reports',
+        'nav.dashboard': 'Store Overview',
         'nav.orders': 'Orders',
+        'nav.jtDashboard': 'Shipping Dashboard',
+        'nav.jtDeepDive': 'Deep Dive Analytics',
         'nav.management': 'Management',
         'nav.products': 'Products',
         'nav.bundles': 'Bundles',

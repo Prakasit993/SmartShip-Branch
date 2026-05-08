@@ -50,6 +50,8 @@ export type JtDashboardViewProps = {
     onSaveCustomMetricCards: (cards: JtCustomMetricCardDefinition[]) => Promise<void>;
     onSaveDetailFields: (fields: string[]) => Promise<void>;
     onAcknowledgeReturn: (awbNumber: string, reason: string) => Promise<void>;
+    showKpiPercentDelta: boolean;
+    onToggleKpiPercentDelta: () => void;
     loading: boolean;
     error: string | null;
     parcelDateFrom: string;
@@ -137,6 +139,7 @@ function AnimatedKpiCard({
     index,
     decimals,
     delta,
+    showDelta = true,
     onClick,
     isActive,
     className,
@@ -154,6 +157,7 @@ function AnimatedKpiCard({
     index: number;
     decimals?: number;
     delta?: { previous: number; previousRangeDays: number; inverseGood?: boolean };
+    showDelta?: boolean;
     onClick?: () => void;
     isActive?: boolean;
     /** เช่น `h-full` เมื่ออยู่ในกริดที่ต้องการความสูงเท่ากัน */
@@ -210,7 +214,7 @@ function AnimatedKpiCard({
             <p className="mt-1.5 sm:mt-2 text-xl sm:text-2xl lg:text-[1.75rem] font-bold tabular-nums tracking-tight text-white">
                 {prefix}{formatted}{suffix}
             </p>
-            {delta ? (
+            {showDelta && delta ? (
                 <DeltaBadge
                     current={value}
                     previous={delta.previous}
@@ -244,11 +248,6 @@ function formatTimeAgo(date: Date): string {
     const minutes = Math.round(seconds / 60);
     if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
     return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-}
-
-function normalizeChatText(text: string): string {
-    // Support text returned as escaped newlines from upstream workflow.
-    return text.replace(/\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function toLocalYmd(date: Date): string {
@@ -304,6 +303,8 @@ export function JtDashboardView({
     onSaveCustomMetricCards,
     onSaveDetailFields,
     onAcknowledgeReturn,
+    showKpiPercentDelta,
+    onToggleKpiPercentDelta,
     loading,
     error,
     parcelDateFrom,
@@ -329,10 +330,6 @@ export function JtDashboardView({
     const [detailFieldsErr, setDetailFieldsErr] = useState<string | null>(null);
     const [showFieldChooser, setShowFieldChooser] = useState(false);
     const [awbQuickSearch, setAwbQuickSearch] = useState('');
-    const [chatInput, setChatInput] = useState('');
-    const [chatLoading, setChatLoading] = useState(false);
-    const [chatError, setChatError] = useState<string | null>(null);
-    const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
     const [ackReturnAwb, setAckReturnAwb] = useState('');
     const [ackReason, setAckReason] = useState('');
     const [ackLoading, setAckLoading] = useState(false);
@@ -423,45 +420,6 @@ export function JtDashboardView({
         setEditableDetailFields([...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS]);
     }
 
-    async function submitAiChat() {
-        const text = chatInput.trim();
-        if (!text || chatLoading) return;
-        setChatLoading(true);
-        setChatError(null);
-        setChatInput('');
-        setChatMessages((prev) => [...prev, { role: 'user', text }]);
-        try {
-            const res = await fetch('/api/admin/ai-chat', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify({
-                    message: text,
-                    context: {
-                        appliedRange,
-                        metrics,
-                        topReturnTypeCases: metrics.topReturnTypeCases.slice(0, 10),
-                    },
-                }),
-            });
-            const raw = await res.text();
-            let parsed: { answer?: string; error?: string } = {};
-            try {
-                parsed = JSON.parse(raw) as { answer?: string; error?: string };
-            } catch {
-                parsed = {};
-            }
-            if (!res.ok) {
-                throw new Error(parsed.error || 'ส่งคำถามไม่สำเร็จ');
-            }
-            setChatMessages((prev) => [...prev, { role: 'assistant', text: parsed.answer ?? '-' }]);
-        } catch (e) {
-            setChatError(e instanceof Error ? e.message : 'ส่งคำถามไม่สำเร็จ');
-        } finally {
-            setChatLoading(false);
-        }
-    }
-
     function openReturnAcknowledgement(awb: string) {
         setAckReturnAwb(awb);
         setAckReason('');
@@ -533,11 +491,16 @@ export function JtDashboardView({
             `}</style>
 
             <AdminPageHeader
-                title="Dashboard"
+                title="แดชบอร์ดขนส่ง"
                 description={
                     mockMode
-                        ? 'ตัวอย่างหน้าสรุปข้อมูล J&T จากตาราง jt_shipments'
-                        : 'สรุปภาพรวมการจัดส่งจาก Report - JMS'
+                        ? 'ตัวอย่างหน้าสรุปข้อมูลขนส่งจากตาราง jt_shipments'
+                        : 'สรุปยอดพัสดุ รายได้ COD และรายการที่ต้องติดตามจาก Report - JMS'
+                }
+                titleLeft={
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30">
+                        <Truck className="h-5 w-5" aria-hidden />
+                    </span>
                 }
                 tone="dark"
                 meta={
@@ -545,94 +508,27 @@ export function JtDashboardView({
                         <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
                             Mock UI
                         </span>
-                    ) : null
-                }
-                actions={
-                    !mockMode ? (
-                        <section className="w-full max-w-full rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-950/90 via-slate-950/75 to-slate-900/80 p-3 shadow-xl shadow-black/20 ring-1 ring-white/[0.04] sm:p-3.5 lg:max-w-md xl:max-w-lg 2xl:max-w-xl">
-                            <div className="mb-2 flex items-start justify-between gap-3">
-                                <div>
-                                    <h3 className="text-sm font-semibold text-white">ผู้ช่วยวิเคราะห์ข้อมูล</h3>
-                                    <p className="text-[11px] text-slate-400">ถามสรุปตัวเลข แนวโน้ม หรือรายการผิดปกติจากหน้านี้</p>
-                                </div>
-                                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-300">
-                                    Beta
-                                </span>
-                            </div>
-                            <div className="scrollbar-hide mb-2 max-h-56 space-y-2 overflow-y-auto overscroll-contain rounded-xl border border-slate-800/90 bg-slate-950/80 p-2.5">
-                                {chatMessages.length === 0 ? (
-                                    <p className="text-sm leading-relaxed text-slate-400">
-                                        ลองถาม: "วันนี้ภาพรวมเป็นอย่างไร" หรือ "สาเหตุพัสดุตีกลับที่พบบ่อยคืออะไร?"
-                                    </p>
-                                ) : (
-                                    chatMessages.slice(-4).map((m, idx) => (
-                                        <div
-                                            key={`${m.role}-${idx}`}
-                                            className={`rounded-xl px-3 py-2 text-sm leading-relaxed ${
-                                                m.role === 'user'
-                                                    ? 'ml-8 border border-sky-500/35 bg-sky-500/15 text-sky-50'
-                                                    : 'mr-8 border border-slate-700/90 bg-slate-900/95 text-slate-100'
-                                            }`}
-                                        >
-                                            <p
-                                                className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${
-                                                    m.role === 'user' ? 'text-sky-300/90' : 'text-slate-400'
-                                                }`}
-                                            >
-                                                {m.role === 'user' ? 'คุณ' : 'AI Assistant'}
-                                            </p>
-                                            <p className="whitespace-pre-wrap break-words">
-                                                {normalizeChatText(m.text)}
-                                            </p>
-                                        </div>
-                                    ))
-                                )}
-                                {chatLoading ? (
-                                    <div className="mr-8 rounded-xl border border-slate-700/90 bg-slate-900/95 px-3 py-2 text-sm text-slate-300">
-                                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                                            AI Assistant
-                                        </p>
-                                        <p className="animate-pulse">กำลังคิดคำตอบ...</p>
-                                    </div>
-                                ) : null}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    value={chatInput}
-                                    onChange={(e) => setChatInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            void submitAiChat();
-                                        }
-                                    }}
-                                    placeholder="พิมพ์คำถามเกี่ยวกับข้อมูลในหน้านี้..."
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none ring-sky-500/30 placeholder:text-slate-500 focus:border-sky-500/50 focus:ring-2"
-                                />
-                                <button
-                                    type="button"
-                                    disabled={chatLoading || !chatInput.trim()}
-                                    onClick={() => void submitAiChat()}
-                                    className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-sky-900/30 hover:bg-sky-500 disabled:opacity-50"
-                                >
-                                    {chatLoading ? 'กำลังส่ง...' : 'ส่ง'}
-                                </button>
-                            </div>
-                            {chatError ? (
-                                <div className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2.5">
-                                    <p className="text-sm leading-relaxed text-rose-200">{chatError}</p>
-                                    {chatError.includes('N8N_AI_WEBHOOK_URL') ? (
-                                        <p className="mt-1 text-[11px] text-rose-200/90">
-                                            กรุณาตั้งค่า `N8N_AI_WEBHOOK_URL` ใน `.env.local` แล้วรีสตาร์ทเซิร์ฟเวอร์
-                                        </p>
-                                    ) : null}
-                                </div>
-                            ) : null}
-                        </section>
-                    ) : null
+                    ) : (
+                        <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
+                            รายงานขนส่ง
+                        </span>
+                    )
                 }
             />
+            <div className="mt-3 mb-4 flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    aria-pressed={showKpiPercentDelta}
+                    onClick={onToggleKpiPercentDelta}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-200"
+                >
+                    <Percent className="h-3.5 w-3.5" aria-hidden />
+                    {showKpiPercentDelta ? 'ซ่อน % เปรียบเทียบ' : 'แสดง % เปรียบเทียบ'}
+                </button>
+                <span className="text-[11px] leading-relaxed text-slate-500">
+                    ค่าเริ่มต้นซ่อนตัวเลขเปอร์เซ็นต์ใต้การ์ด KPI เพื่อลดความรกของหน้า
+                </span>
+            </div>
 
             {error ? (
                 <div
@@ -805,6 +701,7 @@ export function JtDashboardView({
                                           }
                                         : undefined
                                 }
+                                showDelta={showKpiPercentDelta}
                                 hint={
                                     appliedRange && (appliedRange.from || appliedRange.to) ? (
                                         <span className="text-sky-400/90">
@@ -844,6 +741,7 @@ export function JtDashboardView({
                                 value={metrics.sumTotalShippingFee ?? metrics.sumTotalFeeJms}
                                 prefix="฿"
                                 decimals={2}
+                                showDelta={showKpiPercentDelta}
                                 delta={
                                     previousMetrics && previousMetrics.sumTotalShippingFee !== undefined
                                         ? {
@@ -896,6 +794,7 @@ export function JtDashboardView({
                                 value={metrics.sumCod}
                                 prefix="฿"
                                 decimals={2}
+                                showDelta={showKpiPercentDelta}
                                 delta={
                                     previousMetrics
                                         ? {
@@ -918,6 +817,7 @@ export function JtDashboardView({
                                 value={metrics.codPaidAmount}
                                 prefix="฿"
                                 decimals={2}
+                                showDelta={showKpiPercentDelta}
                                 delta={
                                     previousMetrics
                                         ? {
@@ -945,6 +845,7 @@ export function JtDashboardView({
                                 value={metrics.codPendingAmount}
                                 prefix="฿"
                                 decimals={2}
+                                showDelta={showKpiPercentDelta}
                                 delta={
                                     previousMetrics
                                         ? {
@@ -973,6 +874,7 @@ export function JtDashboardView({
                                 value={metrics.codCollectionRate}
                                 suffix="%"
                                 decimals={2}
+                                showDelta={showKpiPercentDelta}
                                 delta={
                                     previousMetrics
                                         ? {
@@ -1005,6 +907,7 @@ export function JtDashboardView({
                                 glowColor="bg-rose-500/40"
                                 label="พัสดุถูกตีกลับ"
                                 value={metrics.returnCount}
+                                showDelta={showKpiPercentDelta}
                                 delta={
                                     previousMetrics
                                         ? {
@@ -1031,6 +934,7 @@ export function JtDashboardView({
                                 glowColor="bg-rose-500/40"
                                 label="พัสดุมีปัญหา"
                                 value={metrics.exceptionCount}
+                                showDelta={showKpiPercentDelta}
                                 delta={
                                     previousMetrics
                                         ? {

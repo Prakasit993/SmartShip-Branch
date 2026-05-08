@@ -75,6 +75,7 @@ function getDefaultParcelDateRange(): { from: string; to: string } {
 export default function JtDashboardPage() {
     const [initialDateRange] = useState(() => getDefaultParcelDateRange());
     const [state, setState] = useState<FetchState>({ status: 'idle' });
+    const [showKpiPercentDelta, setShowKpiPercentDelta] = useState(false);
     const [parcelDateFrom, setParcelDateFrom] = useState(initialDateRange.from);
     const [parcelDateTo, setParcelDateTo] = useState(initialDateRange.to);
     const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
@@ -522,6 +523,8 @@ export default function JtDashboardPage() {
             onSaveCustomMetricCards={saveCustomMetricCards}
             onSaveDetailFields={saveDetailFields}
             onAcknowledgeReturn={acknowledgeReturn}
+            showKpiPercentDelta={showKpiPercentDelta}
+            onToggleKpiPercentDelta={() => setShowKpiPercentDelta((prev) => !prev)}
             loading={loading}
             error={err}
             parcelDateFrom={parcelDateFrom}

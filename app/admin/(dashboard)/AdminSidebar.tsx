@@ -131,8 +131,9 @@ export default function AdminSidebar({ role }: { role: string }) {
                 <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2 space-y-1">
                     <p className="px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-4">{t('nav.overview')}</p>
                     <NavItem href="/admin" icon="📊" label={t('nav.dashboard')} active={pathname === '/admin'} onClick={closeSidebar} />
+                    <NavItem href="/admin/jt-dashboard" icon="📊" label={t('nav.jtDashboard')} active={isActive('/admin/jt-dashboard')} onClick={closeSidebar} />
+                    <NavItem href="/admin/jt-deep-dive-dashboard" icon="💹" label={t('nav.jtDeepDive')} active={isActive('/admin/jt-deep-dive-dashboard')} onClick={closeSidebar} />
                     <NavItem href="/admin/orders" icon="🛍️" label={t('nav.orders')} active={isActive('/admin/orders')} onClick={closeSidebar} />
-                    <NavItem href="/admin/jt-dashboard" icon="📊" label="J&T Dashboard" active={isActive('/admin/jt-dashboard')} onClick={closeSidebar} />
 
                     {(role === 'admin' || role === 'true') && (
                         <>
