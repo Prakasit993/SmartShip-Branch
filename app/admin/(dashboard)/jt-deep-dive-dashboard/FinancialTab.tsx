@@ -11,8 +11,25 @@ type FinancialSummary = {
     totalProfit: number;
     shipmentCount: number;
     costModel?: string;
+    revenueBreakdown: FinancialRevenueBreakdown;
+    costBreakdown: FinancialCostBreakdown;
     dailyProfit: FinancialDailyProfitRow[];
     missingCostPrices: FinancialMissingCostPriceRow[];
+};
+
+type FinancialRevenueBreakdown = {
+    shippingFeeRevenue: number;
+    totalShippingFeeRevenue: number;
+    extraFeeRevenue: number;
+};
+
+type FinancialCostBreakdown = {
+    baseShippingCost: number;
+    remoteAreaFeeCost: number;
+    otherFeeCost: number;
+    insuranceFeeCost: number;
+    returnFeeCost: number;
+    codFeeCost: number;
 };
 
 type FinancialDailyProfitRow = {
@@ -141,6 +158,19 @@ export function FinancialTab() {
                 totalProfit: Number(json.totalProfit) || 0,
                 shipmentCount: Number(json.shipmentCount) || 0,
                 costModel: typeof json.costModel === 'string' ? json.costModel : undefined,
+                revenueBreakdown: {
+                    shippingFeeRevenue: Number(json.revenueBreakdown?.shippingFeeRevenue) || 0,
+                    totalShippingFeeRevenue: Number(json.revenueBreakdown?.totalShippingFeeRevenue) || 0,
+                    extraFeeRevenue: Number(json.revenueBreakdown?.extraFeeRevenue) || 0,
+                },
+                costBreakdown: {
+                    baseShippingCost: Number(json.costBreakdown?.baseShippingCost) || 0,
+                    remoteAreaFeeCost: Number(json.costBreakdown?.remoteAreaFeeCost) || 0,
+                    otherFeeCost: Number(json.costBreakdown?.otherFeeCost) || 0,
+                    insuranceFeeCost: Number(json.costBreakdown?.insuranceFeeCost) || 0,
+                    returnFeeCost: Number(json.costBreakdown?.returnFeeCost) || 0,
+                    codFeeCost: Number(json.costBreakdown?.codFeeCost) || 0,
+                },
                 dailyProfit: Array.isArray(json.dailyProfit)
                     ? json.dailyProfit.map((r) => ({
                           date: String((r as FinancialDailyProfitRow).date || ''),
@@ -263,7 +293,7 @@ export function FinancialTab() {
                 <FinancialMetricCard
                     label="ยอดขายค่าขนส่ง"
                     value={data ? formatThb(data.totalRevenue) : isLoading ? 'กำลังโหลด...' : '-'}
-                    hint="รวมค่าขนส่งหลังแปลง shipping_fee เป็นตัวเลข"
+                    hint="รวมรายได้จริงจาก total_shipping_fee และ fallback เป็น shipping_fee ถ้าไม่มีค่า"
                     icon={<TrendingUp className="h-5 w-5" aria-hidden />}
                 />
                 <FinancialMetricCard
@@ -275,10 +305,20 @@ export function FinancialTab() {
                 <FinancialMetricCard
                     label="กำไรรวม"
                     value={data ? formatThb(data.totalProfit) : isLoading ? 'กำลังโหลด...' : '-'}
-                    hint="กำไร = ค่าขนส่งที่ร้านเก็บจริง - ต้นทุนขนส่งที่คำนวณล่าสุด"
+                    hint="กำไร = total_shipping_fee ที่ร้านเก็บจริง - ต้นทุนขนส่งและ fee ที่คำนวณล่าสุด"
                     icon={<Calculator className="h-5 w-5" aria-hidden />}
                 />
             </div>
+
+            {data ? (
+                <FinancialBreakdownPanel
+                    revenueBreakdown={data.revenueBreakdown}
+                    costBreakdown={data.costBreakdown}
+                    totalRevenue={data.totalRevenue}
+                    totalCost={data.totalCost}
+                    totalProfit={data.totalProfit}
+                />
+            ) : null}
 
             <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -361,6 +401,104 @@ function FinancialMetricCard({
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
             <p className="mt-1 text-lg font-bold text-white">{value}</p>
             <p className="mt-1 text-[11px] leading-snug text-slate-500">{hint}</p>
+        </article>
+    );
+}
+
+function FinancialBreakdownPanel({
+    revenueBreakdown,
+    costBreakdown,
+    totalRevenue,
+    totalCost,
+    totalProfit,
+}: {
+    revenueBreakdown: FinancialRevenueBreakdown;
+    costBreakdown: FinancialCostBreakdown;
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+}) {
+    const revenueRows = [
+        { label: 'ค่าส่งฐานที่ร้านคีย์', value: revenueBreakdown.shippingFeeRevenue },
+        { label: 'ส่วนต่างที่เก็บเพิ่ม', value: revenueBreakdown.extraFeeRevenue },
+        { label: 'รายได้รวมที่เก็บจริง', value: totalRevenue, strong: true },
+    ];
+    const costRows = [
+        { label: 'ต้นทุนค่าส่งฐาน', value: costBreakdown.baseShippingCost },
+        { label: 'พื้นที่ห่างไกล', value: costBreakdown.remoteAreaFeeCost },
+        { label: 'COD fee', value: costBreakdown.codFeeCost },
+        { label: 'ค่าอื่น ๆ', value: costBreakdown.otherFeeCost },
+        { label: 'ประกัน', value: costBreakdown.insuranceFeeCost },
+        { label: 'ตีกลับ', value: costBreakdown.returnFeeCost },
+        { label: 'ต้นทุนรวม', value: totalCost, strong: true },
+    ];
+
+    return (
+        <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_260px]">
+            <BreakdownCard
+                title="รายได้ที่เก็บจริง"
+                subtitle="แยก shipping_fee ออกจากส่วนต่าง เช่น COD fee/ค่ากล่อง/ค่าซอง"
+                rows={revenueRows}
+                accent="sky"
+            />
+            <BreakdownCard
+                title="ต้นทุนขนส่ง"
+                subtitle="รวมต้นทุนฐานตาม zone/weight และ fee เสริมจาก J&T"
+                rows={costRows}
+                accent="amber"
+            />
+            <article className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300/80">
+                    Net Profit
+                </p>
+                <p className={`mt-2 text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
+                    {formatThb(totalProfit)}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-emerald-100/65">
+                    กำไรสุทธิหลังใช้ total_shipping_fee เป็นรายได้ และรวมต้นทุนค่าส่ง/พื้นที่ห่างไกล/COD 3%
+                </p>
+            </article>
+        </section>
+    );
+}
+
+function BreakdownCard({
+    title,
+    subtitle,
+    rows,
+    accent,
+}: {
+    title: string;
+    subtitle: string;
+    rows: Array<{ label: string; value: number; strong?: boolean }>;
+    accent: 'sky' | 'amber';
+}) {
+    const accentClass =
+        accent === 'sky'
+            ? 'border-sky-500/25 bg-sky-500/10 text-sky-200'
+            : 'border-amber-500/25 bg-amber-500/10 text-amber-200';
+
+    return (
+        <article className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+            <div className="mb-3">
+                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${accentClass}`}>
+                    {title}
+                </span>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">{subtitle}</p>
+            </div>
+            <div className="space-y-2">
+                {rows.map((row) => (
+                    <div
+                        key={row.label}
+                        className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm ${
+                            row.strong ? 'bg-slate-900 text-white' : 'bg-slate-900/45 text-slate-300'
+                        }`}
+                    >
+                        <span className="text-xs">{row.label}</span>
+                        <span className="font-semibold tabular-nums">{formatThb(row.value)}</span>
+                    </div>
+                ))}
+            </div>
         </article>
     );
 }

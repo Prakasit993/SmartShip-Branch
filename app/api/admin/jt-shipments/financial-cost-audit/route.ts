@@ -10,10 +10,18 @@ type FinancialCostAuditRpcRow = {
     dest_province: string | null;
     zone_code: string | null;
     shipping_fee: number | string | null;
+    total_shipping_fee: number | string | null;
+    extra_fee_revenue: number | string | null;
     actual_weight_kg: number | string | null;
     volumetric_weight_kg: number | string | null;
     billable_weight_kg: number | string | null;
     matched_rate_weight_kg: number | string | null;
+    base_shipping_cost: number | string | null;
+    remote_area_fee_cost: number | string | null;
+    other_fee_cost: number | string | null;
+    insurance_fee_cost: number | string | null;
+    return_fee_cost: number | string | null;
+    cod_fee_cost: number | string | null;
     cost: number | string | null;
     profit: number | string | null;
     cost_source: string | null;
@@ -75,17 +83,25 @@ export async function GET(req: Request) {
             date_from: dateFrom,
             date_to: dateTo,
             limit,
-            costModel: 'billable_weight_with_sale_price_fallback',
+            costModel: 'total_shipping_fee_revenue_with_billable_weight_cost',
             data: rows.map((r) => ({
                 awbNumber: r.awb_number || '',
                 bookingDate: String(r.booking_date || '').slice(0, 10),
                 destinationProvince: r.dest_province || '',
                 zoneCode: r.zone_code || '',
                 shippingFee: toNumber(r.shipping_fee),
+                totalShippingFee: toNumber(r.total_shipping_fee),
+                extraFeeRevenue: toNumber(r.extra_fee_revenue),
                 actualWeightKg: toNumber(r.actual_weight_kg),
                 volumetricWeightKg: toNumber(r.volumetric_weight_kg),
                 billableWeightKg: toNumber(r.billable_weight_kg),
                 matchedRateWeightKg: toNumber(r.matched_rate_weight_kg),
+                baseShippingCost: toNumber(r.base_shipping_cost),
+                remoteAreaFeeCost: toNumber(r.remote_area_fee_cost),
+                otherFeeCost: toNumber(r.other_fee_cost),
+                insuranceFeeCost: toNumber(r.insurance_fee_cost),
+                returnFeeCost: toNumber(r.return_fee_cost),
+                codFeeCost: toNumber(r.cod_fee_cost),
                 cost: toNumber(r.cost),
                 profit: toNumber(r.profit),
                 costSource: r.cost_source || 'default_15',

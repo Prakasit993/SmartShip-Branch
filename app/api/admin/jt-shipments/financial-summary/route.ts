@@ -23,6 +23,21 @@ type FinancialMissingCostRpcRow = {
     estimated_profit_with_default_cost: number | string | null;
 };
 
+type FinancialComponentSummaryRpcRow = {
+    shipping_fee_revenue: number | string | null;
+    total_shipping_fee_revenue: number | string | null;
+    extra_fee_revenue: number | string | null;
+    base_shipping_cost: number | string | null;
+    remote_area_fee_cost: number | string | null;
+    other_fee_cost: number | string | null;
+    insurance_fee_cost: number | string | null;
+    return_fee_cost: number | string | null;
+    cod_fee_cost: number | string | null;
+    total_cost: number | string | null;
+    total_profit: number | string | null;
+    shipment_count: number | string | null;
+};
+
 function readDateRange(req: Request) {
     const { searchParams } = new URL(req.url);
     const dateFrom = (searchParams.get('date_from') || searchParams.get('start_date') || '').trim();
@@ -54,7 +69,7 @@ export async function GET(req: Request) {
             );
         }
 
-        const [summaryRes, dailyRes, missingCostRes] = await Promise.all([
+        const [summaryRes, dailyRes, missingCostRes, componentSummaryRes] = await Promise.all([
             supabaseAdmin.rpc('get_financial_summary', {
                 start_date: dateFrom,
                 end_date: dateTo,
@@ -67,9 +82,13 @@ export async function GET(req: Request) {
                 start_date: dateFrom,
                 end_date: dateTo,
             }),
+            supabaseAdmin.rpc('get_financial_component_summary_billable_weight', {
+                start_date: dateFrom,
+                end_date: dateTo,
+            }),
         ]);
 
-        const firstError = summaryRes.error || dailyRes.error || missingCostRes.error;
+        const firstError = summaryRes.error || dailyRes.error || missingCostRes.error || componentSummaryRes.error;
         if (firstError) {
             console.error('[jt-shipments/financial-summary] RPC error', firstError);
             return NextResponse.json(
@@ -82,6 +101,11 @@ export async function GET(req: Request) {
         }
 
         const row = (Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data) as FinancialSummaryRpcRow | null;
+        const componentRow = (
+            Array.isArray(componentSummaryRes.data)
+                ? componentSummaryRes.data[0]
+                : componentSummaryRes.data
+        ) as FinancialComponentSummaryRpcRow | null;
         const dailyRows = (Array.isArray(dailyRes.data) ? dailyRes.data : []) as FinancialDailyProfitRpcRow[];
         const missingCostRows = (Array.isArray(missingCostRes.data) ? missingCostRes.data : []) as FinancialMissingCostRpcRow[];
 
@@ -92,7 +116,20 @@ export async function GET(req: Request) {
             totalCost: toNumber(row?.total_cost),
             totalProfit: toNumber(row?.total_profit),
             shipmentCount: Math.trunc(toNumber(row?.shipment_count)),
-            costModel: 'billable_weight_with_sale_price_fallback',
+            costModel: 'total_shipping_fee_revenue_with_billable_weight_cost',
+            revenueBreakdown: {
+                shippingFeeRevenue: toNumber(componentRow?.shipping_fee_revenue),
+                totalShippingFeeRevenue: toNumber(componentRow?.total_shipping_fee_revenue),
+                extraFeeRevenue: toNumber(componentRow?.extra_fee_revenue),
+            },
+            costBreakdown: {
+                baseShippingCost: toNumber(componentRow?.base_shipping_cost),
+                remoteAreaFeeCost: toNumber(componentRow?.remote_area_fee_cost),
+                otherFeeCost: toNumber(componentRow?.other_fee_cost),
+                insuranceFeeCost: toNumber(componentRow?.insurance_fee_cost),
+                returnFeeCost: toNumber(componentRow?.return_fee_cost),
+                codFeeCost: toNumber(componentRow?.cod_fee_cost),
+            },
             dailyProfit: dailyRows.map((r) => ({
                 date: String(r.day || '').slice(0, 10),
                 totalRevenue: toNumber(r.total_revenue),
