@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ใช้คลาส .dark บน <html> (ไม่ใช้แค่สื่อ prefers-color-scheme) เพื่อให้สลับธีมได้ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  --background: #fafafa;
+  --foreground: #18181b;
+  color-scheme: light;
+}
+
+html.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -12,19 +22,118 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Home: fluid section rhythm (mobile → desktop) */
+.home-section-y {
+  padding-block: clamp(2.75rem, 5vw, 5.5rem);
+}
+
+.home-section-y-lg {
+  padding-block: clamp(3rem, 6vw, 6.5rem);
+}
+
+/* Max readable width for hero copy */
+.home-prose-width {
+  max-width: min(42rem, 100%);
+}
+
+/*
+ * Home typography — fluid scale, line-height เหมาะกับภาษาไทย + หัวเรื่องชัด (สแกนอ่านเร็ว)
+ * ใช้คู่กับ class home-typography บน <main>
+ */
+#main-content.home-typography {
+  text-rendering: optimizeLegibility;
+}
+
+.home-type-display {
+  font-size: clamp(2rem, 4.75vw + 0.85rem, 3.75rem);
+  line-height: 1.11;
+  letter-spacing: -0.03em;
+}
+
+.home-type-lead {
+  font-size: clamp(1.0625rem, 1.85vw + 0.55rem, 1.3125rem);
+  line-height: 1.62;
+  letter-spacing: 0.012em;
+}
+
+.home-type-section {
+  font-size: clamp(1.625rem, 3.15vw + 0.5rem, 2.875rem);
+  line-height: 1.13;
+  letter-spacing: -0.028em;
+}
+
+.home-type-intro {
+  font-size: clamp(0.9375rem, 1.15vw + 0.65rem, 1.125rem);
+  line-height: 1.55;
+}
+
+.home-type-card-heading {
+  font-size: clamp(1.0625rem, 1.35vw + 0.58rem, 1.3125rem);
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.home-type-body-muted {
+  font-size: clamp(0.875rem, 0.95vw + 0.52rem, 1rem);
+  line-height: 1.58;
+}
+
+.home-type-review-title {
+  font-size: clamp(1.5rem, 2.75vw + 0.45rem, 2.75rem);
+  line-height: 1.13;
+  letter-spacing: -0.026em;
+}
+
+.home-type-review-body {
+  font-size: clamp(0.9375rem, 1vw + 0.62rem, 1.0625rem);
+  line-height: 1.62;
+}
+
+.home-type-price {
+  font-size: clamp(1.125rem, 1.85vw + 0.42rem, 1.5rem);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-type-product-name {
+  font-size: clamp(0.78125rem, 1.05vw + 0.42rem, 1rem);
+  line-height: 1.38;
+}
+
+.home-type-badge-pill {
+  font-size: clamp(0.6875rem, 0.85vw + 0.32rem, 0.8125rem);
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+}
+
+.home-type-cta {
+  font-size: clamp(1rem, 1.45vw + 0.42rem, 1.125rem);
+  line-height: 1.22;
+  letter-spacing: 0.035em;
+}
+
+.home-type-packing-title {
+  font-size: clamp(1.375rem, 2.85vw + 0.45rem, 2.125rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.home-type-packing-lead {
+  font-size: clamp(1rem, 1.2vw + 0.58rem, 1.1875rem);
+  line-height: 1.62;
+}
+
+.home-type-feature-label {
+  font-size: clamp(0.8125rem, 0.9vw + 0.45rem, 0.9375rem);
+  line-height: 1.4;
 }
 
 /* Announcement banner shimmer animation */
@@ -40,6 +149,120 @@ body {
 
 .animate-shimmer {
   animation: shimmer 3s ease-in-out infinite;
+}
+
+/* --- Home: subtle motion (disabled when user prefers reduced motion) --- */
+@keyframes home-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.25rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-home-fade-up {
+  opacity: 0;
+  animation: home-fade-up 0.5s cubic-bezier(0.25, 1, 0.35, 1) forwards;
+}
+
+.home-delay-1 {
+  animation-delay: 0.05s;
+}
+.home-delay-2 {
+  animation-delay: 0.1s;
+}
+.home-delay-3 {
+  animation-delay: 0.15s;
+}
+.home-delay-4 {
+  animation-delay: 0.2s;
+}
+.home-delay-5 {
+  animation-delay: 0.26s;
+}
+
+@keyframes hero-blob {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(18px, -14px, 0) scale(1.06);
+  }
+}
+
+@keyframes hero-blob-alt {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(-14px, 16px, 0) scale(1.05);
+  }
+}
+
+@keyframes hero-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.32;
+    transform: scale(1.03);
+  }
+}
+
+.animate-hero-blob {
+  animation: hero-blob 16s ease-in-out infinite alternate;
+}
+
+.animate-hero-blob-alt {
+  animation: hero-blob-alt 20s ease-in-out infinite alternate;
+}
+
+.animate-hero-glow {
+  animation: hero-glow-pulse 5s ease-in-out infinite;
+}
+
+.home-reveal {
+  opacity: 0;
+  transform: translate3d(0, 0.75rem, 0);
+  transition:
+    opacity 0.42s cubic-bezier(0.25, 1, 0.35, 1),
+    transform 0.42s cubic-bezier(0.25, 1, 0.35, 1);
+  will-change: opacity, transform;
+}
+
+.home-reveal-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-home-fade-up {
+    animation: none;
+    opacity: 1;
+  }
+
+  .animate-hero-blob,
+  .animate-hero-blob-alt,
+  .animate-hero-glow {
+    animation: none;
+  }
+
+  .animate-shimmer {
+    animation: none;
+  }
+
+  .home-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
 }
 
 /* ซ่อนแถบเลื่อนแต่ยังเลื่อนได้ด้วยล้อเมาส์ / ทัช / คีย์บอร์ด */

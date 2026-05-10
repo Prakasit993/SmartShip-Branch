@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { getSiteUrl } from "@/lib/site-url";
+import { ThemeProvider } from "@app/context/ThemeContext";
+import { LanguageProvider } from "@app/context/LanguageContext";
+import CookieConsent from "@app/components/ui/CookieConsent";
+import { ToastProvider } from "@app/components/ui/Toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,13 +20,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Express Shop Add-on",
-  description: "Browse and order exclusive sets and bundles.",
+  metadataBase: getSiteUrl(),
+  title: {
+    default: "Express Shop — อุปกรณ์แพ็คและชุดบริการจัดส่ง",
+    template: "%s | Express Shop",
+  },
+  description:
+    "เลือกซื้อชุดกล่อง อุปกรณ์แพ็ค และของเสริมคุณภาพ สั่งล่วงหน้าและรับที่ร้าน หรือให้เราเตรียมพร้อมให้คุณ",
+  applicationName: "Express Shop",
+  authors: [{ name: "Express Shop" }],
+  creator: "Express Shop",
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "th_TH",
+    siteName: "Express Shop",
+  },
 };
-
-import { LanguageProvider } from '@app/context/LanguageContext';
-import CookieConsent from '@app/components/ui/CookieConsent';
-import { ToastProvider } from '@app/components/ui/Toast';
 
 export default function RootLayout({
   children,
@@ -29,16 +46,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="th" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-[var(--background)] text-[var(--foreground)]`}
       >
-        <LanguageProvider>
-          <ToastProvider>
-            {children}
-            <CookieConsent />
-          </ToastProvider>
-        </LanguageProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k='app-theme';var t=localStorage.getItem(k);var r=document.documentElement;if(t==='dark'){r.classList.add('dark');}else if(t==='light'){r.classList.remove('dark');}else{if(window.matchMedia('(prefers-color-scheme: dark)').matches){r.classList.add('dark');}else{r.classList.remove('dark');}}}catch(e){}})();`,
+          }}
+        />
+        <ThemeProvider>
+          <LanguageProvider>
+            <ToastProvider>
+              {children}
+              <CookieConsent />
+            </ToastProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

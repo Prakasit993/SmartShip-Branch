@@ -49,11 +49,20 @@ const translations: Record<string, Record<Language, string>> = {
 
     // Features (Static)
     'feature.fast.title': { en: 'Fast Service', th: 'บริการรวดเร็ว' },
-    'feature.fast.desc': { en: 'Order online and your items will be ready when you arrive.', th: 'สั่งออนไลน์ล่วงหน้า ของพร้อมรับเมื่อมาถึงร้าน' },
-    'feature.quality.title': { en: 'Quality Assured', th: 'รับประกันคุณภาพ' },
-    'feature.quality.desc': { en: 'We carefully select the best packaging materials for shipping.', th: 'เราคัดสรรวัสดุบรรจุภัณฑ์ที่ดีที่สุดสำหรับการขนส่ง' },
-    'feature.support.title': { en: 'Support', th: 'บริการลูกค้า' },
-    'feature.support.desc': { en: 'Need help? Chat with us via LINE or ask for a recommendation.', th: 'ต้องการความช่วยเหลือ? ทัก LINE หาเราได้เลย' },
+    'feature.fast.desc': {
+        en: 'Order online in advance — your order is ready when you arrive at the store.',
+        th: 'สั่งซื้อออนไลน์ล่วงหน้า สินค้าพร้อมรับทันทีเมื่อมาถึงร้าน',
+    },
+    'feature.quality.title': { en: 'Trusted Quality', th: 'คุณภาพที่ไว้ใจได้' },
+    'feature.quality.desc': {
+        en: 'We select reliable packaging materials for every kind of shipment.',
+        th: 'คัดสรรวัสดุบรรจุภัณฑ์เกรดดีสำหรับการจัดส่งทุกประเภท',
+    },
+    'feature.support.title': { en: 'We Are Here to Help', th: 'ทีมของเราพร้อมช่วย' },
+    'feature.support.desc': {
+        en: 'Questions about packing or box sizes? Message us on LINE or ask staff in store.',
+        th: 'มีคำถามเรื่องแพ็คหรือขนาดกล่อง? ทัก LINE หรือสอบถามพนักงานที่ร้านได้เลย',
+    },
 
     // Shop & Product
     'shop.title': { en: 'Product Catalog', th: 'รายการสินค้า' },
@@ -141,11 +150,11 @@ const translations: Record<string, Record<Language, string>> = {
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-    const [language, setLanguage] = useState<Language>('en');
+    const [language, setLanguage] = useState<Language>('th');
 
     useEffect(() => {
         const saved = localStorage.getItem('app-language') as Language;
-        if (saved) setLanguage(saved);
+        if (saved === 'en' || saved === 'th') setLanguage(saved);
     }, []);
 
     const changeLanguage = (lang: Language) => {

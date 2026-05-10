@@ -6,6 +6,7 @@ import { useCart } from '@app/context/CartContext';
 import { useLanguage } from '@app/context/LanguageContext';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import ThemeToggle from '@app/components/ui/ThemeToggle';
 
 interface UserInfo {
     name: string | null;
@@ -84,6 +85,8 @@ export default function Header() {
                     </Link>
 
                     <div className="h-4 w-[1px] bg-zinc-300 dark:bg-zinc-700 mx-2 hidden md:block"></div>
+
+                    <ThemeToggle language={language} />
 
                     <div className="flex items-center gap-1 text-sm font-medium border border-zinc-200 dark:border-zinc-800 rounded-full p-1 bg-white dark:bg-black">
                         <button

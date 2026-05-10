@@ -29,13 +29,13 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
     // If no images, show placeholder
     if (!images || images.length === 0) {
         return (
-            <div className="relative w-full h-auto aspect-[4/3] rounded-3xl overflow-hidden">
+            <div className="relative w-full h-auto aspect-[4/3] max-h-[min(68vh,560px)] rounded-2xl sm:rounded-3xl overflow-hidden mx-auto">
                 <Image
                     src="/smartship-storefront.png"
-                    alt="SmartShip Storefront"
+                    alt="หน้าร้าน Express Shop"
                     fill
                     className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 1024px) 100vw, (max-width: 1536px) 45vw, 640px"
                     priority
                 />
             </div>
@@ -68,7 +68,7 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
 
     return (
         <div
-            className="relative w-full h-auto aspect-[4/3] rounded-3xl overflow-hidden group"
+            className="relative w-full h-auto aspect-[4/3] max-h-[min(68vh,560px)] rounded-2xl sm:rounded-3xl overflow-hidden group mx-auto"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -86,10 +86,10 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
                     <div className={`relative w-full h-full transition-transform duration-[8000ms] ease-linear ${index === currentIndex ? 'scale-110' : 'scale-100'}`}>
                         <Image
                             src={src}
-                            alt={`Slide ${index + 1}`}
+                            alt={`ภาพโปรโมชัน ${index + 1}`}
                             fill
                             className="object-cover"
-                            sizes="(max-width: 768px) 100vw, 50vw"
+                            sizes="(max-width: 1024px) 100vw, (max-width: 1536px) 45vw, 640px"
                             priority={index === 0}
                         />
                     </div>
@@ -103,8 +103,9 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
             {images.length > 1 && (
                 <>
                     <button
+                        type="button"
                         onClick={goToPrev}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white/40 hover:scale-110"
+                        className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 min-h-11 min-w-11 h-11 w-11 bg-white/25 backdrop-blur-md rounded-full flex items-center justify-center text-white md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 hover:bg-white/45 active:scale-95 hover:scale-105 shadow-lg"
                         aria-label="Previous slide"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -112,8 +113,9 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
                         </svg>
                     </button>
                     <button
+                        type="button"
                         onClick={goToNext}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white/40 hover:scale-110"
+                        className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 min-h-11 min-w-11 h-11 w-11 bg-white/25 backdrop-blur-md rounded-full flex items-center justify-center text-white md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 hover:bg-white/45 active:scale-95 hover:scale-105 shadow-lg"
                         aria-label="Next slide"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,7 +129,7 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
             {images.length > 1 && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30 z-30">
                     <div
-                        className="h-full bg-white transition-all duration-50 ease-linear"
+                        className="h-full bg-gradient-to-r from-white via-white to-white/90 shadow-[0_0_12px_rgba(255,255,255,0.45)] transition-all duration-50 ease-linear"
                         style={{ width: `${progress}%` }}
                     />
                 </div>
@@ -135,27 +137,32 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
 
             {/* Navigation Dots */}
             {images.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30">
+                <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-2 z-30 px-2">
                     {images.map((_, index) => (
                         <button
+                            type="button"
                             key={index}
                             onClick={() => {
                                 setCurrentIndex(index);
                                 setProgress(0);
                             }}
-                            className={`h-2 rounded-full transition-all duration-300 ${index === currentIndex
-                                ? 'bg-white w-8 shadow-lg'
-                                : 'bg-white/50 w-2 hover:bg-white/80'
-                                }`}
+                            className="min-h-10 min-w-10 flex items-center justify-center p-2 rounded-full transition-all duration-300 touch-manipulation"
                             aria-label={`Go to slide ${index + 1}`}
-                        />
+                        >
+                            <span
+                                className={`block rounded-full transition-all duration-300 ${index === currentIndex
+                                    ? 'bg-white h-2 w-8 shadow-lg'
+                                    : 'bg-white/50 h-2 w-2 hover:bg-white/85'
+                                    }`}
+                            />
+                        </button>
                     ))}
                 </div>
             )}
 
             {/* Slide Counter */}
             {images.length > 1 && (
-                <div className="absolute top-4 right-4 z-30 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-white text-xs font-medium">
+                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 px-2.5 py-1 sm:px-3 bg-black/45 backdrop-blur-md rounded-full text-white text-[11px] sm:text-xs font-medium">
                     {currentIndex + 1} / {images.length}
                 </div>
             )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { HOME_DEFAULTS } from '@/lib/home-defaults';
 import { CollapsibleSection, InputField } from './SettingsComponents';
 import { uploadImage } from './actions';
 
@@ -89,14 +90,14 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                     <InputField
                         name="hero_title"
                         label="หัวข้อหลัก (Hero Title)"
-                        defaultValue={getSetting('hero_title', 'Exclusive Express Add-ons')}
+                        defaultValue={getSetting('hero_title', HOME_DEFAULTS.heroTitle)}
                         placeholder="เช่น สินค้าคุณภาพ ราคาดี"
                     />
 
                     <InputField
                         name="hero_subtitle"
                         label="คำอธิบาย (Hero Subtitle)"
-                        defaultValue={getSetting('hero_subtitle', 'Premium boxes, tape, and packing essentials available instantly.')}
+                        defaultValue={getSetting('hero_subtitle', HOME_DEFAULTS.heroSubtitle)}
                         placeholder="คำอธิบายสั้นๆ เกี่ยวกับร้าน"
                         rows={3}
                     />
