@@ -58,6 +58,7 @@ export default function NewBulkDiscountPage() {
         <div className="max-w-2xl mx-auto space-y-6 pb-20">
             <Link
                 href="/admin/bulk-discounts"
+                title="กลับไปรายการส่วนลดซื้อเยอะ"
                 className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
             >
                 ← กลับ
@@ -191,6 +192,7 @@ export default function NewBulkDiscountPage() {
                     </button>
                     <Link
                         href="/admin/bulk-discounts"
+                        title="กลับไปรายการโดยไม่บันทึก"
                         className="px-4 py-2 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
                     >
                         ยกเลิก

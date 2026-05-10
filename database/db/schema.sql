@@ -49,6 +49,9 @@ create table public.bundles (
   type text check (type in ('fixed', 'configurable')) not null default 'fixed',
   is_active boolean default true,
   category_id bigint references public.categories(id),
+  meta_title text,
+  meta_description text,
+  image_alt text,
   created_at timestamptz default now()
 );
 

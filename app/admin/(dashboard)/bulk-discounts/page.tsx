@@ -41,6 +41,7 @@ export default async function BulkDiscountsPage() {
                 actions={
                     <Link
                         href="/admin/bulk-discounts/new"
+                        title="ไปหน้าสร้างส่วนลดซื้อเยอะใหม่"
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition text-sm shadow-sm"
                     >
                         + เพิ่มส่วนลดใหม่
@@ -49,7 +50,11 @@ export default async function BulkDiscountsPage() {
             />
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div
+                className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                role="region"
+                aria-label="สรุปจำนวนส่วนลดซื้อเยอะ"
+            >
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
                     <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                         {discounts?.length || 0}

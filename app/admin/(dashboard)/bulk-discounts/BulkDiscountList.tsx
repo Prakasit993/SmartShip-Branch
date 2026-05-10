@@ -1,6 +1,7 @@
 'use client';
 
 import { AdminTablePanel } from '@app/admin/components/AdminTablePanel';
+import Link from 'next/link';
 import { useState } from 'react';
 
 interface BulkDiscount {
@@ -95,27 +96,36 @@ export default function BulkDiscountList({ discounts }: BulkDiscountListProps) {
 
     if (items.length === 0) {
         return (
-            <div className="rounded-2xl border border-zinc-800/90 bg-zinc-950/45 p-12 text-center shadow-sm">
-                <div className="text-4xl mb-4">💰</div>
-                <h3 className="text-lg font-semibold text-white mb-2">
+            <section
+                className="rounded-2xl border border-zinc-800/90 bg-zinc-950/45 p-12 text-center shadow-sm"
+                aria-labelledby="bulk-discount-empty-heading"
+            >
+                <span className="mb-4 block text-4xl" aria-hidden>
+                    💰
+                </span>
+                <h3 id="bulk-discount-empty-heading" className="text-lg font-semibold text-white mb-2">
                     ยังไม่มีส่วนลดซื้อเยอะ
                 </h3>
                 <p className="text-zinc-400 mb-4">
                     เริ่มสร้างส่วนลดเมื่อลูกค้าซื้อครบจำนวนที่กำหนด
                 </p>
-                <a
+                <Link
                     href="/admin/bulk-discounts/new"
+                    title="ไปหน้าสร้างส่วนลดซื้อเยอะใหม่"
                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition text-sm shadow-sm"
                 >
                     + เพิ่มส่วนลดใหม่
-                </a>
-            </div>
+                </Link>
+            </section>
         );
     }
 
     return (
         <AdminTablePanel>
                 <table className="min-w-full">
+                    <caption className="sr-only">
+                        รายการส่วนลดซื้อเยอะ สลับเปิดปิด แก้ไข และลบ
+                    </caption>
                     <thead className="bg-zinc-900/90">
                         <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">
@@ -171,33 +181,49 @@ export default function BulkDiscountList({ discounts }: BulkDiscountListProps) {
                                 </td>
                                 <td className="px-4 py-4 text-center">
                                     <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={discount.is_active}
                                         onClick={() => handleToggle(discount.id)}
                                         disabled={loading === discount.id}
+                                        title={
+                                            discount.is_active
+                                                ? `ปิดใช้ส่วนลด "${discount.name}"`
+                                                : `เปิดใช้ส่วนลด "${discount.name}"`
+                                        }
+                                        aria-label={
+                                            discount.is_active
+                                                ? `ปิดใช้ส่วนลด ${discount.name}`
+                                                : `เปิดใช้ส่วนลด ${discount.name}`
+                                        }
                                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${discount.is_active
                                                 ? 'bg-green-500'
                                                 : 'bg-zinc-300 dark:bg-zinc-600'
                                             }`}
                                     >
                                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${discount.is_active ? 'translate-x-6' : 'translate-x-1'
-                                            }`} />
+                                            }`} aria-hidden />
                                     </button>
                                 </td>
                                 <td className="px-4 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        <a
+                                        <Link
                                             href={`/admin/bulk-discounts/${discount.id}`}
                                             className="p-2 text-zinc-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition"
-                                            title="แก้ไข"
+                                            title={`แก้ไขส่วนลด — ${discount.name}`}
+                                            aria-label={`แก้ไขส่วนลด ${discount.name}`}
                                         >
-                                            ✏️
-                                        </a>
+                                            <span aria-hidden>✏️</span>
+                                        </Link>
                                         <button
+                                            type="button"
                                             onClick={() => handleDelete(discount.id)}
                                             disabled={loading === discount.id}
                                             className="p-2 text-zinc-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
-                                            title="ลบ"
+                                            title={`ลบส่วนลด — ${discount.name}`}
+                                            aria-label={`ลบส่วนลด ${discount.name}`}
                                         >
-                                            🗑️
+                                            <span aria-hidden>🗑️</span>
                                         </button>
                                     </div>
                                 </td>

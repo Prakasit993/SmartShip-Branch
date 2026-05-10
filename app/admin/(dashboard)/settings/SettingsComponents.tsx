@@ -147,10 +147,13 @@ export function CollapsibleSection({ title, icon, defaultOpen = false, children 
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
+                aria-expanded={isOpen}
                 className="w-full flex items-center justify-between p-4 hover:bg-zinc-800/50 transition"
             >
                 <div className="flex items-center gap-3">
-                    <span className="text-xl">{icon}</span>
+                    <span className="text-xl" aria-hidden>
+                        {icon}
+                    </span>
                     <h2 className="font-semibold text-lg text-white">{title}</h2>
                 </div>
                 <span className={`text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>

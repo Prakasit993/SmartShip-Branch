@@ -13,6 +13,10 @@ export type BundleInput = {
     type: 'fixed' | 'configurable';
     category_id: number;
     image_urls?: string[];
+    /** SEO / sharing — optional; falls back to linked product on storefront when empty */
+    meta_title?: string;
+    meta_description?: string;
+    image_alt?: string;
     is_active: boolean;
     // Dimension fields (in centimeters)
     width_cm?: number;
@@ -37,6 +41,11 @@ export type BundleInput = {
     }[];
 };
 
+function trimOrNull(s: string | undefined): string | null {
+    const t = (s ?? '').trim();
+    return t.length ? t : null;
+}
+
 export async function createBundle(data: BundleInput) {
     // 1. Create Bundle
     const { data: bundle, error: bundleError } = await supabaseAdmin
@@ -54,7 +63,10 @@ export async function createBundle(data: BundleInput) {
             length_cm: data.length_cm,
             height_cm: data.height_cm,
             weight_g: data.weight_g,
-            sku: data.sku
+            sku: data.sku,
+            meta_title: trimOrNull(data.meta_title),
+            meta_description: trimOrNull(data.meta_description),
+            image_alt: trimOrNull(data.image_alt),
         })
         .select()
         .single();
@@ -114,6 +126,11 @@ export async function createBundle(data: BundleInput) {
     }
 
     revalidatePath('/admin/bundles');
+    revalidatePath('/shop');
+    revalidatePath('/');
+    if (data.slug?.trim()) {
+        revalidatePath(`/shop/bundle/${data.slug.trim()}`);
+    }
     return { success: true };
 }
 
@@ -136,7 +153,10 @@ export async function updateBundle(data: BundleInput) {
             length_cm: data.length_cm,
             height_cm: data.height_cm,
             weight_g: data.weight_g,
-            sku: data.sku
+            sku: data.sku,
+            meta_title: trimOrNull(data.meta_title),
+            meta_description: trimOrNull(data.meta_description),
+            image_alt: trimOrNull(data.image_alt),
         })
         .eq('id', data.id);
 
@@ -185,6 +205,11 @@ export async function updateBundle(data: BundleInput) {
     }
 
     revalidatePath('/admin/bundles');
+    revalidatePath('/shop');
+    revalidatePath('/');
+    if (data.slug?.trim()) {
+        revalidatePath(`/shop/bundle/${data.slug.trim()}`);
+    }
     return { success: true };
 }
 
@@ -194,4 +219,6 @@ export async function deleteBundle(id: number) {
         console.error('Delete bundle error:', error.message);
     }
     revalidatePath('/admin/bundles');
+    revalidatePath('/shop');
+    revalidatePath('/');
 }

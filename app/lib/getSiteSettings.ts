@@ -10,8 +10,16 @@ export async function getSiteSettings(): Promise<Record<string, string>> {
     // Convert settings array to object
     const settingsMap: Record<string, string> = {};
     settings?.forEach((s) => {
-        // Remove quotes from JSON string if simple string
-        settingsMap[s.key] = String(s.value).replace(/^"|"$/g, '');
+        const v = s.value as unknown;
+        if (s.key === 'hero_images') {
+            if (Array.isArray(v) || (typeof v === 'object' && v !== null)) {
+                settingsMap[s.key] = JSON.stringify(v);
+            } else {
+                settingsMap[s.key] = v !== undefined && v !== null ? String(v) : '';
+            }
+            return;
+        }
+        settingsMap[s.key] = String(v ?? '').replace(/^"|"$/g, '');
     });
 
     return settingsMap;

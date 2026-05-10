@@ -25,16 +25,29 @@ export default function BundleForm({ initialData, categories, products }: Bundle
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [formData, setFormData] = useState<BundleInput>(initialData || {
-        name: '',
-        slug: '',
-        price: 0,
-        type: 'fixed',
-        category_id: categories[0]?.id || 0,
-        image_urls: [],
-        is_active: true,
-        items: [],
-        option_groups: []
+    const [formData, setFormData] = useState<BundleInput>(() => {
+        const defaults: BundleInput = {
+            name: '',
+            slug: '',
+            price: 0,
+            type: 'fixed',
+            category_id: categories[0]?.id || 0,
+            image_urls: [],
+            is_active: true,
+            items: [],
+            option_groups: [],
+            meta_title: '',
+            meta_description: '',
+            image_alt: '',
+        };
+        if (!initialData) return defaults;
+        return {
+            ...defaults,
+            ...initialData,
+            meta_title: initialData.meta_title ?? '',
+            meta_description: initialData.meta_description ?? '',
+            image_alt: initialData.image_alt ?? '',
+        };
     });
 
     const handleChange = (field: keyof BundleInput, value: any) => {
@@ -293,13 +306,79 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                     {formData.image_urls?.[0] && (
                         <img
                             src={formData.image_urls[0]}
-                            alt="ตัวอย่างรูปแพ็กสินค้า (หลังบ้าน)"
-                            title={formData.name?.trim() ? `${formData.name.trim()} — ตัวอย่างรูป` : undefined}
+                            alt={
+                                formData.image_alt?.trim() ||
+                                'ตัวอย่างรูปแพ็กสินค้า (หลังบ้าน)'
+                            }
+                            title={
+                                formData.image_alt?.trim() ||
+                                (formData.name?.trim() ? `${formData.name.trim()} — ตัวอย่างรูป` : undefined)
+                            }
                             className="mt-2 w-20 h-20 object-cover rounded-lg border"
                             loading="lazy"
                             decoding="async"
                         />
                     )}
+                </div>
+
+                {/* SEO */}
+                <div className="col-span-full rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/25 p-4 space-y-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                            🔍 SEO และการแชร์
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            ถ้าเว้นว่าง ระบบหน้าร้านจะใช้ข้อมูลจากสินค้าที่ผูกเป็นตัวแรกในชุด (เมื่อมี)
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-medium mb-1 text-zinc-600 dark:text-zinc-300">
+                                Meta title <span className="font-normal text-zinc-500">(~60 ตัวอักษร)</span>
+                            </label>
+                            <input
+                                value={formData.meta_title ?? ''}
+                                onChange={(e) => handleChange('meta_title', e.target.value)}
+                                maxLength={120}
+                                className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                                placeholder="หัวข้อในแท็บและผลค้นหา"
+                            />
+                            <p className="text-[11px] text-zinc-500 mt-0.5 tabular-nums">
+                                {(formData.meta_title ?? '').length} / 120
+                            </p>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-medium mb-1 text-zinc-600 dark:text-zinc-300">
+                                Meta description <span className="font-normal text-zinc-500">(~150–160 ตัวอักษร)</span>
+                            </label>
+                            <textarea
+                                value={formData.meta_description ?? ''}
+                                onChange={(e) => handleChange('meta_description', e.target.value)}
+                                maxLength={320}
+                                rows={3}
+                                className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500 outline-none text-sm resize-y"
+                                placeholder="คำอธิบายสั้นๆ ให้ Google และโซเชียลแสดงเป็นตัวอย่าง"
+                            />
+                            <p className="text-[11px] text-zinc-500 mt-0.5 tabular-nums">
+                                {(formData.meta_description ?? '').length} / 320
+                            </p>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-medium mb-1 text-zinc-600 dark:text-zinc-300">
+                                ข้อความ alt รูปหลัก <span className="font-normal text-zinc-500">(SEO + การเข้าถึง)</span>
+                            </label>
+                            <input
+                                value={formData.image_alt ?? ''}
+                                onChange={(e) => handleChange('image_alt', e.target.value)}
+                                maxLength={220}
+                                className="w-full px-4 py-2.5 border rounded-xl dark:bg-black dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                                placeholder="อธิบายสั้นๆ ว่ารูปแรกของชุดคืออะไร"
+                            />
+                            <p className="text-[11px] text-zinc-500 mt-0.5 tabular-nums">
+                                {(formData.image_alt ?? '').length} / 220
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* SKU & Dimensions */}

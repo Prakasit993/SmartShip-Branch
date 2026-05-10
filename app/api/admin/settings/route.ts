@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { revalidatePath } from 'next/cache';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { normalizeHeroSlidesFromRaw } from '@app/lib/home-seo';
 
 export async function POST(request: Request) {
     try {
@@ -15,11 +16,19 @@ export async function POST(request: Request) {
         for (const [key, value] of Array.from(formData.entries())) {
             if (typeof value === 'string') {
                 if (key === 'hero_images') {
-                    // Handle hero_images separately - store as JSON array
-                    const images = value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+                    let parsed: unknown;
+                    try {
+                        parsed = JSON.parse(value);
+                    } catch {
+                        parsed = value
+                            .split(/\r?\n/)
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                    }
+                    const slides = normalizeHeroSlidesFromRaw(parsed);
                     const { error } = await supabaseAdmin
                         .from('settings')
-                        .upsert({ key: 'hero_images', value: JSON.stringify(images) }, { onConflict: 'key' });
+                        .upsert({ key: 'hero_images', value: slides }, { onConflict: 'key' });
 
                     if (error) {
                         console.error('Error saving hero_images:', error);

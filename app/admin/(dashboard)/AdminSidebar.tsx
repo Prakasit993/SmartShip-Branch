@@ -41,7 +41,7 @@ export default function AdminSidebar({ role }: { role: string }) {
             <div className="md:hidden fixed top-0 left-0 right-0 z-50 border-b border-zinc-800 bg-[#070d1b] backdrop-blur">
                 <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
                     <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-sm shadow-lg">
+                        <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-sm shadow-lg" aria-hidden>
                             📦
                         </div>
                         <span className="min-w-0 truncate font-bold text-sm leading-tight text-white">SmartShip Admin</span>
@@ -88,7 +88,7 @@ export default function AdminSidebar({ role }: { role: string }) {
                 <div className="shrink-0 p-8 pb-4">
                     <div className="flex items-center justify-between gap-3 mb-6">
                         <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-900/40">
+                        <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-900/40" aria-hidden>
                             📦
                         </div>
                         <div>
@@ -157,7 +157,9 @@ export default function AdminSidebar({ role }: { role: string }) {
                         onClick={handleLogout}
                         className="flex items-center gap-3 w-full min-h-11 px-4 py-3 text-zinc-400 hover:text-white hover:bg-[#0f1a31] rounded-lg transition-all text-sm font-medium group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                     >
-                        <span className="group-hover:translate-x-1 transition-transform">🚪</span>
+                        <span className="group-hover:translate-x-1 transition-transform" aria-hidden>
+                            🚪
+                        </span>
                         {t('nav.signOut')}
                     </button>
                 </div>
@@ -177,7 +179,7 @@ function NavItem({ href, icon, label, active, onClick }: { href: string; icon: s
                 : 'text-zinc-400 hover:text-white hover:bg-[#0f1a31]'
                 }`}
         >
-            <span>{icon}</span>
+            <span aria-hidden>{icon}</span>
             {label}
         </Link>
     );

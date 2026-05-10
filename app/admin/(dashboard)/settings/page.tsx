@@ -14,9 +14,17 @@ export default async function SettingsPage({
 
     // Convert settings array to object
     const settingsMap: Record<string, string> = {};
-    settings?.forEach(s => {
-        // Remove quotes from JSON string if simple string
-        settingsMap[s.key] = String(s.value).replace(/^"|"$/g, '');
+    settings?.forEach((s) => {
+        const v = s.value as unknown;
+        if (s.key === 'hero_images') {
+            if (Array.isArray(v) || (typeof v === 'object' && v !== null)) {
+                settingsMap[s.key] = JSON.stringify(v);
+            } else {
+                settingsMap[s.key] = v !== undefined && v !== null ? String(v) : '';
+            }
+            return;
+        }
+        settingsMap[s.key] = String(v ?? '').replace(/^"|"$/g, '');
     });
 
     return (
@@ -24,7 +32,7 @@ export default async function SettingsPage({
             <AdminPageHeader
                 className="mb-8"
                 title="ตั้งค่าเว็บไซต์"
-                description="จัดการข้อมูลหน้าแรก, ข้อมูลติดต่อ, และการตั้งค่าอื่นๆ"
+                description="หน้าแรก: หัวข้อ คำอธิบาย รูปคารูเซล (alt/title ต่อรูป) • ติดต่อ แผนที่ • ชำระเงิน"
                 titleLeft={<span aria-hidden>⚙️</span>}
             />
 

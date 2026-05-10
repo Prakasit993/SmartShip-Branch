@@ -79,7 +79,7 @@ export async function generateMetadata({
 
     const { data: bundle } = await supabase
         .from('bundles')
-        .select('id, name, slug, description, image_urls, type')
+        .select('id, name, slug, description, image_urls, type, meta_title, meta_description, image_alt')
         .eq('slug', slug)
         .maybeSingle();
 
@@ -89,11 +89,13 @@ export async function generateMetadata({
 
     const seo = await getLinkedProductSeo(bundle.id, bundle.type);
 
-    const title = (seo?.meta_title?.trim() || bundle.name).slice(0, 120);
-    const description =
-        (seo?.meta_description?.trim() ||
-            bundle.description?.trim() ||
-            `ซื้อ ${bundle.name} — สั่งออนไลน์ได้ทันที`).slice(0, 320);
+    const title = (bundle.meta_title?.trim() || seo?.meta_title?.trim() || bundle.name).slice(0, 120);
+    const description = (
+        bundle.meta_description?.trim() ||
+        seo?.meta_description?.trim() ||
+        bundle.description?.trim() ||
+        `ซื้อ ${bundle.name} — สั่งออนไลน์ได้ทันที`
+    ).slice(0, 320);
 
     const site = getSiteUrl();
     const canonical = new URL(`/shop/bundle/${bundle.slug}`, site);
@@ -116,7 +118,14 @@ export async function generateMetadata({
             siteName,
             locale: 'th_TH',
             type: 'website',
-            images: ogImage ? [{ url: ogImage, alt: seo?.image_alt?.trim() || bundle.name }] : undefined,
+            images: ogImage
+                ? [
+                      {
+                          url: ogImage,
+                          alt: bundle.image_alt?.trim() || seo?.image_alt?.trim() || bundle.name,
+                      },
+                  ]
+                : undefined,
         },
         twitter: {
             card: ogImage ? 'summary_large_image' : 'summary',
@@ -172,7 +181,12 @@ export default async function BundleDetailPage({ params }: { params: Promise<{ s
     }
 
     const seo = await getLinkedProductSeo(bundle.id, bundle.type);
-    const primaryImageAlt = (seo?.image_alt?.trim() || bundle.name || 'สินค้า').slice(0, 220);
+    const primaryImageAlt = (
+        bundle.image_alt?.trim() ||
+        seo?.image_alt?.trim() ||
+        bundle.name ||
+        'สินค้า'
+    ).slice(0, 220);
 
     return (
         <div className="container mx-auto max-w-6xl px-4 py-8">

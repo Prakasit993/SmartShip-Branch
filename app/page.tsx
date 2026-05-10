@@ -6,7 +6,7 @@ import HeroCarousel from '@app/components/home/HeroCarousel';
 import dynamic from 'next/dynamic';
 import { getSiteUrl } from '@/lib/site-url';
 import { getHomePageData } from '@app/lib/getHomePageData';
-import { getHeroImagesFromSettings, getHomeSeoFromSettings } from '@app/lib/home-seo';
+import { getHeroSlidesFromSettings, getHomeSeoFromSettings } from '@app/lib/home-seo';
 import { splitHeroTitle } from '@app/lib/split-hero-title';
 import HomeReveal from '@app/components/home/HomeReveal';
 import { HOME_DEFAULTS } from '@/lib/home-defaults';
@@ -64,7 +64,7 @@ export async function generateMetadata(): Promise<Metadata> {
           url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: seo.title,
+          alt: seo.ogImageAlt || seo.title,
         },
       ],
     },
@@ -102,7 +102,7 @@ export default async function Home() {
   const heroSubtitle = getSetting('hero_subtitle') || HOME_DEFAULTS.heroSubtitle;
   const announcement = getSetting('announcement');
 
-  const heroImages = getHeroImagesFromSettings(settings);
+  const heroSlides = getHeroSlidesFromSettings(settings);
   const { first: heroTitleFirst, rest: heroTitleRest } = splitHeroTitle(heroTitle);
 
   const featuredBundles = featuredBundlesResult.data;
@@ -223,7 +223,7 @@ export default async function Home() {
               <div className="relative group perspective-1000 animate-home-fade-up home-delay-5 w-full max-w-xl md:max-w-none mx-auto md:mx-0">
                 <div className="absolute -inset-4 bg-gradient-to-tr from-blue-500 to-cyan-400 rounded-3xl opacity-20 blur-2xl group-hover:opacity-40 transition duration-700 animate-hero-glow" />
                 <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 ring-1 ring-black/5 dark:ring-white/10 transform transition duration-300 ease-out hover:scale-[1.02] hover:rotate-1 hover:shadow-blue-500/10 dark:hover:shadow-blue-400/5">
-                  <HeroCarousel images={heroImages} />
+                  <HeroCarousel slides={heroSlides} />
                 </div>
               </div>
             </div>

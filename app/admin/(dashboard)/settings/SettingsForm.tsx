@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { HOME_DEFAULTS } from '@/lib/home-defaults';
 import { ADMIN_PRODUCT_IMAGE_ACCEPT } from '@/lib/adminProductImageUpload';
+import { normalizeHeroSlidesFromRaw, type HeroSlide } from '@app/lib/home-seo';
 import { CollapsibleSection, InputField } from './SettingsComponents';
 import { uploadImage } from './actions';
 
@@ -13,18 +14,21 @@ interface SettingsFormProps {
 }
 
 export default function SettingsForm({ initialSettings, saved, error }: SettingsFormProps) {
-    const [heroImages, setHeroImages] = useState<string[]>(() => {
+    const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(() => {
         const val = initialSettings.hero_images || '';
         try {
-            if (val.startsWith('[')) {
-                return JSON.parse(val);
-            }
-            return val ? [val] : ['/smartship-storefront.png'];
+            if (!val.trim()) return normalizeHeroSlidesFromRaw(null);
+            const parsed = JSON.parse(val);
+            return normalizeHeroSlidesFromRaw(parsed);
         } catch {
-            return val ? [val] : ['/smartship-storefront.png'];
+            return normalizeHeroSlidesFromRaw(val ? [val] : null);
         }
     });
     const [uploading, setUploading] = useState(false);
+
+    const patchSlide = (index: number, patch: Partial<HeroSlide>) => {
+        setHeroSlides((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+    };
 
     const getSetting = (key: string, defaultValue: string = '') => {
         return initialSettings[key] || defaultValue;
@@ -42,7 +46,11 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
 
                 const result = await uploadImage(formData);
                 if ('url' in result) {
-                    setHeroImages(prev => [...prev, result.url]);
+                    setHeroSlides((prev) =>
+                        prev.length >= 5
+                            ? prev
+                            : [...prev, { url: result.url, alt: '', title: '' }],
+                    );
                 } else {
                     alert('อัปโหลดไม่สำเร็จ: ' + result.error);
                 }
@@ -55,16 +63,16 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
         }
     };
 
-    const removeImage = (index: number) => {
-        setHeroImages(prev => prev.filter((_, i) => i !== index));
+    const removeSlide = (index: number) => {
+        setHeroSlides((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const moveImage = (index: number, direction: 'up' | 'down') => {
-        const newImages = [...heroImages];
+    const moveSlide = (index: number, direction: 'up' | 'down') => {
+        const next = [...heroSlides];
         const newIndex = direction === 'up' ? index - 1 : index + 1;
-        if (newIndex < 0 || newIndex >= heroImages.length) return;
-        [newImages[index], newImages[newIndex]] = [newImages[newIndex], newImages[index]];
-        setHeroImages(newImages);
+        if (newIndex < 0 || newIndex >= next.length) return;
+        [next[index], next[newIndex]] = [next[newIndex], next[index]];
+        setHeroSlides(next);
     };
 
     return (
@@ -84,7 +92,7 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
             )}
 
             <form action="/admin/settings" method="POST" className="space-y-4">
-                <input type="hidden" name="hero_images" value={heroImages.join('\n')} />
+                <input type="hidden" name="hero_images" value={JSON.stringify(heroSlides)} />
 
                 {/* Homepage Section */}
                 <CollapsibleSection title="หน้าแรก (Homepage)" icon="🏠" defaultOpen={true}>
@@ -106,65 +114,112 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                     {/* Hero Images */}
                     <div>
                         <label className="block text-sm font-medium text-zinc-300 mb-2">รูปภาพหน้าแรก (Hero Images)</label>
-                        <p className="text-xs text-zinc-500 mb-3">รูปแรกจะแสดงเป็นหลัก • สูงสุด 5 รูป • ลากเพื่อสลับตำแหน่ง</p>
+                        <p className="text-xs text-zinc-500 mb-3">
+                            รูปแรกจะแสดงเป็นหลักและใช้เป็นรูปแชร์ (OG) • สูงสุด 5 รูป • กรอกข้อความ alt เพื่อ SEO และการเข้าถึง
+                            (ถ้าเว้นว่าง ระบบจะใส่ข้อความสำรองเมื่อบันทึก)
+                        </p>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {heroImages.map((url, index) => (
-                                <div key={index} className="relative group aspect-video bg-zinc-800 rounded-lg overflow-hidden border border-zinc-700">
-                                    <img
-                                        src={url}
-                                        alt={`Image ${index + 1}`}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src = '/placeholder.png';
-                                        }}
-                                    />
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                                        {index > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => moveImage(index, 'up')}
-                                                className="p-1.5 bg-white/20 rounded hover:bg-white/40 text-sm"
-                                                title="Move left"
-                                            >
-                                                ←
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => removeImage(index)}
-                                            className="p-1.5 bg-red-500/80 rounded hover:bg-red-500 text-sm"
-                                            title="Remove"
-                                        >
-                                            🗑️
-                                        </button>
-                                        {index < heroImages.length - 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => moveImage(index, 'down')}
-                                                className="p-1.5 bg-white/20 rounded hover:bg-white/40 text-sm"
-                                                title="Move right"
-                                            >
-                                                →
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
-                                        {index === 0 ? '★ หลัก' : index + 1}
+                        <div className="space-y-4">
+                            {heroSlides.map((slide, index) => (
+                                <div
+                                    key={`${slide.url}-${index}`}
+                                    className="rounded-xl border border-zinc-700 bg-zinc-900/40 overflow-hidden"
+                                >
+                                    <div className="flex flex-col sm:flex-row gap-4 p-4">
+                                        <div className="relative w-full sm:w-44 aspect-video shrink-0 rounded-lg overflow-hidden border border-zinc-600 bg-zinc-800 group">
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- admin preview */}
+                                            <img
+                                                src={slide.url}
+                                                alt={slide.alt?.trim() || `ตัวอย่างสไลด์ ${index + 1}`}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).src = '/placeholder.png';
+                                                }}
+                                            />
+                                            <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                                {index > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => moveSlide(index, 'up')}
+                                                        className="p-1.5 bg-white/20 rounded hover:bg-white/40 text-sm"
+                                                        title="เลื่อนขึ้น / ไปซ้ายในคารูเซล"
+                                                    >
+                                                        ←
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeSlide(index)}
+                                                    className="p-1.5 bg-red-500/80 rounded hover:bg-red-500 text-sm"
+                                                    title="ลบรูปนี้"
+                                                >
+                                                    🗑️
+                                                </button>
+                                                {index < heroSlides.length - 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => moveSlide(index, 'down')}
+                                                        className="p-1.5 bg-white/20 rounded hover:bg-white/40 text-sm"
+                                                        title="เลื่อนลง / ไปขวาในคารูเซล"
+                                                    >
+                                                        →
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="absolute bottom-1 left-1 bg-black/75 text-white text-[10px] px-1.5 py-0.5 rounded">
+                                                {index === 0 ? '★ หลัก / OG' : index + 1}
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-0 space-y-3">
+                                            <div>
+                                                <label className="block text-xs font-medium text-zinc-400 mb-1">
+                                                    ข้อความ alt รูป <span className="text-zinc-500">(SEO + ผู้พิการทางสายตา)</span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={slide.alt}
+                                                    onChange={(e) => patchSlide(index, { alt: e.target.value })}
+                                                    maxLength={220}
+                                                    className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-white text-sm placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    placeholder={`เช่น ร้านกล่อง J&T — มุมหน้าร้าน`}
+                                                />
+                                                <p className="text-[10px] text-zinc-500 mt-0.5 tabular-nums">
+                                                    {(slide.alt ?? '').length} / 220
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-zinc-400 mb-1">
+                                                    Title (tooltip) <span className="text-zinc-500">— ไม่บังคับ</span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={slide.title ?? ''}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value.trim();
+                                                        patchSlide(index, { title: v || undefined });
+                                                    }}
+                                                    maxLength={120}
+                                                    className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-white text-sm placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    placeholder="แสดงเมื่อชี้เมาส์ที่รูปบนหน้าแรก"
+                                                />
+                                            </div>
+                                            <p className="text-[11px] text-zinc-500 break-all">
+                                                URL: {slide.url}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
 
-                            {/* Add Button */}
-                            {heroImages.length < 5 && (
-                                <label className="aspect-video bg-zinc-800/50 border-2 border-dashed border-zinc-600 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-blue-500 hover:bg-zinc-800 transition cursor-pointer">
+                            {heroSlides.length < 5 && (
+                                <label className="flex aspect-video max-h-28 sm:max-h-none sm:aspect-auto sm:min-h-[8rem] cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-zinc-600 bg-zinc-800/50 hover:border-blue-500 hover:bg-zinc-800 transition px-4">
                                     {uploading ? (
                                         <span className="text-zinc-400 text-sm">⏳ กำลังอัปโหลด...</span>
                                     ) : (
-                                        <>
+                                        <div className="flex flex-col items-center gap-2 text-center">
                                             <span className="text-2xl">➕</span>
-                                            <span className="text-xs text-zinc-400">เพิ่มรูป</span>
-                                        </>
+                                            <span className="text-xs text-zinc-400">เพิ่มรูป (สูงสุด 5)</span>
+                                        </div>
                                     )}
                                     <input
                                         type="file"
@@ -334,7 +389,8 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                                     <p className="text-xs text-zinc-500 mb-1">ตัวอย่าง:</p>
                                     <img
                                         src={getSetting('payment_qr_code')}
-                                        alt="QR Code Preview"
+                                        alt="ตัวอย่าง QR Code ชำระเงิน (หลังบ้าน)"
+                                        title="ตัวอย่าง QR Code ชำระเงิน"
                                         className="w-24 h-24 object-contain bg-white rounded-lg border border-zinc-600"
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).style.display = 'none';

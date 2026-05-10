@@ -9,6 +9,7 @@ import {
     PRODUCT_IMAGE_MAX_BYTES,
     resolveProductImageMime,
 } from '@/lib/adminProductImageUpload';
+import { normalizeHeroSlidesFromRaw } from '@app/lib/home-seo';
 
 export async function updateSettings(formData: FormData) {
     try {
@@ -25,13 +26,19 @@ export async function updateSettings(formData: FormData) {
             }
         }
 
-        // Handle hero_images separately
-        const heroImages = formData.get('hero_images') as string;
-        if (heroImages) {
-            const images = heroImages.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        // Handle hero_images separately (JSON array of { url, alt, title? } or legacy newline URLs)
+        const heroImagesRaw = formData.get('hero_images') as string;
+        if (heroImagesRaw) {
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(heroImagesRaw);
+            } catch {
+                parsed = heroImagesRaw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+            }
+            const slides = normalizeHeroSlidesFromRaw(parsed);
             const { error: heroError } = await supabaseAdmin
                 .from('settings')
-                .upsert({ key: 'hero_images', value: JSON.stringify(images) }, { onConflict: 'key' });
+                .upsert({ key: 'hero_images', value: slides }, { onConflict: 'key' });
 
             if (heroError) {
                 console.error('Error saving hero_images:', heroError);
