@@ -233,10 +233,14 @@ function AnimatedKpiCard({
 
 function SummaryCardSkeleton() {
     return (
-        <div className="animate-pulse rounded-2xl border border-slate-800/60 bg-gradient-to-br from-slate-900/40 to-slate-950/60 p-5">
-            <div className="mb-4 h-11 w-11 rounded-xl bg-slate-800/80" />
-            <div className="mb-2 h-3 w-24 rounded bg-slate-800/60" />
-            <div className="h-8 w-20 rounded bg-slate-800/50" />
+        <div className="relative overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-br from-slate-900/40 to-slate-950/60 p-5 shadow-inner ring-1 ring-white/[0.03]">
+            <div
+                className="pointer-events-none absolute inset-y-0 left-0 w-[55%] animate-[jtDashShimmer_1.85s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"
+                aria-hidden
+            />
+            <div className="relative mb-4 h-11 w-11 rounded-xl bg-slate-800/80" />
+            <div className="relative mb-2 h-3 w-24 rounded bg-slate-800/60" />
+            <div className="relative h-8 w-28 rounded bg-slate-800/50" />
         </div>
     );
 }
@@ -493,7 +497,7 @@ export function JtDashboardView({
     }
 
     return (
-        <div className="min-w-0 space-y-5 sm:space-y-6 lg:space-y-8">
+        <div className="min-w-0 space-y-5 pb-2 sm:space-y-6 sm:pb-0 lg:space-y-8">
             {/* Global animations */}
             <style jsx global>{`
                 @keyframes fadeSlideIn {
@@ -520,6 +524,14 @@ export function JtDashboardView({
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.7; }
                 }
+                @keyframes jtDashShimmer {
+                    0% {
+                        transform: translateX(-120%);
+                    }
+                    100% {
+                        transform: translateX(280%);
+                    }
+                }
             `}</style>
 
             <AdminPageHeader
@@ -527,7 +539,7 @@ export function JtDashboardView({
                 description={
                     mockMode
                         ? 'ตัวอย่างหน้าสรุปข้อมูลขนส่งจากตาราง jt_shipments'
-                        : 'สรุปยอดพัสดุ รายได้ COD และรายการที่ต้องติดตามจาก Report - JMS'
+                        : 'พัสดุ ยอด COD และเรื่องที่ต้องติดตาม — สอดคล้องรายงาน JMS'
                 }
                 titleLeft={
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30">
@@ -542,46 +554,90 @@ export function JtDashboardView({
                         </span>
                     ) : (
                         <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
-                            รายงานขนส่ง
+                            JMS · JT
                         </span>
                     )
                 }
+                actions={
+                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        {lastRefreshed ? (
+                            <span
+                                className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] font-medium text-slate-400 backdrop-blur-sm"
+                                title={lastRefreshed.toLocaleString('th-TH')}
+                            >
+                                <Clock className="h-3.5 w-3.5 shrink-0 text-sky-400/90" aria-hidden />
+                                <span className="hidden min-[380px]:inline">อัปเดตล่าสุด · </span>
+                                {formatTimeAgo(lastRefreshed)}
+                            </span>
+                        ) : null}
+                        {onRetry ? (
+                            <button
+                                type="button"
+                                onClick={onRetry}
+                                disabled={loading}
+                                className="inline-flex items-center gap-2 rounded-xl border border-slate-600/90 bg-slate-900/90 px-3 py-2 text-xs font-semibold text-slate-100 shadow-sm ring-1 ring-white/[0.04] transition hover:border-sky-500/45 hover:bg-sky-500/10 hover:text-sky-100 disabled:cursor-not-allowed disabled:opacity-45"
+                            >
+                                <RefreshCw
+                                    className={`h-3.5 w-3.5 shrink-0 ${loading ? 'animate-spin' : ''}`}
+                                    aria-hidden
+                                />
+                                โหลดใหม่
+                            </button>
+                        ) : null}
+                    </div>
+                }
             />
-            <div className="mt-3 mb-4 flex flex-wrap items-center gap-2">
-                <button
-                    type="button"
-                    aria-pressed={showKpiPercentDelta}
-                    onClick={onToggleKpiPercentDelta}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-900/70 px-3 py-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-200"
-                >
-                    <Percent className="h-3.5 w-3.5" aria-hidden />
-                    {showKpiPercentDelta ? 'ซ่อน % เปรียบเทียบ' : 'แสดง % เปรียบเทียบ'}
-                </button>
-                <span className="text-[11px] leading-relaxed text-slate-500">
-                    ค่าเริ่มต้นซ่อนตัวเลขเปอร์เซ็นต์ใต้การ์ด KPI เพื่อลดความรกของหน้า
-                </span>
-            </div>
+
+            <section
+                className="mt-4 rounded-2xl border border-slate-800/70 bg-slate-950/35 p-4 ring-1 ring-white/[0.04] backdrop-blur-sm sm:p-5"
+                aria-label="การเปรียบเทียบ KPI"
+            >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25">
+                            <Percent className="h-5 w-5" aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white">เปรียบเทียบกับช่วงก่อนหน้า</p>
+                            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                                ค่าเริ่มต้นซ่อน % ใต้การ์ด KPI — เปิดเมื่อต้องการดูการเปลี่ยนแปลงเทียบช่วงเวลาเดียวกัน
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        aria-pressed={showKpiPercentDelta}
+                        onClick={onToggleKpiPercentDelta}
+                        className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-700/80 bg-slate-900/70 px-4 py-2.5 text-[11px] font-semibold text-slate-200 transition-colors hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-100 sm:w-auto"
+                    >
+                        <Percent className="h-3.5 w-3.5" aria-hidden />
+                        {showKpiPercentDelta ? 'ซ่อน % เปรียบเทียบ' : 'แสดง % เปรียบเทียบ'}
+                    </button>
+                </div>
+            </section>
 
             {error ? (
                 <div
                     role="alert"
-                    className="flex flex-col gap-4 rounded-2xl border border-red-500/30 bg-red-950/30 px-4 py-5 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-4 rounded-2xl border border-red-500/35 bg-gradient-to-br from-red-950/50 to-red-950/25 px-4 py-5 shadow-lg shadow-red-950/20 ring-1 ring-red-500/20 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
                     style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
                 >
                     <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" aria-hidden />
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/20 text-red-300 ring-1 ring-red-500/35">
+                            <AlertCircle className="h-5 w-5" aria-hidden />
+                        </span>
                         <div>
-                            <p className="font-medium text-red-200">ยังโหลดข้อมูลไม่ได้</p>
-                            <p className="mt-1 text-sm text-red-300/90">{error}</p>
+                            <p className="font-semibold text-red-100">โหลดข้อมูลไม่สำเร็จ</p>
+                            <p className="mt-1 text-sm leading-relaxed text-red-200/90">{error}</p>
                         </div>
                     </div>
                     {onRetry ? (
                         <button
                             type="button"
                             onClick={onRetry}
-                            className="group/retry shrink-0 rounded-xl bg-red-500/20 px-4 py-2.5 text-sm font-medium text-red-100 ring-1 ring-red-500/40 transition-all hover:bg-red-500/30 hover:ring-red-500/60"
+                            className="group/retry shrink-0 rounded-xl bg-red-600/90 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-950/40 ring-1 ring-red-400/30 transition hover:bg-red-500"
                         >
-                            <RefreshCw className="mr-1.5 inline-block h-3.5 w-3.5 transition-transform group-hover/retry:rotate-180" />
+                            <RefreshCw className="mr-2 inline-block h-3.5 w-3.5 transition-transform group-hover/retry:rotate-180" aria-hidden />
                             ลองอีกครั้ง
                         </button>
                     ) : null}
@@ -694,14 +750,6 @@ export function JtDashboardView({
 
                     {dateRangeError ? (
                         <p className="mt-2 text-[11px] font-medium text-rose-300">{dateRangeError}</p>
-                    ) : null}
-
-                    {/* Refresh timestamp */}
-                    {lastRefreshed ? (
-                        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-600">
-                            <Clock className="h-3 w-3 shrink-0" aria-hidden />
-                            <span>โหลดข้อมูลล่าสุด: {formatTimeAgo(lastRefreshed)}</span>
-                        </div>
                     ) : null}
                 </form>
 

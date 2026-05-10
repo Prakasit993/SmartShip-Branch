@@ -1,213 +1,348 @@
-import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
+import {
+    ArrowRight,
+    BarChart3,
+    Coins,
+    Hourglass,
+    LayoutDashboard,
+    Package,
+    Tag,
+} from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
+import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
+function pad2(n: number) {
+    return String(n).padStart(2, '0');
+}
+
+function localYmd(d: Date): string {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
 export default async function AdminDashboard() {
-    // Fetch Quick Stats
     const { count: orderCount } = await supabaseAdmin.from('orders').select('*', { count: 'exact', head: true });
 
-    // Calculate Today's Sales
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const { data: todayOrders } = await supabaseAdmin
         .from('orders')
         .select('total_amount')
-        .gte('created_at', today.toISOString());
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString());
+
     const todaySales = todayOrders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
 
     const { count: productCount } = await supabaseAdmin.from('products').select('*', { count: 'exact', head: true });
 
-    // Fetch Recent Orders
     const { data: recentOrders } = await supabaseAdmin
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(5);
 
-    // Fetch Last 7 Days Sales Data
-    const last7Days = [];
+    /* Last 7 days sales — single query + bucket by local date */
+    const rangeEnd = new Date();
+    rangeEnd.setHours(23, 59, 59, 999);
+    const rangeStart = new Date();
+    rangeStart.setDate(rangeStart.getDate() - 6);
+    rangeStart.setHours(0, 0, 0, 0);
+
+    const { data: weekOrders } = await supabaseAdmin
+        .from('orders')
+        .select('created_at, total_amount')
+        .gte('created_at', rangeStart.toISOString())
+        .lte('created_at', rangeEnd.toISOString());
+
+    const dayTotals = new Map<string, number>();
     for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        date.setHours(0, 0, 0, 0);
-        const nextDate = new Date(date);
-        nextDate.setDate(date.getDate() + 1);
-
-        const { data: dayOrders } = await supabaseAdmin
-            .from('orders')
-            .select('total_amount')
-            .gte('created_at', date.toISOString())
-            .lt('created_at', nextDate.toISOString());
-
-        const dayTotal = dayOrders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
-        last7Days.push({
-            date: date.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric' }),
-            total: dayTotal,
-        });
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(12, 0, 0, 0);
+        dayTotals.set(localYmd(d), 0);
     }
-    const maxSale = Math.max(...last7Days.map(d => d.total), 1);
 
-    // Fetch Order Status Breakdown
+    for (const row of weekOrders ?? []) {
+        if (!row.created_at) continue;
+        const d = new Date(row.created_at);
+        const key = localYmd(d);
+        if (dayTotals.has(key)) {
+            dayTotals.set(key, (dayTotals.get(key) ?? 0) + (row.total_amount || 0));
+        }
+    }
+
+    const last7Days = Array.from(dayTotals.entries()).map(([ymd, total]) => {
+        const [y, m, day] = ymd.split('-').map(Number);
+        const labelDate = new Date(y, m - 1, day);
+        return {
+            key: ymd,
+            label: labelDate.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric' }),
+            total,
+        };
+    });
+
+    const maxSale = Math.max(...last7Days.map((d) => d.total), 1);
+    const hasWeekSales = last7Days.some((d) => d.total > 0);
+
     const { data: allOrders } = await supabaseAdmin.from('orders').select('status, payment_status');
     const statusBreakdown = {
-        new: allOrders?.filter(o => o.status === 'new').length || 0,
-        confirmed: allOrders?.filter(o => o.status === 'confirmed').length || 0,
-        shipped: allOrders?.filter(o => o.status === 'shipped').length || 0,
-        completed: allOrders?.filter(o => o.status === 'completed').length || 0,
-        canceled: allOrders?.filter(o => o.status === 'canceled').length || 0,
+        new: allOrders?.filter((o) => o.status === 'new').length || 0,
+        confirmed: allOrders?.filter((o) => o.status === 'confirmed').length || 0,
+        shipped: allOrders?.filter((o) => o.status === 'shipped').length || 0,
+        completed: allOrders?.filter((o) => o.status === 'completed').length || 0,
+        canceled: allOrders?.filter((o) => o.status === 'canceled').length || 0,
     };
     const totalOrders = Object.values(statusBreakdown).reduce((a, b) => a + b, 0) || 1;
 
-    // Payment Status
     const paymentBreakdown = {
-        paid: allOrders?.filter(o => o.payment_status === 'paid').length || 0,
-        pending: allOrders?.filter(o => o.payment_status === 'pending').length || 0,
+        paid: allOrders?.filter((o) => o.payment_status === 'paid').length || 0,
+        pending: allOrders?.filter((o) => o.payment_status === 'pending').length || 0,
     };
 
+    const pendingPipeline = statusBreakdown.new + statusBreakdown.confirmed;
+
+    const statusRows = [
+        { key: 'new', label: 'ใหม่', count: statusBreakdown.new, bar: 'bg-sky-500' },
+        { key: 'confirmed', label: 'ยืนยันแล้ว', count: statusBreakdown.confirmed, bar: 'bg-amber-500' },
+        { key: 'shipped', label: 'จัดส่งแล้ว', count: statusBreakdown.shipped, bar: 'bg-violet-500' },
+        { key: 'completed', label: 'สำเร็จ', count: statusBreakdown.completed, bar: 'bg-emerald-500' },
+        { key: 'canceled', label: 'ยกเลิก', count: statusBreakdown.canceled, bar: 'bg-rose-500' },
+    ];
+
     return (
-        <div className="space-y-6 pb-20">
+        <div className="min-w-0 space-y-6 pb-16">
             <AdminPageHeader
                 title="Dashboard"
-                description="ภาพรวมร้านค้าของคุณ"
-                titleLeft={<span aria-hidden>📊</span>}
+                description="ภาพรวมคำสั่งซื้อ ยอดขาย และสถานะร้าน"
+                tone="dark"
+                titleLeft={
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30">
+                        <LayoutDashboard className="h-5 w-5" aria-hidden />
+                    </span>
+                }
+                meta={
+                    <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
+                        ภาพรวมร้าน
+                    </span>
+                }
             />
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-                <StatCard label="ยอดขายวันนี้" value={`฿${todaySales.toLocaleString()}`} icon="💰" color="from-green-500 to-emerald-600" />
-                <StatCard label="ออเดอร์ทั้งหมด" value={orderCount || 0} icon="📦" color="from-blue-500 to-indigo-600" />
-                <StatCard label="รอดำเนินการ" value={statusBreakdown.new + statusBreakdown.confirmed} icon="⏳" color="from-yellow-500 to-orange-500" />
-                <StatCard label="สินค้าในร้าน" value={productCount || 0} icon="🏷️" color="from-purple-500 to-pink-600" />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+                <StatTile
+                    label="ยอดขายวันนี้"
+                    value={`฿${todaySales.toLocaleString('th-TH')}`}
+                    icon={<Coins className="h-5 w-5" aria-hidden />}
+                    accent="emerald"
+                />
+                <StatTile
+                    label="ออเดอร์ทั้งหมด"
+                    value={(orderCount ?? 0).toLocaleString('th-TH')}
+                    icon={<Package className="h-5 w-5" aria-hidden />}
+                    accent="sky"
+                />
+                <StatTile
+                    label="รอดำเนินการ"
+                    value={pendingPipeline.toLocaleString('th-TH')}
+                    icon={<Hourglass className="h-5 w-5" aria-hidden />}
+                    accent="amber"
+                />
+                <StatTile
+                    label="สินค้าในร้าน"
+                    value={(productCount ?? 0).toLocaleString('th-TH')}
+                    icon={<Tag className="h-5 w-5" aria-hidden />}
+                    accent="violet"
+                />
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Sales Chart */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <span>📈</span> ยอดขาย 7 วันล่าสุด
-                    </h2>
-                    <div className="flex items-end gap-2 h-40">
-                        {last7Days.map((day, i) => (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                                <div className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
-                                    {day.total > 0 ? `฿${(day.total / 1000).toFixed(0)}k` : '-'}
-                                </div>
-                                <div
-                                    className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all hover:from-blue-500 hover:to-blue-300"
-                                    style={{ height: `${(day.total / maxSale) * 100}%`, minHeight: day.total > 0 ? '8px' : '2px' }}
-                                />
-                                <div className="text-[10px] text-zinc-500 font-medium">{day.date}</div>
-                            </div>
-                        ))}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+                <section className="rounded-2xl border border-slate-800/70 bg-slate-950/45 p-5 ring-1 ring-white/[0.04]">
+                    <div className="mb-4 flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-sky-400/90" aria-hidden />
+                        <h2 className="text-base font-semibold text-white">ยอดขาย 7 วันล่าสุด</h2>
                     </div>
-                </div>
 
-                {/* Order Status Breakdown */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <span>🎯</span> สถานะออเดอร์
-                    </h2>
+                    {!hasWeekSales ? (
+                        <p className="rounded-xl border border-dashed border-slate-700/80 bg-slate-900/40 px-4 py-8 text-center text-sm text-slate-500">
+                            ยังไม่มียอดขายในช่วง 7 วันนี้
+                        </p>
+                    ) : (
+                        <div className="flex h-44 gap-1.5 sm:gap-2">
+                            {last7Days.map((day) => {
+                                const pct = maxSale > 0 ? (day.total / maxSale) * 100 : 0;
+                                return (
+                                    <div key={day.key} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                                        <span className="text-[10px] font-medium tabular-nums text-slate-400 sm:text-xs">
+                                            {day.total > 0 ? `฿${(day.total / 1000).toFixed(0)}k` : '–'}
+                                        </span>
+                                        <div className="flex h-28 w-full flex-col justify-end sm:h-32">
+                                            <div
+                                                className="mx-auto w-full max-w-[44px] rounded-t-md bg-gradient-to-t from-sky-600/90 to-sky-400/80 ring-1 ring-sky-500/20 transition-opacity hover:opacity-90"
+                                                style={{
+                                                    height: `${Math.max(day.total > 0 ? 10 : 4, pct)}%`,
+                                                    minHeight: day.total > 0 ? 6 : 2,
+                                                }}
+                                            />
+                                        </div>
+                                        <span className="truncate text-[10px] font-medium text-slate-500">{day.label}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+
+                <section className="rounded-2xl border border-slate-800/70 bg-slate-950/45 p-5 ring-1 ring-white/[0.04]">
+                    <h2 className="mb-4 text-base font-semibold text-white">สถานะออเดอร์</h2>
+
+                    <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-slate-800/80 bg-slate-900/40 p-3 text-center">
+                        <div>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">ทั้งหมด</p>
+                            <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
+                                {(orderCount ?? 0).toLocaleString('th-TH')}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">ชำระแล้ว</p>
+                            <p className="mt-0.5 text-lg font-bold tabular-nums text-emerald-300">
+                                {paymentBreakdown.paid.toLocaleString('th-TH')}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">รอชำระ</p>
+                            <p className="mt-0.5 text-lg font-bold tabular-nums text-amber-300">
+                                {paymentBreakdown.pending.toLocaleString('th-TH')}
+                            </p>
+                        </div>
+                    </div>
+
                     <div className="space-y-3">
-                        <StatusBar label="ใหม่" count={statusBreakdown.new} total={totalOrders} color="bg-blue-500" icon="🆕" />
-                        <StatusBar label="ยืนยันแล้ว" count={statusBreakdown.confirmed} total={totalOrders} color="bg-yellow-500" icon="✅" />
-                        <StatusBar label="จัดส่งแล้ว" count={statusBreakdown.shipped} total={totalOrders} color="bg-purple-500" icon="🚚" />
-                        <StatusBar label="สำเร็จ" count={statusBreakdown.completed} total={totalOrders} color="bg-green-500" icon="✨" />
-                        <StatusBar label="ยกเลิก" count={statusBreakdown.canceled} total={totalOrders} color="bg-red-500" icon="❌" />
+                        {statusRows
+                            .filter((row) => row.count > 0)
+                            .map((row) => {
+                                const pct = Math.round((row.count / totalOrders) * 100);
+                                return (
+                                    <div key={row.key}>
+                                        <div className="mb-1 flex justify-between text-xs">
+                                            <span className="font-medium text-slate-300">{row.label}</span>
+                                            <span className="tabular-nums text-slate-400">
+                                                {row.count}{' '}
+                                                <span className="text-slate-600">({pct}%)</span>
+                                            </span>
+                                        </div>
+                                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-800/80">
+                                            <div
+                                                className={`h-full rounded-full ${row.bar} transition-all`}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        {statusRows.every((row) => row.count === 0) ? (
+                            <p className="text-sm text-slate-500">ยังไม่มีข้อมูลสถานะ</p>
+                        ) : null}
+                        {statusRows.some((row) => row.count === 0) &&
+                        statusRows.some((row) => row.count > 0) ? (
+                            <p className="text-[11px] leading-relaxed text-slate-600">
+                                สถานะที่ยังไม่มีรายการ:{' '}
+                                {statusRows
+                                    .filter((row) => row.count === 0)
+                                    .map((row) => row.label)
+                                    .join(' · ')}
+                            </p>
+                        ) : null}
                     </div>
-
-                    {/* Payment Summary */}
-                    <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-zinc-500">💳 ชำระแล้ว</span>
-                            <span className="font-bold text-green-600">{paymentBreakdown.paid} รายการ</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-1">
-                            <span className="text-zinc-500">⏰ รอชำระ</span>
-                            <span className="font-bold text-yellow-600">{paymentBreakdown.pending} รายการ</span>
-                        </div>
-                    </div>
-                </div>
+                </section>
             </div>
 
-            {/* Recent Orders */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800">
-                    <h2 className="text-lg font-bold flex items-center gap-2">
-                        <span>📋</span> ออเดอร์ล่าสุด
-                    </h2>
-                    <Link href="/admin/orders" className="text-sm text-blue-600 font-medium hover:underline">ดูทั้งหมด →</Link>
+            <section className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/45 ring-1 ring-white/[0.04]">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 px-4 py-3 sm:px-5">
+                    <h2 className="text-base font-semibold text-white">ออเดอร์ล่าสุด</h2>
+                    <Link
+                        href="/admin/orders"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-sky-400 transition hover:text-sky-300"
+                    >
+                        ดูทั้งหมด
+                        <ArrowRight className="h-4 w-4" aria-hidden />
+                    </Link>
                 </div>
-                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <div className="divide-y divide-slate-800/80">
                     {recentOrders?.map((order) => (
                         <Link
                             key={order.id}
                             href={`/admin/orders/${order.id}`}
-                            className="flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition"
+                            className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-slate-900/50 sm:px-5"
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                    {(order.customer_name || 'U').charAt(0).toUpperCase()}
+                            <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-slate-200 ring-1 ring-white/[0.06]">
+                                    {(order.customer_name || '?').charAt(0).toUpperCase()}
                                 </div>
-                                <div>
-                                    <div className="font-semibold text-sm">{order.order_no}</div>
-                                    <div className="text-xs text-zinc-500">{order.customer_name || 'ไม่ระบุ'}</div>
+                                <div className="min-w-0">
+                                    <p className="truncate font-medium text-slate-100">{order.order_no}</p>
+                                    <p className="truncate text-xs text-slate-500">{order.customer_name || 'ไม่ระบุชื่อ'}</p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <div className="font-bold">฿{order.total_amount?.toLocaleString()}</div>
+                            <div className="shrink-0 text-right">
+                                <p className="font-semibold tabular-nums text-white">
+                                    ฿{order.total_amount?.toLocaleString('th-TH')}
+                                </p>
                                 <StatusBadge status={order.status} />
                             </div>
                         </Link>
                     ))}
                     {(!recentOrders || recentOrders.length === 0) && (
-                        <div className="p-8 text-center text-zinc-500">ยังไม่มีออเดอร์</div>
+                        <p className="px-4 py-10 text-center text-sm text-slate-500 sm:px-5">ยังไม่มีออเดอร์</p>
                     )}
                 </div>
-            </div>
+            </section>
         </div>
     );
 }
 
-function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) {
-    return (
-        <div className="relative overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl p-4 md:p-6 border border-zinc-200 dark:border-zinc-800">
-            <div className={`absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br ${color} rounded-full opacity-10`} />
-            <div className="text-2xl mb-2">{icon}</div>
-            <p className="text-zinc-500 text-xs md:text-sm font-medium">{label}</p>
-            <h3 className="text-xl md:text-2xl font-black mt-1 tracking-tight">{value}</h3>
-        </div>
-    );
-}
+function StatTile({
+    label,
+    value,
+    icon,
+    accent,
+}: {
+    label: string;
+    value: string;
+    icon: ReactNode;
+    accent: 'sky' | 'emerald' | 'amber' | 'violet';
+}) {
+    const shell = {
+        sky: 'bg-sky-500/15 text-sky-300 ring-sky-500/25',
+        emerald: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25',
+        amber: 'bg-amber-500/15 text-amber-300 ring-amber-500/25',
+        violet: 'bg-violet-500/15 text-violet-300 ring-violet-500/25',
+    }[accent];
 
-function StatusBar({ label, count, total, color, icon }: { label: string; count: number; total: number; color: string; icon: string }) {
-    const percentage = Math.round((count / total) * 100);
     return (
-        <div>
-            <div className="flex justify-between text-sm mb-1">
-                <span className="flex items-center gap-1">
-                    <span className="text-xs">{icon}</span>
-                    <span className="font-medium">{label}</span>
-                </span>
-                <span className="text-zinc-500">{count} ({percentage}%)</span>
-            </div>
-            <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${percentage}%` }} />
-            </div>
+        <div className="rounded-2xl border border-slate-800/70 bg-slate-950/50 p-4 ring-1 ring-white/[0.04] sm:p-5">
+            <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ring-1 ${shell}`}>{icon}</div>
+            <p className="mt-3 text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
+            <p className="mt-1 truncate text-xl font-bold tabular-nums tracking-tight text-white sm:text-2xl">{value}</p>
         </div>
     );
 }
 
 function StatusBadge({ status }: { status: string }) {
-    const config: Record<string, { label: string; bg: string }> = {
-        new: { label: 'ใหม่', bg: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-        confirmed: { label: 'ยืนยัน', bg: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
-        shipped: { label: 'จัดส่ง', bg: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-        completed: { label: 'สำเร็จ', bg: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-        canceled: { label: 'ยกเลิก', bg: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    const config: Record<string, { label: string; className: string }> = {
+        new: { label: 'ใหม่', className: 'bg-sky-500/15 text-sky-200 ring-sky-500/25' },
+        confirmed: { label: 'ยืนยัน', className: 'bg-amber-500/15 text-amber-200 ring-amber-500/25' },
+        shipped: { label: 'จัดส่ง', className: 'bg-violet-500/15 text-violet-200 ring-violet-500/25' },
+        completed: { label: 'สำเร็จ', className: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/25' },
+        canceled: { label: 'ยกเลิก', className: 'bg-rose-500/15 text-rose-200 ring-rose-500/25' },
     };
-    const s = config[status] || { label: status, bg: 'bg-zinc-100' };
-    return <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${s.bg}`}>{s.label}</span>;
+    const s = config[status] ?? { label: status, className: 'bg-slate-700/50 text-slate-300 ring-slate-600/40' };
+    return (
+        <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${s.className}`}>
+            {s.label}
+        </span>
+    );
 }
