@@ -1,0 +1,278 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    FileSpreadsheet,
+    Loader2,
+    Upload,
+    CheckCircle2,
+    AlertCircle,
+    X,
+} from 'lucide-react';
+
+type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+
+const ACCEPT =
+    '.csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+export function N8nWebhookFileUpload() {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [modalOpen, setModalOpen] = useState(false);
+
+    const [file, setFile] = useState<File | null>(null);
+    const [displayName, setDisplayName] = useState('');
+    const [status, setStatus] = useState<UploadState>('idle');
+    const [message, setMessage] = useState('');
+    const [detail, setDetail] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!modalOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setModalOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [modalOpen]);
+
+    useEffect(() => {
+        if (!modalOpen) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = prev;
+        };
+    }, [modalOpen]);
+
+    const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        if (!f) {
+            setFile(null);
+            setDisplayName('');
+            setStatus('idle');
+            setMessage('');
+            setDetail(null);
+            return;
+        }
+        setFile(f);
+        setDisplayName(f.name);
+        setStatus('idle');
+        setMessage('');
+        setDetail(null);
+    }, []);
+
+    const submit = async () => {
+        if (!file) return;
+
+        setStatus('uploading');
+        setMessage('');
+        setDetail(null);
+
+        const fd = new FormData();
+        fd.append('file', file);
+
+        const qs = new URLSearchParams({ filename: file.name });
+        const url = `/api/admin/n8n-upload?${qs.toString()}`;
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                body: fd,
+                credentials: 'include',
+            });
+
+            const text = await res.text();
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(text);
+            } catch {
+                parsed = text;
+            }
+
+            if (!res.ok) {
+                const errMsg =
+                    typeof parsed === 'object' && parsed !== null && 'error' in parsed
+                        ? String((parsed as { error: string }).error)
+                        : text.slice(0, 500);
+                setStatus('error');
+                setMessage(res.status >= 500 ? 'เซิร์ฟเวอร์หรือ n8n ตอบกลับผิดพลาด' : 'การส่งข้อมูลไม่สำเร็จ');
+                setDetail(errMsg);
+                return;
+            }
+
+            setStatus('success');
+            setMessage('ส่งไฟล์เข้า n8n เรียบร้อย');
+            setDetail(
+                typeof parsed === 'string'
+                    ? parsed.slice(0, 300)
+                    : JSON.stringify(parsed, null, 2).slice(0, 500)
+            );
+        } catch (e) {
+            setStatus('error');
+            setMessage('เครือข่ายหรือเบราว์เซอร์ขัดข้อง');
+            setDetail(e instanceof Error ? e.message : String(e));
+        }
+    };
+
+    const clearFile = () => {
+        setFile(null);
+        setDisplayName('');
+        setStatus('idle');
+        setMessage('');
+        setDetail(null);
+        if (inputRef.current) inputRef.current.value = '';
+    };
+
+    const closeModal = () => {
+        setModalOpen(false);
+    };
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                title="นำเข้าไฟล์ CSV / Excel → n8n"
+                aria-label="นำเข้าไฟล์ CSV / Excel → n8n"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/25 transition hover:bg-emerald-500/25 hover:ring-emerald-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            >
+                <FileSpreadsheet className="h-5 w-5" aria-hidden />
+            </button>
+
+            {modalOpen ? (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="n8n-upload-modal-title">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+                        aria-label="ปิด"
+                        onClick={closeModal}
+                    />
+                    <div className="relative z-[1] flex max-h-[min(90vh,720px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950 shadow-2xl shadow-black/40 ring-1 ring-white/[0.06]">
+                        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800/80 px-4 py-3 sm:px-5">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/25">
+                                    <FileSpreadsheet className="h-5 w-5" aria-hidden />
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 id="n8n-upload-modal-title" className="text-base font-semibold text-white">
+                                        นำเข้าไฟล์ CSV / Excel → n8n
+                                    </h2>
+                                    <p className="mt-0.5 text-xs text-slate-500">
+                                        เลือกไฟล์แล้วกดส่ง — ระบบแนบชื่อใน query{' '}
+                                        <code className="rounded bg-slate-900 px-1 py-0.5 text-[10px] text-sky-300">
+                                            ?filename=...
+                                        </code>
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeModal}
+                                className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                                aria-label="ปิดหน้าต่าง"
+                            >
+                                <X className="h-5 w-5" aria-hidden />
+                            </button>
+                        </div>
+
+                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+                            <p className="text-xs leading-relaxed text-slate-400">
+                                ส่งแบบ multipart ผ่าน API (Webhook URL ตั้งใน env เซิร์ฟเวอร์)
+                            </p>
+
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                <div className="flex-1 space-y-2">
+                                    <label className="block text-xs font-medium text-slate-400">เลือกไฟล์</label>
+                                    <input
+                                        ref={inputRef}
+                                        type="file"
+                                        accept={ACCEPT}
+                                        onChange={onFileChange}
+                                        disabled={status === 'uploading'}
+                                        className="block w-full cursor-pointer rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-200 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:border-slate-600 disabled:opacity-50"
+                                    />
+                                </div>
+                            </div>
+
+                            {displayName ? (
+                                <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2.5">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                        ชื่อไฟล์ที่จะส่ง (filename)
+                                    </p>
+                                    <p className="mt-1 truncate font-mono text-sm text-sky-200" title={displayName}>
+                                        {displayName}
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-slate-500">ยังไม่ได้เลือกไฟล์</p>
+                            )}
+
+                            {status === 'uploading' && (
+                                <div className="space-y-2" role="status" aria-live="polite">
+                                    <div className="flex items-center gap-2 text-sm text-slate-300">
+                                        <Loader2 className="h-4 w-4 animate-spin text-sky-400" aria-hidden />
+                                        <span>กำลังส่งไป n8n…</span>
+                                    </div>
+                                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                                        <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-slate-800 via-sky-500/90 to-slate-800" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={submit}
+                                    disabled={!file || status === 'uploading'}
+                                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-sky-950/40 transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {status === 'uploading' ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                    ) : (
+                                        <Upload className="h-4 w-4" aria-hidden />
+                                    )}
+                                    ส่งเข้า Server
+                                </button>
+                                {file ? (
+                                    <button
+                                        type="button"
+                                        onClick={clearFile}
+                                        disabled={status === 'uploading'}
+                                        className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 disabled:opacity-40"
+                                    >
+                                        ล้าง
+                                    </button>
+                                ) : null}
+                            </div>
+
+                            {status === 'success' && (
+                                <div className="flex gap-2 rounded-xl border border-emerald-800/60 bg-emerald-950/35 px-3 py-2.5 text-sm text-emerald-200">
+                                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
+                                    <div className="min-w-0">
+                                        <p className="font-semibold">{message}</p>
+                                        {detail ? (
+                                            <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all text-xs text-emerald-100/90">
+                                                {detail}
+                                            </pre>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
+
+                            {status === 'error' && (
+                                <div className="flex gap-2 rounded-xl border border-red-900/60 bg-red-950/35 px-3 py-2.5 text-sm text-red-200">
+                                    <AlertCircle className="h-5 w-5 shrink-0 text-red-400" aria-hidden />
+                                    <div className="min-w-0">
+                                        <p className="font-semibold">{message}</p>
+                                        {detail ? (
+                                            <p className="mt-1 text-xs text-red-100/90">{detail}</p>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </>
+    );
+}

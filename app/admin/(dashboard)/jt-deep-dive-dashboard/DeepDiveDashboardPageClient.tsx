@@ -6,22 +6,36 @@ import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { AiFinancialReportCard } from './AiFinancialReportCard';
 import { DeepDiveAiAssistant } from './DeepDiveAiAssistant';
 import { DeepDiveDashboardTabs } from './DeepDiveDashboardTabs';
+import { N8nWebhookFileUpload } from './N8nWebhookFileUpload';
 
-export function DeepDiveDashboardPageClient() {
+type Props = {
+    /** false เมื่อตั้ง ENABLE_N8N_FILE_UPLOAD=false */
+    showN8nFileUpload?: boolean;
+};
+
+export function DeepDiveDashboardPageClient({ showN8nFileUpload = true }: Props) {
     const [hideAllNumbers, setHideAllNumbers] = useState(true);
 
     return (
         <div className="space-y-6 pb-20">
-            <AdminPageHeader
-                title="แดชบอร์ดวิเคราะห์เชิงลึกด้านขนส่ง"
-                description="แยกมุมมองเป็น 2 ส่วน คือ วิเคราะห์กำไร และวิเคราะห์การจัดส่ง เพื่อให้ติดตามตัวเลขสำคัญได้ง่าย อ่านเข้าใจเร็ว และใช้คำอธิบายมาตรฐานเดียวกัน"
-                tone="dark"
-                meta={
-                    <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
-                        ขนส่ง · วิเคราะห์เชิงลึก
-                    </span>
-                }
-            />
+            <div className="relative">
+                <AdminPageHeader
+                    className="pr-14"
+                    title="แดชบอร์ดวิเคราะห์เชิงลึกด้านขนส่ง"
+                    description="แยกมุมมองเป็น 2 ส่วน คือ วิเคราะห์กำไร และวิเคราะห์การจัดส่ง เพื่อให้ติดตามตัวเลขสำคัญได้ง่าย อ่านเข้าใจเร็ว และใช้คำอธิบายมาตรฐานเดียวกัน"
+                    tone="dark"
+                    meta={
+                        <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
+                            ขนส่ง · วิเคราะห์เชิงลึก
+                        </span>
+                    }
+                />
+                {showN8nFileUpload ? (
+                    <div className="absolute right-0 top-0 z-10">
+                        <N8nWebhookFileUpload />
+                    </div>
+                ) : null}
+            </div>
 
             <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800/70 bg-slate-900/45 p-4 ring-1 ring-white/[0.03]">
                 <p className="text-xs leading-relaxed text-slate-400">
