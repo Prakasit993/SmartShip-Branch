@@ -7,7 +7,13 @@ interface ImageZoomGalleryProps {
     alt?: string;
 }
 
-export default function ImageZoomGallery({ images, alt = 'Product image' }: ImageZoomGalleryProps) {
+function altForIndex(base: string, index: number, total: number): string {
+    const b = base.trim() || 'สินค้า';
+    if (total <= 1) return b;
+    return `${b} — รูปที่ ${index + 1}`;
+}
+
+export default function ImageZoomGallery({ images, alt = 'สินค้า' }: ImageZoomGalleryProps) {
     const [activeIndex, setActiveIndex] = useState(0);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [isZoomed, setIsZoomed] = useState(false);
@@ -77,7 +83,8 @@ export default function ImageZoomGallery({ images, alt = 'Product image' }: Imag
                 >
                     <img
                         src={images[activeIndex]}
-                        alt={`${alt} ${activeIndex + 1}`}
+                        alt={altForIndex(alt, activeIndex, images.length)}
+                        title={altForIndex(alt, activeIndex, images.length)}
                         className={`w-full h-full object-contain transition-transform duration-200 ${isZoomed ? 'scale-150' : 'scale-100'
                             }`}
                         style={isZoomed ? {
@@ -122,7 +129,11 @@ export default function ImageZoomGallery({ images, alt = 'Product image' }: Imag
                                     : 'border-transparent opacity-60 hover:opacity-100'
                                 }`}
                         >
-                            <img src={url} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                            <img
+                                src={url}
+                                alt={altForIndex(alt, idx, images.length)}
+                                className="w-full h-full object-cover"
+                            />
                         </button>
                     ))}
                 </div>
@@ -154,7 +165,8 @@ export default function ImageZoomGallery({ images, alt = 'Product image' }: Imag
                     >
                         <img
                             src={images[activeIndex]}
-                            alt={`${alt} ${activeIndex + 1}`}
+                            alt={altForIndex(alt, activeIndex, images.length)}
+                            title={altForIndex(alt, activeIndex, images.length)}
                             className="max-w-full max-h-[90vh] object-contain"
                         />
                     </div>
@@ -189,7 +201,11 @@ export default function ImageZoomGallery({ images, alt = 'Product image' }: Imag
                                             : 'border-transparent opacity-50 hover:opacity-100'
                                         }`}
                                 >
-                                    <img src={url} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                                    <img
+                                        src={url}
+                                        alt={altForIndex(alt, idx, images.length)}
+                                        className="w-full h-full object-cover"
+                                    />
                                 </button>
                             ))}
                         </div>

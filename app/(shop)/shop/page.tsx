@@ -164,7 +164,8 @@ export default async function CatalogPage({
                           {bundle.image_urls?.[0] ? (
                             <Image
                               src={bundle.image_urls[0]}
-                              alt={bundle.name || 'สินค้า'}
+                              alt={bundle.name?.trim() ? `${bundle.name.trim()} — ภาพสินค้า` : 'สินค้า'}
+                              title={bundle.name?.trim() || undefined}
                               fill
                               loading="lazy"
                               decoding="async"

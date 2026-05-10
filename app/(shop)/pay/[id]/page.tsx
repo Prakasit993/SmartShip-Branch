@@ -11,7 +11,8 @@ import { generatePromptPayPayload, onSlipUploaded } from '@app/actions/payment';
 // --- Types ---
 interface Order {
     id: number;
-    friendly_id: string;
+    friendly_id?: string | null;
+    order_no?: string | null;
     total_amount: number;
     status: string;
     payment_status: string;
@@ -204,7 +205,8 @@ export default function ResumePaymentPage() {
                             <div className="relative aspect-[3/4] w-full bg-zinc-100 rounded-lg overflow-hidden">
                                 <Image
                                     src={order.payment_slip_url}
-                                    alt="Payment Slip"
+                                    alt={`หลักฐานการโอนเงิน คำสั่งซื้อ ${order.friendly_id ?? order.order_no ?? `#${order.id}`}`}
+                                    title={`หลักฐานการโอนเงิน ${order.friendly_id ?? order.order_no ?? order.id}`}
                                     fill
                                     className="object-contain"
                                 />

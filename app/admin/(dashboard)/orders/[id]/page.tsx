@@ -192,7 +192,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                             >
                                 <img
                                     src={order.payment_slip_url}
-                                    alt="Payment Slip"
+                                    alt={`หลักฐานการชำระเงิน คำสั่งซื้อ ${order.friendly_id ?? order.order_no ?? order.id}`}
+                                    title={`สลิป ${order.friendly_id ?? order.order_no ?? order.id}`}
                                     className="w-full max-h-80 object-contain rounded-xl border border-zinc-200 dark:border-zinc-700 hover:opacity-90 transition cursor-zoom-in"
                                 />
                             </a>

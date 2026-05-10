@@ -158,7 +158,11 @@ function ImageUpload({ index, defaultValue, onUrlChange }: ImageUploadProps) {
                         <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/50 p-2">
                             <img
                                 src={url}
-                                alt=""
+                                alt={
+                                    index === 0
+                                        ? 'ตัวอย่างรูปหลักสินค้า (หลังบ้าน)'
+                                        : `ตัวอย่างรูปสินค้า ลำดับที่ ${index + 1} (หลังบ้าน)`
+                                }
                                 className="h-16 w-16 rounded-lg border border-slate-700 object-cover"
                                 loading="lazy"
                                 decoding="async"

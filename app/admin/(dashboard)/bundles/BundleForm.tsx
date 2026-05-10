@@ -293,7 +293,8 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                     {formData.image_urls?.[0] && (
                         <img
                             src={formData.image_urls[0]}
-                            alt="Preview"
+                            alt="ตัวอย่างรูปแพ็กสินค้า (หลังบ้าน)"
+                            title={formData.name?.trim() ? `${formData.name.trim()} — ตัวอย่างรูป` : undefined}
                             className="mt-2 w-20 h-20 object-cover rounded-lg border"
                             loading="lazy"
                             decoding="async"

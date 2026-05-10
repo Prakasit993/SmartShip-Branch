@@ -30,9 +30,17 @@ interface BundleDetailProps {
     items?: any[];
     optionGroups?: any[];
     isAdmin?: boolean;
+    /** From linked product `image_alt` (SEO) or fallback; used for hero + gallery `alt`/`title`. */
+    primaryImageAlt?: string;
 }
 
-export default function BundleDetail({ bundle, items, optionGroups, isAdmin = false }: BundleDetailProps) {
+export default function BundleDetail({
+    bundle,
+    items,
+    optionGroups,
+    isAdmin = false,
+    primaryImageAlt,
+}: BundleDetailProps) {
     const { addToCart } = useCart();
     const router = useRouter();
     const { t } = useLanguage();
@@ -137,6 +145,12 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
         router.push('/checkout');
     };
 
+    const imageAltBase = (primaryImageAlt?.trim() || bundle.name || 'สินค้า').trim();
+    const heroImageAlt =
+        bundle.image_urls?.length > 1
+            ? `${imageAltBase} — รูปที่ ${activeImageIndex + 1}`
+            : imageAltBase;
+
     return (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden font-sans">
 
@@ -162,7 +176,8 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
                         {bundle.image_urls?.[activeImageIndex] ? (
                             <img
                                 src={bundle.image_urls[activeImageIndex]}
-                                alt={bundle.name}
+                                alt={heroImageAlt}
+                                title={heroImageAlt}
                                 className="w-full h-full object-contain object-center p-4 transition-transform duration-500 hover:scale-105"
                             />
                         ) : (
@@ -187,7 +202,15 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
                                         : 'border-transparent bg-white dark:bg-zinc-800 opacity-60 hover:opacity-100'
                                         }`}
                                 >
-                                    <img src={url} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
+                                    <img
+                                        src={url}
+                                        alt={
+                                            bundle.image_urls.length > 1
+                                                ? `${imageAltBase} — รูปที่ ${idx + 1}`
+                                                : imageAltBase
+                                        }
+                                        className="w-full h-full object-cover"
+                                    />
                                 </button>
                             ))}
                         </div>

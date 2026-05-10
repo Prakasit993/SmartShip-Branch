@@ -272,7 +272,8 @@ export default async function Home() {
                       {bundle.image_urls?.[0] && !bundle.image_urls[0].includes('placehold') ? (
                         <Image
                           src={bundle.image_urls[0]}
-                          alt={bundle.name}
+                          alt={bundle.name?.trim() ? `${bundle.name.trim()} — ภาพสินค้า` : 'สินค้า'}
+                          title={bundle.name?.trim() || undefined}
                           fill
                           className="object-cover group-hover:scale-110 transition duration-700 ease-in-out"
                           sizes="(max-width: 640px) 45vw, (max-width: 1024px) 33vw, 25vw"

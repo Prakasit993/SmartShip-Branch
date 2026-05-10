@@ -232,7 +232,19 @@ export default function CheckoutForm() {
                         {items.map((item, idx) => (
                             <div key={idx} className="flex gap-3">
                                 <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-md shrink-0 overflow-hidden">
-                                    {item.image_url && <img src={item.image_url} className="w-full h-full object-cover" />}
+                                    {item.image_url && (
+                                        <img
+                                            src={item.image_url}
+                                            alt={
+                                                item.bundle_name?.trim()
+                                                    ? `${item.bundle_name.trim()} — ภาพประกอบในคำสั่งซื้อ`
+                                                    : 'ภาพประกอบสินค้าในคำสั่งซื้อ'
+                                            }
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{item.bundle_name}</div>

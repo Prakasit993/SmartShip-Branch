@@ -127,7 +127,11 @@ export default function CartPanel({
                                     // eslint-disable-next-line @next/next/no-img-element -- remote URLs from storage
                                     <img
                                         src={item.image_url}
-                                        alt=""
+                                        alt={
+                                            item.bundle_name?.trim()
+                                                ? `${item.bundle_name.trim()} — ภาพในตะกร้า`
+                                                : 'ภาพสินค้าในตะกร้า'
+                                        }
                                         className="w-full h-full object-cover"
                                         loading="lazy"
                                         decoding="async"

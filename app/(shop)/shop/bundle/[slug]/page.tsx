@@ -171,9 +171,18 @@ export default async function BundleDetailPage({ params }: { params: Promise<{ s
         }
     }
 
+    const seo = await getLinkedProductSeo(bundle.id, bundle.type);
+    const primaryImageAlt = (seo?.image_alt?.trim() || bundle.name || 'สินค้า').slice(0, 220);
+
     return (
         <div className="container mx-auto max-w-6xl px-4 py-8">
-            <BundleDetail bundle={bundle} items={items} optionGroups={optionGroups} isAdmin={isAdmin} />
+            <BundleDetail
+                bundle={bundle}
+                items={items}
+                optionGroups={optionGroups}
+                isAdmin={isAdmin}
+                primaryImageAlt={primaryImageAlt}
+            />
         </div>
     );
 }
