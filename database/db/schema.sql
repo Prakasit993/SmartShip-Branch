@@ -30,7 +30,12 @@ create table public.products (
   image_url text,
   stock_quantity int default 0,
   is_active boolean default true,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  -- SEO (see migrations/20260510_product_seo.sql if extending existing DB)
+  slug text,
+  meta_title text,
+  meta_description text,
+  image_alt text
 );
 
 -- 4. Bundles (Sellable Units)

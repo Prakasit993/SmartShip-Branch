@@ -1,8 +1,21 @@
 'use server';
 
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
+import { slugifyProductName } from '@/lib/slugifyProduct';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+
+async function resolveUniqueProductSlug(seed: string, excludeId?: number): Promise<string | null> {
+    const base = slugifyProductName(seed);
+    if (!base) return null;
+    for (let i = 0; i < 80; i++) {
+        const candidate = i === 0 ? base : `${base}-${i}`;
+        const { data } = await supabaseAdmin.from('products').select('id').eq('slug', candidate).maybeSingle();
+        if (!data) return candidate;
+        if (excludeId != null && data.id === excludeId) return candidate;
+    }
+    return `${base}-${Date.now()}`;
+}
 
 export async function createProduct(formData: FormData) {
     const name = formData.get('name') as string;
@@ -10,6 +23,15 @@ export async function createProduct(formData: FormData) {
     const price = parseFloat(formData.get('price') as string) || 0;
     const stock_quantity = parseInt(formData.get('stock_quantity') as string) || 0;
     const description = formData.get('description') as string;
+    const meta_title = ((formData.get('meta_title') as string) || '').trim() || null;
+    const meta_description = ((formData.get('meta_description') as string) || '').trim() || null;
+    const image_alt = ((formData.get('image_alt') as string) || '').trim() || null;
+    const slugRaw = ((formData.get('slug') as string) || '').trim();
+    let slug: string | null = null;
+    if (slugRaw) {
+        slug = await resolveUniqueProductSlug(slugRaw);
+    }
+
     const image_urls = formData.getAll('image_urls').map(url => url as string).filter(url => url.trim() !== '');
     // Backwards compatibility
     const image_url = image_urls[0] || '';
@@ -44,7 +66,11 @@ export async function createProduct(formData: FormData) {
             image_urls, // New
             is_active: true,
             width, length, height, weight, color, size_label, thickness,
-            promotional_price, promo_min_quantity, is_featured
+            promotional_price, promo_min_quantity, is_featured,
+            slug,
+            meta_title,
+            meta_description,
+            image_alt,
         });
 
 
@@ -64,6 +90,14 @@ export async function updateProduct(id: number, formData: FormData) {
     const stock_quantity = parseInt(formData.get('stock_quantity') as string) || 0;
     const description = formData.get('description') as string;
     const is_active = formData.get('is_active') === 'on';
+    const meta_title = ((formData.get('meta_title') as string) || '').trim() || null;
+    const meta_description = ((formData.get('meta_description') as string) || '').trim() || null;
+    const image_alt = ((formData.get('image_alt') as string) || '').trim() || null;
+    const slugRaw = ((formData.get('slug') as string) || '').trim();
+    let slug: string | null = null;
+    if (slugRaw) {
+        slug = await resolveUniqueProductSlug(slugRaw, id);
+    }
 
     const image_urls = formData.getAll('image_urls').map(url => url as string).filter(url => url.trim() !== '');
     const image_url = image_urls[0] || '';
@@ -93,7 +127,11 @@ export async function updateProduct(id: number, formData: FormData) {
             image_urls,
             is_active,
             width, length, height, weight, color, size_label, thickness,
-            promotional_price, promo_min_quantity, is_featured
+            promotional_price, promo_min_quantity, is_featured,
+            slug,
+            meta_title,
+            meta_description,
+            image_alt,
         })
         .eq('id', id);
 
