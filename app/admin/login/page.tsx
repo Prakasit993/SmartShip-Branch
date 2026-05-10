@@ -148,7 +148,7 @@ export default function AdminLogin() {
     const activeNoticeStyle = noticeStyles[notice.type];
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-[#030712] px-4 py-8 text-white sm:px-6 lg:px-8">
+        <div className="relative min-h-dvh overflow-hidden bg-[#030712] px-4 py-6 text-white sm:px-6 lg:px-8">
             <div className="pointer-events-none absolute inset-0">
                 <div className="absolute left-[-12rem] top-[-12rem] h-[34rem] w-[34rem] rounded-full bg-cyan-500/20 blur-[120px]" />
                 <div className="absolute bottom-[-14rem] right-[-10rem] h-[32rem] w-[32rem] rounded-full bg-blue-700/25 blur-[130px]" />
@@ -156,17 +156,17 @@ export default function AdminLogin() {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:100%_100%,44px_44px,44px_44px]" />
             </div>
 
-            <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center">
-                <div className="grid w-full items-center gap-8 lg:grid-cols-[1fr_28rem]">
+            <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-6xl items-center">
+                <div className="grid w-full items-center gap-8 lg:grid-cols-[minmax(0,1fr)_27rem] xl:grid-cols-[minmax(0,1fr)_28rem]">
                     <section className="hidden lg:block">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100 shadow-lg shadow-cyan-950/30">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-semibold leading-none text-cyan-100 shadow-lg shadow-cyan-950/30 xl:text-xs">
                             <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.9)]" />
                             SmartShip Admin Portal
                         </div>
-                        <h1 className="mt-6 max-w-2xl text-5xl font-black leading-tight tracking-tight text-white xl:text-6xl">
+                        <h1 className="mt-5 max-w-2xl text-[clamp(2.5rem,4vw,4.5rem)] font-black leading-[1.12] tracking-tight text-white">
                             จัดการร้านและออเดอร์ได้ในที่เดียว
                         </h1>
-                        <p className="mt-5 max-w-xl text-base leading-7 text-zinc-300">
+                        <p className="mt-5 max-w-xl text-sm leading-7 text-zinc-300 xl:text-base xl:leading-8">
                             เข้าสู่ระบบเพื่อดูยอดขาย ตรวจออเดอร์ จัดการสินค้า และติดตามการจัดส่งด้วยระบบหลังบ้านที่ปลอดภัย
                         </p>
 
@@ -177,50 +177,54 @@ export default function AdminLogin() {
                                 ['ขนส่ง', 'ติดตามง่าย'],
                             ].map(([title, desc]) => (
                                 <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-md">
-                                    <p className="text-sm font-bold text-white">{title}</p>
-                                    <p className="mt-1 text-xs text-zinc-400">{desc}</p>
+                                    <p className="text-sm font-bold leading-5 text-white">{title}</p>
+                                    <p className="mt-1 text-xs leading-5 text-zinc-400">{desc}</p>
                                 </div>
                             ))}
                         </div>
                     </section>
 
-                    <section className="mx-auto w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-950/75 p-6 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:p-8">
-                        <div className="mb-6 flex items-start justify-between gap-4">
+                    <section className="mx-auto w-full max-w-[26rem] rounded-[1.75rem] border border-white/10 bg-zinc-950/75 p-5 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:p-7 lg:max-w-none">
+                        <div className="mb-5 flex items-start justify-between gap-4 sm:mb-6">
                             <div>
-                                <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-lg shadow-blue-500/25">
-                                    <span className="text-2xl">📦</span>
+                                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-lg shadow-blue-500/25 sm:h-14 sm:w-14">
+                                    <span className="text-xl sm:text-2xl">📦</span>
                                 </div>
-                                <h2 className="mt-5 text-3xl font-black tracking-tight text-white">เข้าสู่ระบบ</h2>
-                                <p className="mt-2 text-sm text-zinc-400">สำหรับผู้ดูแล SmartShip เท่านั้น</p>
+                                <h2 className="mt-4 text-[1.65rem] font-black leading-tight tracking-tight text-white sm:mt-5 sm:text-3xl">
+                                    เข้าสู่ระบบ
+                                </h2>
+                                <p className="mt-2 text-[13px] leading-5 text-zinc-400 sm:text-sm">
+                                    สำหรับผู้ดูแล SmartShip เท่านั้น
+                                </p>
                             </div>
-                            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+                            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold leading-none text-emerald-200 sm:px-3 sm:text-xs">
                                 Secure
                             </div>
                         </div>
 
                         <div
-                            className={`mb-6 flex gap-3 rounded-2xl border p-4 shadow-lg ring-1 ${activeNoticeStyle.box}`}
+                            className={`mb-5 flex gap-3 rounded-2xl border p-3.5 shadow-lg ring-1 sm:mb-6 sm:p-4 ${activeNoticeStyle.box}`}
                             role={notice.type === 'error' ? 'alert' : 'status'}
                             aria-live="polite"
                         >
-                            <span className="mt-0.5 text-lg" aria-hidden>
+                            <span className="mt-0.5 text-base sm:text-lg" aria-hidden>
                                 {activeNoticeStyle.icon}
                             </span>
                             <div className="min-w-0">
-                                <p className={`text-sm font-bold ${activeNoticeStyle.title}`}>{notice.title}</p>
-                                <p className={`mt-1 text-xs leading-5 ${activeNoticeStyle.text}`}>{notice.message}</p>
+                                <p className={`text-[13px] font-bold leading-5 sm:text-sm ${activeNoticeStyle.title}`}>{notice.title}</p>
+                                <p className={`mt-1 text-[12px] leading-5 sm:text-xs sm:leading-5 ${activeNoticeStyle.text}`}>{notice.message}</p>
                             </div>
                         </div>
 
-                        <form onSubmit={handleLogin} className="space-y-5">
+                        <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
                             <div className="space-y-1">
-                                <label className="block pl-1 text-xs font-semibold text-zinc-300">
+                                <label className="block pl-1 text-[12px] font-semibold leading-5 text-zinc-300 sm:text-xs">
                                     ชื่อผู้ใช้
                                 </label>
                                 <div className="group relative">
                                     <input
                                         type="text"
-                                        className="w-full rounded-2xl border border-zinc-700/80 bg-zinc-900/70 px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 group-hover:border-zinc-500"
+                                        className="w-full rounded-2xl border border-zinc-700/80 bg-zinc-900/70 px-4 py-3 text-[15px] leading-6 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 group-hover:border-zinc-500 sm:py-3.5"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         placeholder="ชื่อผู้ใช้"
@@ -231,13 +235,13 @@ export default function AdminLogin() {
                             </div>
 
                             <div className="space-y-1">
-                                <label className="block pl-1 text-xs font-semibold text-zinc-300">
+                                <label className="block pl-1 text-[12px] font-semibold leading-5 text-zinc-300 sm:text-xs">
                                     รหัสผ่าน
                                 </label>
                                 <div className="group relative">
                                     <input
                                         type="password"
-                                        className="w-full rounded-2xl border border-zinc-700/80 bg-zinc-900/70 px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 group-hover:border-zinc-500"
+                                        className="w-full rounded-2xl border border-zinc-700/80 bg-zinc-900/70 px-4 py-3 text-[15px] leading-6 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 group-hover:border-zinc-500 sm:py-3.5"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="รหัสผ่าน"
@@ -279,13 +283,13 @@ export default function AdminLogin() {
                             <button
                                 type="submit"
                                 disabled={loading || !turnstileToken}
-                                className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-cyan-600 to-sky-500 px-4 py-3.5 font-bold text-white shadow-lg shadow-blue-600/25 transition-all duration-200 hover:from-blue-500 hover:via-cyan-500 hover:to-sky-400 hover:shadow-blue-600/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-cyan-600 to-sky-500 px-4 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-blue-600/25 transition-all duration-200 hover:from-blue-500 hover:via-cyan-500 hover:to-sky-400 hover:shadow-blue-600/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:text-[15px]"
                             >
                                 {loading ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
                             </button>
                         </form>
 
-                        <div className="relative my-6">
+                        <div className="relative my-5 sm:my-6">
                             <div className="absolute inset-0 flex items-center">
                                 <span className="w-full border-t border-zinc-700" />
                             </div>
@@ -296,7 +300,7 @@ export default function AdminLogin() {
 
                         <FingerprintLoginButton />
 
-                        <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-5 text-zinc-400">
+                        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-[12px] leading-5 text-zinc-400 sm:mt-6 sm:p-4 sm:text-xs">
                             ระบบจะตรวจสอบบัญชี รหัสผ่าน และความปลอดภัยก่อนเข้าแดชบอร์ดทุกครั้ง
                         </div>
                     </section>

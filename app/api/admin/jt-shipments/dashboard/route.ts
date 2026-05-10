@@ -51,6 +51,66 @@ type FixedTotals = {
     codNoCollectionCount: number;
 };
 
+type CodPendingCaseRow = {
+    awb_number: string;
+    receiver_name: string;
+    receiver_phone: string;
+    cod_amount: number;
+    cod_status: string;
+};
+
+function isPaidCodStatus(value: unknown): boolean {
+    const status = String(value ?? '').trim().toLowerCase();
+    return status.startsWith('ชำระ') || status === 'paid' || status === 'cod paid';
+}
+
+async function aggregateCodPendingCases(
+    dateFrom: string,
+    dateTo: string,
+    topN = 20,
+): Promise<CodPendingCaseRow[]> {
+    let offset = 0;
+    const cases: CodPendingCaseRow[] = [];
+
+    for (;;) {
+        let q = supabaseAdmin
+            .from('jt_shipments')
+            .select('awb_number,receiver_name,receiver_phone,cod_amount,cod_status,booking_date')
+            .order('booking_date', { ascending: false, nullsFirst: false });
+        q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
+        const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
+        if (error) {
+            console.error('[jt-shipments/dashboard] aggregateCodPendingCases', error);
+            throw new Error(error.message);
+        }
+
+        const rows = (data || []) as Array<{
+            awb_number: string | null;
+            receiver_name: string | null;
+            receiver_phone: string | null;
+            cod_amount: unknown;
+            cod_status: string | null;
+        }>;
+        for (const row of rows) {
+            const codAmount = parseJtMoneyText(row.cod_amount);
+            if (codAmount <= 0 || isPaidCodStatus(row.cod_status)) continue;
+            cases.push({
+                awb_number: String(row.awb_number ?? '-').trim() || '-',
+                receiver_name: String(row.receiver_name ?? '-').trim() || '-',
+                receiver_phone: String(row.receiver_phone ?? '-').trim() || '-',
+                cod_amount: codAmount,
+                cod_status: String(row.cod_status ?? '-').trim() || '-',
+            });
+            if (cases.length >= topN) return cases;
+        }
+
+        if (rows.length < AGG_PAGE) break;
+        offset += AGG_PAGE;
+    }
+
+    return cases;
+}
+
 async function aggregateExceptionReasonStats(
     dateFrom: string,
     dateTo: string,
@@ -436,6 +496,7 @@ export async function GET(req: Request) {
             returnTypeCases,
             returnTypeCount,
             previousReturnTypeCount,
+            topCodPendingCases,
         ] = await Promise.all([
             countQ,
             closedCountQ,
@@ -455,6 +516,7 @@ export async function GET(req: Request) {
             prevRange
                 ? aggregateReturnTypeCount(prevRange.from, prevRange.to, acknowledgedReturnAwbs)
                 : Promise.resolve(0),
+            aggregateCodPendingCases(dateFrom, dateTo, 20),
         ]);
 
         const { count, error: cErr } = countResult;
@@ -601,6 +663,7 @@ export async function GET(req: Request) {
             codPendingAmount,
             codNoCollectionCount,
             codCollectionRate,
+            topCodPendingCases,
             exceptionCount: exceptionStats.exceptionCount,
             topExceptionReasons: exceptionStats.topExceptionReasons,
             topExceptionCases: exceptionStats.topExceptionCases,
