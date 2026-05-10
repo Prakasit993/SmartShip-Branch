@@ -1,7 +1,14 @@
+import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import ContactContent from './ContactContent';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+    title: 'ติดต่อเรา',
+    description:
+        'ช่องทางติดต่อ Express Shop — โทรศัพท์ LINE อีเมล ที่อยู่ร้าน และแผนที่ Google Maps',
+};
 
 export default async function ContactPage() {
     // Fetch settings

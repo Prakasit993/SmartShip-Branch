@@ -24,7 +24,10 @@ const translations: Record<string, Record<Language, string>> = {
     'home.featured': { en: 'Featured Sets', th: 'สินค้ายอดนิยม' },
 
     // Business Packing Section
-    'packing.title': { en: 'Professional Business Packing', th: 'บริการแพ็คสินค้าระดับมืออาชีพ' },
+    'packing.title': {
+        en: 'Premium packing & cushioning for growing businesses',
+        th: 'แพ็คและห่อกันกระแทกพรีเมียมสำหรับธุรกิจที่ต้องการเติบโต',
+    },
     'packing.subtitle': { en: 'Elevate your brand with our premium packing services. We handle the boxing, protection, and sealing so you can focus on scaling your business.', th: 'ยกระดับแบรนด์ของคุณด้วยบริการแพ็คสินค้าพรีเมียม เราดูแลทั้งการบรรจุและห่อกันกระแทก เพื่อให้คุณโฟกัสกับการเติบโตของธุรกิจ' },
     'packing.cta_quote': { en: 'Request a Quote', th: 'ขอใบเสนอราคา' },
     'packing.cta_view': { en: 'View Packing Materials', th: 'ดูอุปกรณ์แพ็คกิ้ง' },
@@ -33,6 +36,33 @@ const translations: Record<string, Record<Language, string>> = {
     'packing.feature_bulk': { en: 'Bulk Shipping', th: 'รองรับจำนวนมาก' },
     'packing.card_title': { en: 'SmartShip Packing Station', th: 'จุดบริการแพ็ค SmartShip' },
     'packing.card_desc': { en: 'We use industry-standard techniques to ensure your products arrive safely and professionally presented.', th: 'เราใช้เทคนิคมาตรฐานอุตสาหกรรม เพื่อให้สินค้าถึงมือลูกค้าอย่างปลอดภัยและสวยงาม' },
+
+    // Contact page
+    'contact.breadcrumb_home': { en: 'Home', th: 'หน้าแรก' },
+    'contact.breadcrumb_current': { en: 'Contact', th: 'ติดต่อเรา' },
+    'contact.badge': { en: 'Get in touch', th: 'ช่องทางติดต่อ' },
+    'contact.title': { en: 'Contact us', th: 'ติดต่อเรา' },
+    'contact.lead': {
+        en: 'Questions about orders, packing, or pickup? Reach us by phone, LINE, or email — or visit our store.',
+        th: 'สอบถามเรื่องคำสั่งซื้อ การแพ็ค หรือการมารับที่ร้าน — โทร LINE อีเมล ได้เลย หรือแวะที่ร้านตามที่อยู่ด้านล่าง',
+    },
+    'contact.phone_title': { en: 'Phone', th: 'โทรศัพท์' },
+    'contact.phone_hint': { en: 'Mon–Sat · 9:00–18:00', th: 'จันทร์–เสาร์ · 9:00–18:00 น.' },
+    'contact.line_title': { en: 'LINE', th: 'LINE' },
+    'contact.line_hint': { en: 'Chat with our team', th: 'คุยกับทีมเราได้ทันที' },
+    'contact.chat_line': { en: 'Open LINE', th: 'เปิดแชท LINE' },
+    'contact.email_title': { en: 'Email', th: 'อีเมล' },
+    'contact.email_hint': { en: 'Orders & general inquiries', th: 'คำสั่งซื้อและสอบถามทั่วไป' },
+    'contact.address_title': { en: 'Store', th: 'ที่อยู่ร้าน' },
+    'contact.address_hint': { en: 'Pickup & visits', th: 'มารับสินค้าและเยี่ยมชมได้' },
+    'contact.copy': { en: 'Copy', th: 'คัดลอก' },
+    'contact.copied_toast': { en: 'Copied to clipboard', th: 'คัดลอกแล้ว' },
+    'contact.navigate': { en: 'Directions', th: 'นำทาง' },
+    'contact.map_title': { en: 'Location', th: 'ที่ตั้งร้าน' },
+    'contact.map_lead': { en: 'Find us on the map — tap to open in Google Maps.', th: 'ดูตำแหน่งร้านบนแผนที่ — แตะเพื่อเปิดใน Google Maps' },
+    'contact.open_maps': { en: 'Open in Google Maps', th: 'เปิดใน Google Maps' },
+    'contact.back_home': { en: 'Back to home', th: 'กลับหน้าหลัก' },
+    'contact.shop_cta': { en: 'Browse catalog', th: 'ดูสินค้าทั้งหมด' },
 
     // Quote Form
     'quote.title': { en: 'Request Packing Quote', th: 'ขอใบเสนอราคาบริการแพ็ค' },
@@ -86,6 +116,23 @@ const translations: Record<string, Record<Language, string>> = {
     'cart.total': { en: 'Total', th: 'ยอดรวมทั้งสิ้น' },
     'cart.checkout': { en: 'Checkout', th: 'ชำระเงิน' },
     'cart.start_shopping': { en: 'Start Shopping', th: 'เลือกซื้อสินค้า' },
+    'cart.line_items': { en: 'lines', th: 'รายการ' },
+    'cart.units': { en: 'pcs', th: 'ชิ้น' },
+    'cart.order_total': { en: 'Order total', th: 'ยอดรวมสินค้า' },
+    'cart.shipping_note': {
+        en: 'Shipping fee will be calculated on the checkout page.',
+        th: 'ค่าจัดส่งจะคำนวณในหน้าชำระเงิน',
+    },
+    'cart.continue_shopping': { en: 'Continue shopping', th: 'เลือกซื้อสินค้าต่อ' },
+    'cart.clear': { en: 'Clear cart', th: 'ล้างตะกร้า' },
+    'cart.clear_confirm': {
+        en: 'Remove all items from your cart?',
+        th: 'ต้องการล้างสินค้าทั้งหมดในตะกร้าหรือไม่?',
+    },
+    'cart.close': { en: 'Close cart', th: 'ปิดตะกร้า' },
+    'cart.remove_line': { en: 'Remove item', th: 'นำรายการออก' },
+    'cart.decrease_qty': { en: 'Decrease quantity', th: 'ลดจำนวน' },
+    'cart.increase_qty': { en: 'Increase quantity', th: 'เพิ่มจำนวน' },
 
     // Checkout
     'checkout.title': { en: 'Checkout', th: 'ชำระเงิน' },

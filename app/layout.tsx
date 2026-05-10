@@ -4,6 +4,8 @@ import "./globals.css";
 import { getSiteUrl } from "@/lib/site-url";
 import { ThemeProvider } from "@app/context/ThemeContext";
 import { LanguageProvider } from "@app/context/LanguageContext";
+import { CartProvider } from "@app/context/CartContext";
+import CartDrawerGate from "@app/components/shop/CartDrawerGate";
 import CookieConsent from "@app/components/ui/CookieConsent";
 import { ToastProvider } from "@app/components/ui/Toast";
 
@@ -57,10 +59,13 @@ export default function RootLayout({
         />
         <ThemeProvider>
           <LanguageProvider>
-            <ToastProvider>
-              {children}
-              <CookieConsent />
-            </ToastProvider>
+            <CartProvider>
+              <ToastProvider>
+                {children}
+                <CartDrawerGate />
+                <CookieConsent />
+              </ToastProvider>
+            </CartProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

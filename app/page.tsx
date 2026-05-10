@@ -2,7 +2,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import Header from '@app/components/shop/Header';
-import { CartProvider } from '@app/context/CartContext';
 import HeroCarousel from '@app/components/home/HeroCarousel';
 import dynamic from 'next/dynamic';
 import { getSiteUrl } from '@/lib/site-url';
@@ -19,8 +18,6 @@ const BusinessPackingSection = dynamic(() => import('@app/components/home/Busine
 const Footer = dynamic(() => import('@app/components/ui/Footer'), {
   loading: () => <footer className="py-16" aria-hidden="true" />,
 });
-
-const CartDrawer = dynamic(() => import('@app/components/shop/CartDrawer'));
 
 export const revalidate = 20; // Revalidate every 20 seconds for better performance
 
@@ -144,7 +141,7 @@ export default async function Home() {
   };
 
   return (
-    <CartProvider>
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -427,8 +424,7 @@ export default async function Home() {
         </main>
 
         <Footer settings={settings?.reduce((acc, s) => ({ ...acc, [s.key]: String(s.value).replace(/^"|"$/g, '') }), {} as Record<string, string>)} />
-        <CartDrawer />
       </div>
-    </CartProvider>
+    </>
   );
 }

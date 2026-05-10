@@ -140,19 +140,34 @@ export default function Header() {
                         )}
                     </Link>
 
-                    <button
-                        onClick={toggleCart}
-                        className="relative p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition group"
-                    >
-                        <div className="w-6 h-6 flex items-center justify-center text-zinc-700 dark:text-zinc-300 group-hover:scale-110 transition-transform">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                        </div>
-                        {cartCount > 0 && (
-                            <span className="absolute -top-1 -right-1 h-5 w-5 bg-blue-600 text-[10px] font-bold text-white rounded-full flex items-center justify-center border-2 border-white dark:border-black transform scale-100 transition-transform">
-                                {cartCount}
-                            </span>
-                        )}
-                    </button>
+                    <div className="flex items-center gap-0.5 sm:gap-1">
+                        <Link
+                            href="/cart"
+                            className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium text-zinc-600 hover:text-orange-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-orange-400 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                            {t('nav.cart')}
+                            {cartCount > 0 && (
+                                <span className="tabular-nums min-w-[1.25rem] rounded-full bg-blue-600 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={toggleCart}
+                            className="relative p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition group"
+                            title={t('nav.cart')}
+                        >
+                            <div className="w-6 h-6 flex items-center justify-center text-zinc-700 dark:text-zinc-300 group-hover:scale-110 transition-transform">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                            </div>
+                            {cartCount > 0 && (
+                                <span className="absolute -top-1 -right-1 h-5 w-5 bg-blue-600 text-[10px] font-bold text-white rounded-full flex items-center justify-center border-2 border-white dark:border-black sm:hidden">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </nav>
             </div>
         </header>

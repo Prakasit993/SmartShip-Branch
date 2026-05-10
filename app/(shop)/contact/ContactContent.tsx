@@ -1,8 +1,17 @@
 'use client';
 
-import { Mail, Phone, MapPin, MessageCircle } from 'lucide-react';
+import {
+    Mail,
+    Phone,
+    MapPin,
+    MessageCircle,
+    ArrowUpRight,
+    Copy,
+    MapPinned,
+} from 'lucide-react';
 import { useLanguage } from '@app/context/LanguageContext';
 import Link from 'next/link';
+import { useToast } from '@app/components/ui/Toast';
 
 interface ContactContentProps {
     contactPhone: string;
@@ -14,31 +23,28 @@ interface ContactContentProps {
     mapLink: string;
 }
 
-// Helper to extract src from iframe HTML if user pasted full iframe code
+/** ดึง URL จาก iframe หรือลิงก์ embed ที่วางจากแอดมิน */
 function extractMapUrl(input: string): string {
     if (!input) return '';
 
-    // First, unescape HTML entities that might be in the string
     let cleaned = input
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&amp;/g, '&')
-        .replace(/\\"/g, '"')  // Handle escaped quotes
-        .replace(/\\\\/g, '\\'); // Handle double escaped backslashes
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\');
 
-    // If it's already a clean URL starting with https
     if (cleaned.trim().startsWith('https://www.google.com/maps')) {
         return cleaned.trim();
     }
 
-    // Try to extract src from iframe tag with various quote patterns
     const patterns = [
         /src="([^"]+)"/,
         /src='([^']+)'/,
         /src=\\?"([^"\\]+)\\?"/,
         /src=\\?'([^'\\]+)\\?'/,
-        /https:\/\/www\.google\.com\/maps\/embed[^"'\s<>]+/
+        /https:\/\/www\.google\.com\/maps\/embed[^"'\s<>]+/,
     ];
 
     for (const pattern of patterns) {
@@ -54,6 +60,14 @@ function extractMapUrl(input: string): string {
     return '';
 }
 
+function telHref(phone: string): string {
+    const digits = phone.replace(/[^\d+]/g, '');
+    return digits ? `tel:${digits}` : '#';
+}
+
+const FALLBACK_MAP_EMBED =
+    'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3875.5463969499!2d100.5619!3d13.7374!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTPCsDQ0JzE0LjYiTiAxMDDCsDMzJzQyLjgiRQ!5e0!3m2!1sth!2sth!4v1234567890';
+
 export default function ContactContent({
     contactPhone,
     contactLine,
@@ -61,144 +75,256 @@ export default function ContactContent({
     contactEmail,
     contactAddress,
     mapEmbedUrl,
-    mapLink
+    mapLink,
 }: ContactContentProps) {
-    const { language } = useLanguage();
+    const { t } = useLanguage();
+    const { showToast } = useToast();
 
-    // Extract clean URL from mapEmbedUrl
     const cleanMapUrl = extractMapUrl(mapEmbedUrl);
+    const iframeSrc = cleanMapUrl || FALLBACK_MAP_EMBED;
+
+    const copyToClipboard = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast(t('contact.copied_toast'), 'success');
+        } catch {
+            showToast(t('contact.copy'), 'warning');
+        }
+    };
+
+    const channelCards = [
+        {
+            key: 'phone',
+            icon: Phone,
+            iconWrap: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300',
+            title: t('contact.phone_title'),
+            hint: t('contact.phone_hint'),
+            body: (
+                <a
+                    href={telHref(contactPhone)}
+                    className="group inline-flex items-center gap-1 text-lg font-bold text-zinc-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                >
+                    {contactPhone}
+                    <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+            ),
+            actions: (
+                <button
+                    type="button"
+                    onClick={() => copyToClipboard(contactPhone)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-orange-400/60 hover:text-orange-600 transition-colors"
+                >
+                    <Copy className="h-3.5 w-3.5" />
+                    {t('contact.copy')}
+                </button>
+            ),
+        },
+        {
+            key: 'line',
+            icon: MessageCircle,
+            iconWrap: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
+            title: t('contact.line_title'),
+            hint: t('contact.line_hint'),
+            body: (
+                <a
+                    href={contactLineUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group inline-flex items-center gap-1 text-lg font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                >
+                    {contactLine}
+                    <ArrowUpRight className="h-4 w-4 shrink-0" />
+                </a>
+            ),
+            actions: (
+                <div className="flex flex-wrap gap-2">
+                    <a
+                        href={contactLineUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-colors"
+                    >
+                        {t('contact.chat_line')}
+                    </a>
+                    <button
+                        type="button"
+                        onClick={() => copyToClipboard(contactLine)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-orange-400/60 transition-colors"
+                    >
+                        <Copy className="h-3.5 w-3.5" />
+                        {t('contact.copy')}
+                    </button>
+                </div>
+            ),
+        },
+        {
+            key: 'email',
+            icon: Mail,
+            iconWrap: 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300',
+            title: t('contact.email_title'),
+            hint: t('contact.email_hint'),
+            body: (
+                <a
+                    href={`mailto:${contactEmail}`}
+                    className="group inline-flex items-center gap-1 break-all text-lg font-bold text-violet-700 dark:text-violet-300 hover:underline"
+                >
+                    {contactEmail}
+                    <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />
+                </a>
+            ),
+            actions: (
+                <button
+                    type="button"
+                    onClick={() => copyToClipboard(contactEmail)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-orange-400/60 transition-colors"
+                >
+                    <Copy className="h-3.5 w-3.5" />
+                    {t('contact.copy')}
+                </button>
+            ),
+        },
+        {
+            key: 'address',
+            icon: MapPin,
+            iconWrap: 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-300',
+            title: t('contact.address_title'),
+            hint: t('contact.address_hint'),
+            body: <p className="text-base leading-relaxed text-zinc-700 dark:text-zinc-200">{contactAddress}</p>,
+            actions: (
+                <a
+                    href={mapLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 transition-colors"
+                >
+                    <MapPinned className="h-3.5 w-3.5" />
+                    {t('contact.navigate')}
+                </a>
+            ),
+        },
+    ];
 
     return (
-        <div className="min-h-screen bg-white dark:bg-zinc-950 py-12 px-4 font-sans">
-            <div className="container mx-auto max-w-4xl">
-                {/* Header */}
-                <div className="text-center mb-12">
-                    <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white mb-4">
-                        {language === 'th' ? 'ติดต่อเรา' : 'Contact Us'}
+        <div className="home-typography min-h-[70vh] bg-[var(--background)] font-sans">
+            {/* Hero */}
+            <header className="border-b border-zinc-200/80 dark:border-zinc-800 bg-gradient-to-b from-orange-50/80 via-zinc-50/50 to-transparent dark:from-orange-950/25 dark:via-zinc-950/50 dark:to-transparent">
+                <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+                    <nav aria-label="ตำแหน่งในหน้าเว็บ" className="mb-6">
+                        <ol className="flex flex-wrap items-center gap-x-2 text-sm text-zinc-500 dark:text-zinc-400">
+                            <li>
+                                <Link
+                                    href="/"
+                                    className="font-medium text-zinc-600 hover:text-orange-600 underline-offset-4 hover:underline dark:text-zinc-300"
+                                >
+                                    {t('contact.breadcrumb_home')}
+                                </Link>
+                            </li>
+                            <li aria-hidden className="text-zinc-300 dark:text-zinc-600">
+                                /
+                            </li>
+                            <li className="font-semibold text-zinc-800 dark:text-zinc-100" aria-current="page">
+                                {t('contact.breadcrumb_current')}
+                            </li>
+                        </ol>
+                    </nav>
+                    <p className="inline-block rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-800 dark:border-orange-800/60 dark:bg-orange-950/50 dark:text-orange-200 mb-4">
+                        {t('contact.badge')}
+                    </p>
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 dark:text-white text-balance tracking-tight">
+                        {t('contact.title')}
                     </h1>
-                    <p className="text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-                        {language === 'th'
-                            ? 'มีคำถามหรือต้องการความช่วยเหลือ? ติดต่อเราได้หลายช่องทาง'
-                            : 'Have questions or need assistance? Reach out to us through any of our channels.'}
+                    <p className="mt-4 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed text-pretty">
+                        {t('contact.lead')}
                     </p>
                 </div>
+            </header>
 
-                {/* Contact Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-                    {/* Phone */}
-                    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                                <Phone className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            {/* Channels */}
+            <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-6">
+                    {channelCards.map((card) => (
+                        <article
+                            key={card.key}
+                            className="flex flex-col rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm transition-all hover:border-orange-300/80 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-orange-500/30"
+                        >
+                            <div className="flex items-start gap-3 mb-4">
+                                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${card.iconWrap}`}>
+                                    <card.icon className="h-5 w-5" strokeWidth={2} />
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="font-bold text-zinc-900 dark:text-white">{card.title}</h2>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{card.hint}</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-bold text-zinc-900 dark:text-white">
-                                    {language === 'th' ? 'โทรศัพท์' : 'Phone'}
-                                </h3>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                    {language === 'th' ? 'จันทร์-เสาร์ 9:00-18:00' : 'Mon-Sat 9:00-18:00'}
-                                </p>
-                            </div>
-                        </div>
-                        <a href={`tel:${contactPhone.replace(/-/g, '')}`} className="text-xl font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                            {contactPhone}
-                        </a>
-                    </div>
-
-                    {/* LINE */}
-                    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                                <MessageCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-zinc-900 dark:text-white">LINE</h3>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                    {language === 'th' ? 'ตอบกลับภายใน 24 ชม.' : 'Reply within 24 hrs'}
-                                </p>
-                            </div>
-                        </div>
-                        <a href={contactLineUrl} target="_blank" rel="noopener noreferrer" className="text-xl font-bold text-green-600 dark:text-green-400 hover:underline">
-                            {contactLine}
-                        </a>
-                    </div>
-
-                    {/* Email */}
-                    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                                <Mail className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-zinc-900 dark:text-white">Email</h3>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                    {language === 'th' ? 'สอบถามทั่วไป' : 'General inquiries'}
-                                </p>
-                            </div>
-                        </div>
-                        <a href={`mailto:${contactEmail}`} className="text-xl font-bold text-purple-600 dark:text-purple-400 hover:underline break-all">
-                            {contactEmail}
-                        </a>
-                    </div>
-
-                    {/* Address */}
-                    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
-                                <MapPin className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-zinc-900 dark:text-white">
-                                    {language === 'th' ? 'ที่อยู่ร้าน' : 'Store Address'}
-                                </h3>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                    {language === 'th' ? 'มารับสินค้าได้ที่ร้าน' : 'Pick up available'}
-                                </p>
-                            </div>
-                        </div>
-                        <p className="text-zinc-700 dark:text-zinc-300">
-                            {contactAddress}
-                        </p>
-                    </div>
+                            <div className="flex-1 min-h-[3rem]">{card.body}</div>
+                            <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800">{card.actions}</div>
+                        </article>
+                    ))}
                 </div>
 
-                {/* Google Map */}
-                <div className="mb-12">
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 text-center">
-                        {language === 'th' ? '📍 ที่ตั้งร้าน' : '📍 Store Location'}
-                    </h2>
-                    <div className="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-lg">
-                        <iframe
-                            src={cleanMapUrl || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3875.5463969499!2d100.5619!3d13.7374!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTPCsDQ0JzE0LjYiTiAxMDDCsDMzJzQyLjgiRQ!5e0!3m2!1sth!2sth!4v1234567890"}
-                            width="100%"
-                            height="350"
-                            style={{ border: 0 }}
-                            allowFullScreen
-                            loading="lazy"
-                            referrerPolicy="no-referrer-when-downgrade"
-                            className="w-full"
-                        ></iframe>
+                {/* Map */}
+                <div className="mt-14 sm:mt-20">
+                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
+                                <MapPinned className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white">
+                                    {t('contact.map_title')}
+                                </h2>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-xl">
+                                    {t('contact.map_lead')}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="text-center mt-4">
+
+                    <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+                        <div className="relative aspect-[16/10] min-h-[260px] w-full bg-zinc-100 dark:bg-zinc-800">
+                            <iframe
+                                title={t('contact.map_title')}
+                                src={iframeSrc}
+                                width="100%"
+                                height="100%"
+                                style={{ border: 0 }}
+                                allowFullScreen
+                                loading="lazy"
+                                referrerPolicy="no-referrer-when-downgrade"
+                                className="absolute inset-0 h-full w-full"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
                         <a
                             href={mapLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-full transition-colors shadow-lg"
+                            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 transition-colors"
                         >
-                            <MapPin className="w-5 h-5" />
-                            {language === 'th' ? 'เปิดดูใน Google Maps' : 'Open in Google Maps'}
+                            <MapPin className="h-5 w-5" />
+                            {t('contact.open_maps')}
                         </a>
                     </div>
                 </div>
 
-                {/* Back Link */}
-                <div className="text-center">
-                    <Link href="/" className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
-                        ← {language === 'th' ? 'กลับหน้าหลัก' : 'Back to Home'}
+                {/* Footer nav */}
+                <div className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 border-t border-zinc-200 dark:border-zinc-800 pt-10">
+                    <Link
+                        href="/"
+                        className="text-sm font-semibold text-zinc-600 hover:text-orange-600 dark:text-zinc-400 dark:hover:text-orange-400 transition-colors"
+                    >
+                        ← {t('contact.back_home')}
+                    </Link>
+                    <Link
+                        href="/shop"
+                        className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-orange-500 bg-transparent px-6 py-2.5 text-sm font-bold text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/40 transition-colors"
+                    >
+                        {t('contact.shop_cta')}
                     </Link>
                 </div>
-            </div>
+            </section>
         </div>
     );
 }

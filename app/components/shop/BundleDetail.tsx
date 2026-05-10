@@ -105,6 +105,7 @@ export default function BundleDetail({ bundle, items, optionGroups, isAdmin = fa
         addToCart({
             bundle_id: bundle.id,
             bundle_name: bundle.name,
+            bundle_slug: bundle.slug,
             price: totalPrice,
             quantity: quantity,
             image_url: bundle.image_urls?.[0],

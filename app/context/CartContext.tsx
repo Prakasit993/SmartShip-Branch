@@ -1,14 +1,22 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    useMemo,
+    useCallback,
+} from 'react';
 
 export type CartItem = {
     bundle_id: number;
     bundle_name: string;
+    /** ใช้ลิงก์ไปหน้ารายละเอียดจากตะกร้า */
+    bundle_slug?: string;
     price: number;
     quantity: number;
     image_url?: string;
-    // For configurable bundles
     options?: {
         group_name: string;
         option_name: string;
@@ -21,89 +29,129 @@ interface CartContextType {
     items: CartItem[];
     addToCart: (item: CartItem) => void;
     removeFromCart: (index: number) => void;
+    updateLineQuantity: (index: number, quantity: number) => void;
     clearCart: () => void;
     cartTotal: number;
     cartCount: number;
     toggleCart: () => void;
+    openCart: () => void;
+    closeCart: () => void;
     isCartOpen: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const STORAGE_KEY = 'smartship-cart-v2';
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
     const [items, setItems] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const processedCallsRef = useRef<Set<string>>(new Set());
-    const callCounterRef = useRef(0);
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
-        const saved = localStorage.getItem('cart');
-        if (saved) {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved) as CartItem[];
+                if (Array.isArray(parsed)) setItems(parsed);
+            }
+        } catch (e) {
+            console.error('Failed to parse cart', e);
             try {
-                setItems(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to parse cart', e);
+                const legacy = localStorage.getItem('cart');
+                if (legacy) {
+                    const parsed = JSON.parse(legacy) as CartItem[];
+                    if (Array.isArray(parsed)) setItems(parsed);
+                }
+            } catch {
+                /* ignore */
             }
         }
+        setHydrated(true);
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('cart', JSON.stringify(items));
-    }, [items]);
+        if (!hydrated) return;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }, [items, hydrated]);
 
     const addToCart = useCallback((newItem: CartItem) => {
-        // Generate unique call ID based on bundle and current counter
-        const callId = `${newItem.bundle_id}-${Date.now()}-${callCounterRef.current++}`;
-
-        // If we've seen a very similar call recently (within last 100 calls), skip
-        const recentCallKey = `${newItem.bundle_id}-${Math.floor(Date.now() / 1000)}`;
-
-        if (processedCallsRef.current.has(recentCallKey)) {
-            console.log('Blocked duplicate addToCart:', recentCallKey);
-            return;
-        }
-
-        // Mark this call as processed
-        processedCallsRef.current.add(recentCallKey);
-
-        // Clean up old entries after 2 seconds
-        setTimeout(() => {
-            processedCallsRef.current.delete(recentCallKey);
-        }, 2000);
-
         setItems((prev) => {
-            // Check if identical item exists (same bundle and options)
-            const existingIdx = prev.findIndex(item =>
-                item.bundle_id === newItem.bundle_id &&
-                JSON.stringify(item.options) === JSON.stringify(newItem.options)
+            const existingIdx = prev.findIndex(
+                (item) =>
+                    item.bundle_id === newItem.bundle_id &&
+                    JSON.stringify(item.options) === JSON.stringify(newItem.options)
             );
 
             if (existingIdx > -1) {
-                const newItems = [...prev];
-                newItems[existingIdx].quantity += newItem.quantity;
-                return newItems;
+                const next = [...prev];
+                next[existingIdx] = {
+                    ...next[existingIdx],
+                    quantity: next[existingIdx].quantity + newItem.quantity,
+                };
+                return next;
             }
             return [...prev, newItem];
         });
         setIsCartOpen(true);
     }, []);
 
-    const removeFromCart = (index: number) => {
+    const removeFromCart = useCallback((index: number) => {
         setItems((prev) => prev.filter((_, i) => i !== index));
-    };
+    }, []);
 
-    const clearCart = () => setItems([]);
+    const updateLineQuantity = useCallback((index: number, quantity: number) => {
+        setItems((prev) => {
+            if (quantity <= 0) return prev.filter((_, i) => i !== index);
+            if (index < 0 || index >= prev.length) return prev;
+            const next = [...prev];
+            next[index] = { ...next[index], quantity };
+            return next;
+        });
+    }, []);
 
-    const toggleCart = () => setIsCartOpen(!isCartOpen);
+    const clearCart = useCallback(() => setItems([]), []);
 
-    const cartTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    const toggleCart = useCallback(() => setIsCartOpen((o) => !o), []);
+    const openCart = useCallback(() => setIsCartOpen(true), []);
+    const closeCart = useCallback(() => setIsCartOpen(false), []);
 
-    return (
-        <CartContext.Provider value={{ items, addToCart, removeFromCart, clearCart, cartTotal, cartCount, toggleCart, isCartOpen }}>
-            {children}
-        </CartContext.Provider>
+    const cartTotal = useMemo(
+        () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+        [items]
     );
+    const cartCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
+
+    const value = useMemo(
+        () => ({
+            items,
+            addToCart,
+            removeFromCart,
+            updateLineQuantity,
+            clearCart,
+            cartTotal,
+            cartCount,
+            toggleCart,
+            openCart,
+            closeCart,
+            isCartOpen,
+        }),
+        [
+            items,
+            addToCart,
+            removeFromCart,
+            updateLineQuantity,
+            clearCart,
+            cartTotal,
+            cartCount,
+            toggleCart,
+            openCart,
+            closeCart,
+            isCartOpen,
+        ]
+    );
+
+    return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
 export const useCart = () => {
