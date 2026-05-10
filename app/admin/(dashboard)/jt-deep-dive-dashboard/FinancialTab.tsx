@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertCircle, Calculator, ChevronDown, Database, Eye, EyeOff, Info, RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertCircle, Calculator, CalendarDays, ChevronDown, Database, Eye, EyeOff, Info, RefreshCw, TrendingUp } from 'lucide-react';
 
 type FinancialSummary = {
     date_from: string;
@@ -15,6 +15,8 @@ type FinancialSummary = {
     costBreakdown: FinancialCostBreakdown;
     dailyProfit: FinancialDailyProfitRow[];
     missingCostPrices: FinancialMissingCostPriceRow[];
+    topCustomers: FinancialCustomerBreakdownRow[];
+    customerBreakdownUnavailable?: boolean;
 };
 
 type FinancialRevenueBreakdown = {
@@ -48,12 +50,27 @@ type FinancialMissingCostPriceRow = {
     estimatedProfitWithDefaultCost: number;
 };
 
+type FinancialCustomerBreakdownRow = {
+    customerName: string;
+    shipmentCount: number;
+    totalRevenue: number;
+    totalCost: number;
+    totalProfit: number;
+    avgProfitPerShipment: number;
+};
+
 type FinancialSummaryState =
     | { status: 'loading'; data: FinancialSummary | null; error: null }
     | { status: 'success'; data: FinancialSummary; error: null }
     | { status: 'error'; data: FinancialSummary | null; error: string };
 
 type FinancialRangePreset = '7d' | '30d' | '3m' | '6m' | '1y' | 'custom';
+
+type FinancialCalendarDay = {
+    date: string;
+    totalProfit: number;
+    shipmentCount: number;
+};
 
 const RANGE_PRESETS: Array<{ key: Exclude<FinancialRangePreset, 'custom'>; label: string }> = [
     { key: '7d', label: '7 วันย้อนหลัง' },
@@ -80,6 +97,35 @@ function addMonths(d: Date, months: number): Date {
     const next = new Date(d);
     next.setMonth(next.getMonth() + months);
     return next;
+}
+
+function addCalendarMonths(d: Date, months: number): Date {
+    return new Date(d.getFullYear(), d.getMonth() + months, 1);
+}
+
+function parseLocalYmd(ymd: string): Date | null {
+    const [year, month, day] = ymd.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+}
+
+function monthStartFromYmd(ymd: string): Date {
+    const date = parseLocalYmd(ymd) ?? new Date();
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function monthKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthRange(date: Date): { from: string; to: string } {
+    const from = new Date(date.getFullYear(), date.getMonth(), 1);
+    const to = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    return { from: toYmd(from), to: toYmd(to) };
+}
+
+function formatCalendarMonth(date: Date): string {
+    return date.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 }
 
 function rangeForPreset(preset: Exclude<FinancialRangePreset, 'custom'>): { from: string; to: string } {
@@ -109,6 +155,13 @@ function formatThb(value: number): string {
     });
 }
 
+function compactThb(value: number): string {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) return `${value < 0 ? '-' : ''}${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${value < 0 ? '-' : ''}${Math.round(abs / 1_000)}K`;
+    return Math.round(value).toLocaleString('th-TH');
+}
+
 function formatCount(value: number): string {
     return `${value.toLocaleString('th-TH')} ชิ้น`;
 }
@@ -125,6 +178,10 @@ export function FinancialTab() {
     const [dateTo, setDateTo] = useState(initialRange.to);
     const [appliedRange, setAppliedRange] = useState(initialRange);
     const [activePreset, setActivePreset] = useState<FinancialRangePreset>('30d');
+    const [activeDatePicker, setActiveDatePicker] = useState<'from' | 'to' | null>(null);
+    const [calendarMonth, setCalendarMonth] = useState(() => monthStartFromYmd(initialRange.to));
+    const [calendarDays, setCalendarDays] = useState<Record<string, FinancialCalendarDay>>({});
+    const [calendarError, setCalendarError] = useState<string | null>(null);
     const [state, setState] = useState<FinancialSummaryState>({
         status: 'loading',
         data: null,
@@ -190,6 +247,18 @@ export function FinancialTab() {
                               Number((r as FinancialMissingCostPriceRow).estimatedProfitWithDefaultCost) || 0,
                       }))
                     : [],
+                topCustomers: Array.isArray(json.topCustomers)
+                    ? json.topCustomers.map((r) => ({
+                          customerName: String((r as FinancialCustomerBreakdownRow).customerName || 'ไม่ระบุลูกค้า'),
+                          shipmentCount: Number((r as FinancialCustomerBreakdownRow).shipmentCount) || 0,
+                          totalRevenue: Number((r as FinancialCustomerBreakdownRow).totalRevenue) || 0,
+                          totalCost: Number((r as FinancialCustomerBreakdownRow).totalCost) || 0,
+                          totalProfit: Number((r as FinancialCustomerBreakdownRow).totalProfit) || 0,
+                          avgProfitPerShipment:
+                              Number((r as FinancialCustomerBreakdownRow).avgProfitPerShipment) || 0,
+                      }))
+                    : [],
+                customerBreakdownUnavailable: Boolean(json.customerBreakdownUnavailable),
             },
             error: null,
         });
@@ -208,6 +277,44 @@ export function FinancialTab() {
         return () => controller.abort();
     }, [appliedRange, loadSummary]);
 
+    useEffect(() => {
+        if (!activeDatePicker) return;
+        const controller = new AbortController();
+        const range = monthRange(calendarMonth);
+        const params = new URLSearchParams();
+        params.set('date_from', range.from);
+        params.set('date_to', range.to);
+
+        fetch(`/api/admin/jt-shipments/financial-summary?${params.toString()}`, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+        })
+            .then(async (res) => {
+                const json = (await res.json()) as Partial<FinancialSummary> & { error?: string };
+                if (!res.ok) throw new Error(json.error || 'โหลดกำไรรายวันไม่สำเร็จ');
+                const next: Record<string, FinancialCalendarDay> = {};
+                for (const row of json.dailyProfit ?? []) {
+                    const date = String((row as FinancialDailyProfitRow).date || '');
+                    if (!date) continue;
+                    next[date] = {
+                        date,
+                        totalProfit: Number((row as FinancialDailyProfitRow).totalProfit) || 0,
+                        shipmentCount: Number((row as FinancialDailyProfitRow).shipmentCount) || 0,
+                    };
+                }
+                setCalendarDays(next);
+                setCalendarError(null);
+            })
+            .catch((e: unknown) => {
+                if ((e as { name?: string }).name === 'AbortError') return;
+                setCalendarDays({});
+                setCalendarError(e instanceof Error ? e.message : 'โหลดกำไรรายวันไม่สำเร็จ');
+            });
+
+        return () => controller.abort();
+    }, [activeDatePicker, calendarMonth]);
+
     const data = state.data;
     const isLoading = state.status === 'loading';
     const canApply = dateFrom.trim() !== '' && dateTo.trim() !== '' && dateFrom <= dateTo;
@@ -218,6 +325,23 @@ export function FinancialTab() {
         setDateFrom(range.from);
         setDateTo(range.to);
         setAppliedRange(range);
+    };
+
+    const openDatePicker = (target: 'from' | 'to') => {
+        setActiveDatePicker(target);
+        setCalendarMonth(monthStartFromYmd(target === 'from' ? dateFrom : dateTo));
+    };
+
+    const selectCalendarDate = (date: string) => {
+        setActivePreset('custom');
+        if (activeDatePicker === 'from') {
+            setDateFrom(date);
+            if (date > dateTo) setDateTo(date);
+        } else if (activeDatePicker === 'to') {
+            setDateTo(date);
+            if (date < dateFrom) setDateFrom(date);
+        }
+        setActiveDatePicker(null);
     };
 
     return (
@@ -249,27 +373,35 @@ export function FinancialTab() {
                     </div>
                 </div>
                 <label className="space-y-1 text-xs font-medium text-slate-400">
-                    <span>วันที่เริ่มต้น</span>
-                    <input
-                        type="date"
+                    <FinancialDatePicker
+                        label="วันที่เริ่มต้น"
                         value={dateFrom}
-                        onChange={(e) => {
-                            setActivePreset('custom');
-                            setDateFrom(e.target.value);
-                        }}
-                        className="block rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/20 focus:border-sky-500 focus:ring-2"
+                        selectedFrom={dateFrom}
+                        selectedTo={dateTo}
+                        open={activeDatePicker === 'from'}
+                        month={calendarMonth}
+                        days={calendarDays}
+                        error={calendarError}
+                        onOpen={() => openDatePicker('from')}
+                        onClose={() => setActiveDatePicker(null)}
+                        onMonthChange={setCalendarMonth}
+                        onSelect={selectCalendarDate}
                     />
                 </label>
                 <label className="space-y-1 text-xs font-medium text-slate-400">
-                    <span>วันที่สิ้นสุด</span>
-                    <input
-                        type="date"
+                    <FinancialDatePicker
+                        label="วันที่สิ้นสุด"
                         value={dateTo}
-                        onChange={(e) => {
-                            setActivePreset('custom');
-                            setDateTo(e.target.value);
-                        }}
-                        className="block rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/20 focus:border-sky-500 focus:ring-2"
+                        selectedFrom={dateFrom}
+                        selectedTo={dateTo}
+                        open={activeDatePicker === 'to'}
+                        month={calendarMonth}
+                        days={calendarDays}
+                        error={calendarError}
+                        onOpen={() => openDatePicker('to')}
+                        onClose={() => setActiveDatePicker(null)}
+                        onMonthChange={setCalendarMonth}
+                        onSelect={selectCalendarDate}
                     />
                 </label>
                 <button
@@ -317,6 +449,8 @@ export function FinancialTab() {
                     totalRevenue={data.totalRevenue}
                     totalCost={data.totalCost}
                     totalProfit={data.totalProfit}
+                    topCustomers={data.topCustomers}
+                    customerBreakdownUnavailable={Boolean(data.customerBreakdownUnavailable)}
                 />
             ) : null}
 
@@ -437,12 +571,16 @@ function FinancialBreakdownPanel({
     totalRevenue,
     totalCost,
     totalProfit,
+    topCustomers,
+    customerBreakdownUnavailable,
 }: {
     revenueBreakdown: FinancialRevenueBreakdown;
     costBreakdown: FinancialCostBreakdown;
     totalRevenue: number;
     totalCost: number;
     totalProfit: number;
+    topCustomers: FinancialCustomerBreakdownRow[];
+    customerBreakdownUnavailable: boolean;
 }) {
     const [showDetails, setShowDetails] = useState(false);
     const revenueRows = [
@@ -487,18 +625,24 @@ function FinancialBreakdownPanel({
             </div>
 
             {showDetails ? (
-                <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                    <BreakdownCard
-                        title="แจกแจงรายได้"
-                        subtitle="แยกค่าส่งฐานออกจากรายได้ส่วนต่างที่ร้านเก็บเพิ่ม"
-                        rows={revenueRows}
-                        accent="sky"
-                    />
-                    <BreakdownCard
-                        title="แจกแจงต้นทุน"
-                        subtitle="รวมต้นทุนค่าส่งฐาน พื้นที่ห่างไกล COD และค่าธรรมเนียมอื่น ๆ"
-                        rows={costRows}
-                        accent="amber"
+                <div className="mt-3 space-y-3">
+                    <div className="grid gap-3 lg:grid-cols-2">
+                        <BreakdownCard
+                            title="แจกแจงรายได้"
+                            subtitle="แยกค่าส่งฐานออกจากรายได้ส่วนต่างที่ร้านเก็บเพิ่ม"
+                            rows={revenueRows}
+                            accent="sky"
+                        />
+                        <BreakdownCard
+                            title="แจกแจงต้นทุน"
+                            subtitle="รวมต้นทุนค่าส่งฐาน พื้นที่ห่างไกล COD และค่าธรรมเนียมอื่น ๆ"
+                            rows={costRows}
+                            accent="amber"
+                        />
+                    </div>
+                    <TopCustomersCostTable
+                        rows={topCustomers}
+                        unavailable={customerBreakdownUnavailable}
                     />
                 </div>
             ) : (
@@ -578,6 +722,87 @@ function CompactSummaryCard({
                 {isCount ? `${Math.trunc(value).toLocaleString('th-TH')} วัน` : formatThb(value)}
             </p>
         </article>
+    );
+}
+
+function TopCustomersCostTable({
+    rows,
+    unavailable,
+}: {
+    rows: FinancialCustomerBreakdownRow[];
+    unavailable: boolean;
+}) {
+    return (
+        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 className="text-sm font-semibold text-white">Top 10 ลูกค้าตามจำนวนพัสดุ</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        แจกแจงรายได้ ต้นทุน และกำไร โดยอิงชื่อลูกค้าจาก `sender_name`
+                    </p>
+                </div>
+                <span className="rounded-full border border-slate-700 bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                    10 อันดับ
+                </span>
+            </div>
+
+            {unavailable ? (
+                <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+                    ยังไม่พบ RPC สำหรับแจกแจงลูกค้า กรุณารัน migration `20260510_jt_financial_customer_breakdown.sql`
+                </div>
+            ) : rows.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-800 bg-slate-900/35 px-3 py-2 text-xs text-slate-500">
+                    ไม่มีข้อมูลลูกค้าในช่วงวันที่นี้
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-xs">
+                        <thead className="text-slate-500">
+                            <tr className="border-b border-slate-800">
+                                <th className="whitespace-nowrap px-2 py-2 font-semibold">ลูกค้า</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">จำนวน</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">รายได้</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">ต้นทุน</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">กำไร</th>
+                                <th className="whitespace-nowrap px-2 py-2 text-right font-semibold">กำไร/ชิ้น</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-900 text-slate-300">
+                            {rows.map((row, index) => {
+                                const positive = row.totalProfit >= 0;
+                                return (
+                                    <tr key={`${row.customerName}-${index}`} className="hover:bg-slate-900/60">
+                                        <td className="min-w-48 px-2 py-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-300">
+                                                    {index + 1}
+                                                </span>
+                                                <span className="font-semibold text-white">{row.customerName}</span>
+                                            </div>
+                                        </td>
+                                        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                                            {formatCount(row.shipmentCount)}
+                                        </td>
+                                        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                                            {formatThb(row.totalRevenue)}
+                                        </td>
+                                        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-amber-300">
+                                            {formatThb(row.totalCost)}
+                                        </td>
+                                        <td className={`whitespace-nowrap px-2 py-2 text-right font-bold tabular-nums ${positive ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                            {formatThb(row.totalProfit)}
+                                        </td>
+                                        <td className={`whitespace-nowrap px-2 py-2 text-right tabular-nums ${positive ? 'text-emerald-200' : 'text-rose-200'}`}>
+                                            {formatThb(row.avgProfitPerShipment)}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -773,6 +998,199 @@ function MissingCostPricesTable({ rows }: { rows: FinancialMissingCostPriceRow[]
                         ))}
                     </tbody>
                 </table>
+            </div>
+        </div>
+    );
+}
+
+function FinancialDatePicker({
+    label,
+    value,
+    selectedFrom,
+    selectedTo,
+    open,
+    month,
+    days,
+    error,
+    onOpen,
+    onClose,
+    onMonthChange,
+    onSelect,
+}: {
+    label: string;
+    value: string;
+    selectedFrom: string;
+    selectedTo: string;
+    open: boolean;
+    month: Date;
+    days: Record<string, FinancialCalendarDay>;
+    error: string | null;
+    onOpen: () => void;
+    onClose: () => void;
+    onMonthChange: (date: Date) => void;
+    onSelect: (date: string) => void;
+}) {
+    return (
+        <div className="relative space-y-1">
+            <span>{label}</span>
+            <button
+                type="button"
+                onClick={open ? onClose : onOpen}
+                className="flex min-w-40 items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm font-semibold text-slate-100 outline-none ring-sky-500/20 transition hover:border-slate-600 focus:border-sky-500 focus:ring-2"
+            >
+                <span>{value}</span>
+                <CalendarDays className="h-4 w-4 text-slate-500" aria-hidden />
+            </button>
+            {open ? (
+                <FinancialCalendarPopover
+                    month={month}
+                    selectedFrom={selectedFrom}
+                    selectedTo={selectedTo}
+                    days={days}
+                    error={error}
+                    onMonthChange={onMonthChange}
+                    onSelect={onSelect}
+                    onClose={onClose}
+                />
+            ) : null}
+        </div>
+    );
+}
+
+function FinancialCalendarPopover({
+    month,
+    selectedFrom,
+    selectedTo,
+    days,
+    error,
+    onMonthChange,
+    onSelect,
+    onClose,
+}: {
+    month: Date;
+    selectedFrom: string;
+    selectedTo: string;
+    days: Record<string, FinancialCalendarDay>;
+    error: string | null;
+    onMonthChange: (date: Date) => void;
+    onSelect: (date: string) => void;
+    onClose: () => void;
+}) {
+    const today = toYmd(new Date());
+    const monthIndex = month.getMonth();
+    const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+    const firstGridDay = addDays(firstDay, -firstDay.getDay());
+    const gridDays = Array.from({ length: 42 }, (_, i) => addDays(firstGridDay, i));
+
+    return (
+        <div className="absolute left-0 top-full z-30 mt-2 w-80 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]">
+            <div className="flex items-center justify-between gap-2">
+                <button
+                    type="button"
+                    onClick={() => onMonthChange(addCalendarMonths(month, -1))}
+                    className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-300 transition hover:border-slate-700 hover:text-white"
+                    aria-label="เดือนก่อนหน้า"
+                >
+                    ←
+                </button>
+                <div className="text-center">
+                    <p className="text-sm font-bold text-white">{formatCalendarMonth(month)}</p>
+                    <p className="text-[11px] text-slate-500">ตัวเลขใต้วันที่คือกำไร/ขาดทุนของวันนั้น</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => onMonthChange(addCalendarMonths(month, 1))}
+                    className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-300 transition hover:border-slate-700 hover:text-white"
+                    aria-label="เดือนถัดไป"
+                >
+                    →
+                </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500">
+                {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((day) => (
+                    <div key={day} className="py-1">
+                        {day}
+                    </div>
+                ))}
+            </div>
+
+            <div className="mt-1 grid grid-cols-7 gap-1">
+                {gridDays.map((day) => {
+                    const ymd = toYmd(day);
+                    const outside = day.getMonth() !== monthIndex;
+                    const isStart = ymd === selectedFrom;
+                    const isEnd = ymd === selectedTo;
+                    const inRange = selectedFrom <= ymd && ymd <= selectedTo;
+                    const isToday = ymd === today;
+                    const selected = isStart || isEnd;
+                    const row = days[ymd];
+                    const hasProfit = row && row.shipmentCount > 0;
+                    const positive = (row?.totalProfit ?? 0) >= 0;
+
+                    return (
+                        <button
+                            key={ymd}
+                            type="button"
+                            onClick={() => onSelect(ymd)}
+                            title={row ? `${ymd} · กำไร ${formatThb(row.totalProfit)} · ${formatCount(row.shipmentCount)}` : undefined}
+                            className={`relative h-12 rounded-lg pb-4 pt-1 text-sm font-semibold transition ${
+                                selected
+                                    ? 'bg-sky-500 text-white shadow-lg shadow-sky-950/30'
+                                    : inRange
+                                        ? 'bg-sky-500/10 text-sky-200'
+                                        : outside
+                                            ? 'text-slate-700 hover:bg-slate-900 hover:text-slate-500'
+                                            : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                            } ${isToday && !selected ? 'ring-1 ring-sky-500/35' : ''}`}
+                        >
+                            <span>{day.getDate()}</span>
+                            {hasProfit ? (
+                                <span
+                                    className={`absolute bottom-1 left-1/2 min-w-8 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                                        positive ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                                    }`}
+                                >
+                                    {compactThb(row.totalProfit)}
+                                </span>
+                            ) : null}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {error ? (
+                <p className="mt-2 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-[11px] text-red-200">
+                    {error}
+                </p>
+            ) : (
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                    <span className="inline-flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        กำไร
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-red-500" />
+                        ขาดทุน
+                    </span>
+                </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                <button
+                    type="button"
+                    onClick={() => onSelect(today)}
+                    className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20"
+                >
+                    วันนี้
+                </button>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white"
+                >
+                    ปิด
+                </button>
             </div>
         </div>
     );

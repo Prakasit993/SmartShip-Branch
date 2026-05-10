@@ -38,6 +38,15 @@ type FinancialComponentSummaryRpcRow = {
     shipment_count: number | string | null;
 };
 
+type FinancialCustomerBreakdownRpcRow = {
+    customer_name: string | null;
+    shipment_count: number | string | null;
+    total_revenue: number | string | null;
+    total_cost: number | string | null;
+    total_profit: number | string | null;
+    avg_profit_per_shipment: number | string | null;
+};
+
 function readDateRange(req: Request) {
     const { searchParams } = new URL(req.url);
     const dateFrom = (searchParams.get('date_from') || searchParams.get('start_date') || '').trim();
@@ -69,7 +78,7 @@ export async function GET(req: Request) {
             );
         }
 
-        const [summaryRes, dailyRes, missingCostRes, componentSummaryRes] = await Promise.all([
+        const [summaryRes, dailyRes, missingCostRes, componentSummaryRes, customerBreakdownRes] = await Promise.all([
             supabaseAdmin.rpc('get_financial_summary', {
                 start_date: dateFrom,
                 end_date: dateTo,
@@ -85,6 +94,11 @@ export async function GET(req: Request) {
             supabaseAdmin.rpc('get_financial_component_summary_billable_weight', {
                 start_date: dateFrom,
                 end_date: dateTo,
+            }),
+            supabaseAdmin.rpc('get_financial_customer_breakdown_billable_weight', {
+                start_date: dateFrom,
+                end_date: dateTo,
+                row_limit: 10,
             }),
         ]);
 
@@ -108,6 +122,14 @@ export async function GET(req: Request) {
         ) as FinancialComponentSummaryRpcRow | null;
         const dailyRows = (Array.isArray(dailyRes.data) ? dailyRes.data : []) as FinancialDailyProfitRpcRow[];
         const missingCostRows = (Array.isArray(missingCostRes.data) ? missingCostRes.data : []) as FinancialMissingCostRpcRow[];
+        if (customerBreakdownRes.error) {
+            console.warn('[jt-shipments/financial-summary] customer breakdown unavailable', customerBreakdownRes.error.message);
+        }
+        const customerRows = (
+            !customerBreakdownRes.error && Array.isArray(customerBreakdownRes.data)
+                ? customerBreakdownRes.data
+                : []
+        ) as FinancialCustomerBreakdownRpcRow[];
 
         return NextResponse.json({
             date_from: dateFrom,
@@ -144,6 +166,15 @@ export async function GET(req: Request) {
                 defaultCostTotal: toNumber(r.default_cost_total),
                 estimatedProfitWithDefaultCost: toNumber(r.estimated_profit_with_default_cost),
             })),
+            topCustomers: customerRows.map((r) => ({
+                customerName: String(r.customer_name || 'ไม่ระบุลูกค้า'),
+                shipmentCount: Math.trunc(toNumber(r.shipment_count)),
+                totalRevenue: toNumber(r.total_revenue),
+                totalCost: toNumber(r.total_cost),
+                totalProfit: toNumber(r.total_profit),
+                avgProfitPerShipment: toNumber(r.avg_profit_per_shipment),
+            })),
+            customerBreakdownUnavailable: Boolean(customerBreakdownRes.error),
         });
     } catch (e) {
         console.error('[jt-shipments/financial-summary]', e);
