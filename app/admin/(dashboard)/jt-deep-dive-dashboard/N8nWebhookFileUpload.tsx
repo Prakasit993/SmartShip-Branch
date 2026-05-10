@@ -9,13 +9,56 @@ import {
     AlertCircle,
     X,
 } from 'lucide-react';
+import { useToast } from '@app/admin/context/ToastContext';
 
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+
+/** ผลสำเร็จจาก n8n — แสดงเป็นข้อความ ไม่โชว์ JSON ดิบ */
+type SuccessInfo =
+    | {
+          kind: 'payload';
+          message: string;
+          status?: string;
+      }
+    | {
+          kind: 'plain';
+          text: string;
+      };
 
 const ACCEPT =
     '.csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+function statusBadgeClass(status: string): string {
+    const s = status.toLowerCase();
+    if (s === 'processing' || s === 'pending') {
+        return 'bg-amber-500/20 text-amber-200 ring-amber-500/35';
+    }
+    if (s === 'error' || s === 'failed') {
+        return 'bg-red-500/20 text-red-200 ring-red-500/35';
+    }
+    if (s === 'success' || s === 'ok' || s === 'done' || s === 'completed') {
+        return 'bg-emerald-500/20 text-emerald-200 ring-emerald-500/35';
+    }
+    return 'bg-slate-600/40 text-slate-200 ring-slate-500/30';
+}
+
+function statusLabelTh(status: string): string {
+    const s = status.toLowerCase();
+    const map: Record<string, string> = {
+        processing: 'กำลังประมวลผล',
+        pending: 'รอดำเนินการ',
+        success: 'สำเร็จ',
+        ok: 'สำเร็จ',
+        done: 'เสร็จสิ้น',
+        completed: 'เสร็จสิ้น',
+        error: 'ผิดพลาด',
+        failed: 'ล้มเหลว',
+    };
+    return map[s] ?? status;
+}
+
 export function N8nWebhookFileUpload() {
+    const { showSuccess } = useToast();
     const inputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
 
@@ -24,6 +67,7 @@ export function N8nWebhookFileUpload() {
     const [status, setStatus] = useState<UploadState>('idle');
     const [message, setMessage] = useState('');
     const [detail, setDetail] = useState<string | null>(null);
+    const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
 
     useEffect(() => {
         if (!modalOpen) return;
@@ -51,6 +95,7 @@ export function N8nWebhookFileUpload() {
             setStatus('idle');
             setMessage('');
             setDetail(null);
+            setSuccessInfo(null);
             return;
         }
         setFile(f);
@@ -58,6 +103,7 @@ export function N8nWebhookFileUpload() {
         setStatus('idle');
         setMessage('');
         setDetail(null);
+        setSuccessInfo(null);
     }, []);
 
     const submit = async () => {
@@ -66,6 +112,7 @@ export function N8nWebhookFileUpload() {
         setStatus('uploading');
         setMessage('');
         setDetail(null);
+        setSuccessInfo(null);
 
         const fd = new FormData();
         fd.append('file', file);
@@ -100,12 +147,36 @@ export function N8nWebhookFileUpload() {
             }
 
             setStatus('success');
-            setMessage('นำเข้าสำเร็จ');
-            setDetail(
-                typeof parsed === 'string'
-                    ? parsed.slice(0, 300)
-                    : JSON.stringify(parsed, null, 2).slice(0, 500)
-            );
+
+            if (typeof parsed === 'object' && parsed !== null) {
+                const o = parsed as Record<string, unknown>;
+                const msg = o.message;
+                const st = o.status;
+
+                if (typeof msg === 'string' && msg.trim()) {
+                    const statusStr = typeof st === 'string' ? st : undefined;
+                    if (statusStr === 'processing') {
+                        showSuccess(msg);
+                    }
+                    setSuccessInfo({
+                        kind: 'payload',
+                        message: msg.trim(),
+                        status: statusStr,
+                    });
+                    return;
+                }
+            }
+
+            if (typeof parsed === 'string') {
+                const t = parsed.trim().slice(0, 800);
+                setSuccessInfo({ kind: 'plain', text: t || 'ดำเนินการสำเร็จ' });
+                return;
+            }
+
+            setSuccessInfo({
+                kind: 'plain',
+                text: 'ได้รับการตอบกลับจากระบบแล้ว',
+            });
         } catch (e) {
             setStatus('error');
             setMessage('เชื่อมต่อไม่สำเร็จ — ลองใหม่อีกครั้ง');
@@ -119,6 +190,7 @@ export function N8nWebhookFileUpload() {
         setStatus('idle');
         setMessage('');
         setDetail(null);
+        setSuccessInfo(null);
         if (inputRef.current) inputRef.current.value = '';
     };
 
@@ -244,24 +316,31 @@ export function N8nWebhookFileUpload() {
                                 ) : null}
                             </div>
 
-                            {status === 'success' && (
-                                <div className="flex gap-2 rounded-xl border border-emerald-800/60 bg-emerald-950/35 px-3 py-2.5 text-sm text-emerald-200">
+                            {status === 'success' && successInfo ? (
+                                <div className="flex gap-3 rounded-xl border border-emerald-800/60 bg-emerald-950/35 px-3 py-3 text-sm text-emerald-200">
                                     <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
-                                    <div className="min-w-0">
-                                        <p className="font-semibold">{message}</p>
-                                        {detail ? (
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <p className="font-semibold text-white">นำเข้าสำเร็จ</p>
+
+                                        {successInfo.kind === 'payload' ? (
                                             <>
-                                                <p className="mt-2 text-[10px] font-medium uppercase tracking-wide text-emerald-400/80">
-                                                    ข้อความตอบกลับจากระบบ
+                                                {successInfo.status ? (
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${statusBadgeClass(successInfo.status)}`}
+                                                    >
+                                                        {statusLabelTh(successInfo.status)}
+                                                    </span>
+                                                ) : null}
+                                                <p className="text-sm leading-relaxed text-emerald-100/95">
+                                                    {successInfo.message}
                                                 </p>
-                                                <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-black/20 px-2 py-1.5 text-xs text-emerald-100/90">
-                                                    {detail}
-                                                </pre>
                                             </>
-                                        ) : null}
+                                        ) : (
+                                            <p className="text-sm leading-relaxed text-emerald-100/95">{successInfo.text}</p>
+                                        )}
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
                             {status === 'error' && (
                                 <div className="flex gap-2 rounded-xl border border-red-900/60 bg-red-950/35 px-3 py-2.5 text-sm text-red-200">
