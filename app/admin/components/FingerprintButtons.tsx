@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { useToast } from '@app/components/ui/Toast';
 
@@ -63,7 +62,6 @@ export function FingerprintRegisterButton() {
 }
 
 export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }) {
-    const router = useRouter();
     const { showToast } = useToast();
     const [status, setStatus] = useState<'idle' | 'loading'>('idle');
 
@@ -89,8 +87,7 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
             if (verifyRes.ok) {
                 showToast('เข้าสู่ระบบด้วยลายนิ้วมือสำเร็จ กำลังเข้าแดชบอร์ด…', 'success');
                 onSuccess?.();
-                router.push('/admin');
-                router.refresh();
+                window.location.replace('/admin');
             } else {
                 throw new Error('Authentication failed');
             }
