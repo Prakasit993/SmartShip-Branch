@@ -94,13 +94,13 @@ export function N8nWebhookFileUpload() {
                         ? String((parsed as { error: string }).error)
                         : text.slice(0, 500);
                 setStatus('error');
-                setMessage(res.status >= 500 ? 'เซิร์ฟเวอร์หรือ n8n ตอบกลับผิดพลาด' : 'การส่งข้อมูลไม่สำเร็จ');
+                setMessage(res.status >= 500 ? 'เซิร์ฟเวอร์หรือระบบอัตโนมัติตอบกลับผิดพลาด' : 'ส่งไฟล์ไม่สำเร็จ');
                 setDetail(errMsg);
                 return;
             }
 
             setStatus('success');
-            setMessage('ส่งไฟล์เข้า n8n เรียบร้อย');
+            setMessage('ส่งไฟล์สำเร็จ');
             setDetail(
                 typeof parsed === 'string'
                     ? parsed.slice(0, 300)
@@ -108,7 +108,7 @@ export function N8nWebhookFileUpload() {
             );
         } catch (e) {
             setStatus('error');
-            setMessage('เครือข่ายหรือเบราว์เซอร์ขัดข้อง');
+            setMessage('เชื่อมต่อไม่สำเร็จ — ลองใหม่อีกครั้ง');
             setDetail(e instanceof Error ? e.message : String(e));
         }
     };
@@ -131,8 +131,8 @@ export function N8nWebhookFileUpload() {
             <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                title="นำเข้าไฟล์ CSV / Excel → n8n"
-                aria-label="นำเข้าไฟล์ CSV / Excel → n8n"
+                title="อัปโหลดไฟล์ CSV หรือ Excel ไปยัง n8n"
+                aria-label="อัปโหลดไฟล์ CSV หรือ Excel ไปยัง n8n"
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/25 transition hover:bg-emerald-500/25 hover:ring-emerald-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             >
                 <FileSpreadsheet className="h-5 w-5" aria-hidden />
@@ -154,13 +154,10 @@ export function N8nWebhookFileUpload() {
                                 </div>
                                 <div className="min-w-0">
                                     <h2 id="n8n-upload-modal-title" className="text-base font-semibold text-white">
-                                        นำเข้าไฟล์ CSV / Excel → n8n
+                                        นำเข้าข้อมูลจากไฟล์ (CSV / Excel)
                                     </h2>
                                     <p className="mt-0.5 text-xs text-slate-500">
-                                        เลือกไฟล์แล้วกดส่ง — ระบบแนบชื่อใน query{' '}
-                                        <code className="rounded bg-slate-900 px-1 py-0.5 text-[10px] text-sky-300">
-                                            ?filename=...
-                                        </code>
+                                        เลือกไฟล์จากเครื่องแล้วกดส่ง — ระบบจะส่งต่อไปยัง n8n พร้อมใช้ชื่อไฟล์ที่เลือก
                                     </p>
                                 </div>
                             </div>
@@ -176,13 +173,16 @@ export function N8nWebhookFileUpload() {
 
                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
                             <p className="text-xs leading-relaxed text-slate-400">
-                                ส่งแบบ multipart ผ่าน API (Webhook URL ตั้งใน env เซิร์ฟเวอร์)
+                                การเชื่อมต่อกับ n8n ตั้งค่าไว้ที่เซิร์ฟเวอร์ — คุณไม่ต้องใส่ลิงก์หรือคีย์ในหน้านี้
                             </p>
 
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                                 <div className="flex-1 space-y-2">
-                                    <label className="block text-xs font-medium text-slate-400">เลือกไฟล์</label>
+                                    <label className="block text-xs font-medium text-slate-400" htmlFor="n8n-upload-file-input">
+                                        แนบไฟล์
+                                    </label>
                                     <input
+                                        id="n8n-upload-file-input"
                                         ref={inputRef}
                                         type="file"
                                         accept={ACCEPT}
@@ -196,21 +196,21 @@ export function N8nWebhookFileUpload() {
                             {displayName ? (
                                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2.5">
                                     <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                        ชื่อไฟล์ที่จะส่ง (filename)
+                                        ไฟล์ที่จะนำเข้า
                                     </p>
                                     <p className="mt-1 truncate font-mono text-sm text-sky-200" title={displayName}>
                                         {displayName}
                                     </p>
                                 </div>
                             ) : (
-                                <p className="text-xs text-slate-500">ยังไม่ได้เลือกไฟล์</p>
+                                <p className="text-xs text-slate-500">ยังไม่มีไฟล์ — เลือกจากช่องด้านบน</p>
                             )}
 
                             {status === 'uploading' && (
                                 <div className="space-y-2" role="status" aria-live="polite">
                                     <div className="flex items-center gap-2 text-sm text-slate-300">
                                         <Loader2 className="h-4 w-4 animate-spin text-sky-400" aria-hidden />
-                                        <span>กำลังส่งไป n8n…</span>
+                                        <span>กำลังส่งไฟล์…</span>
                                     </div>
                                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
                                         <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-slate-800 via-sky-500/90 to-slate-800" />
@@ -230,7 +230,7 @@ export function N8nWebhookFileUpload() {
                                     ) : (
                                         <Upload className="h-4 w-4" aria-hidden />
                                     )}
-                                    ส่งเข้า Server
+                                    ส่งไฟล์
                                 </button>
                                 {file ? (
                                     <button
@@ -239,7 +239,7 @@ export function N8nWebhookFileUpload() {
                                         disabled={status === 'uploading'}
                                         className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 disabled:opacity-40"
                                     >
-                                        ล้าง
+                                        เอาไฟล์ออก
                                     </button>
                                 ) : null}
                             </div>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 
 /**
- * โพรซี multipart ไปยัง n8n Webhook — เก็บ URL ใน N8N_UPLOAD_WEBHOOK_URL
+ * โพรซี multipart ไปยัง n8n Webhook — เก็บ URL ใน NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL
  * Query: ?filename=... (แนบชื่อไฟล์ให้ n8n ใช้ตั้งชื่อเมื่อบันทึก)
  * Body: multipart/form-data ฟิลด์ `file`
  */
@@ -10,10 +10,10 @@ export async function POST(request: NextRequest) {
     const denied = await requireAdminApiAuth('admin-or-staff', request);
     if (denied) return denied;
 
-    const webhookBase = process.env.N8N_UPLOAD_WEBHOOK_URL?.trim();
+    const webhookBase = process.env.NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL?.trim();
     if (!webhookBase) {
         return NextResponse.json(
-            { error: 'ยังไม่ได้ตั้งค่า N8N_UPLOAD_WEBHOOK_URL บนเซิร์ฟเวอร์' },
+            { error: 'ยังไม่ได้ตั้งค่า NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL บนเซิร์ฟเวอร์' },
             { status: 500 }
         );
     }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     try {
         target = new URL(webhookBase);
     } catch {
-        return NextResponse.json({ error: 'N8N_UPLOAD_WEBHOOK_URL ไม่ถูกต้อง' }, { status: 500 });
+        return NextResponse.json({ error: 'NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL ไม่ถูกต้อง' }, { status: 500 });
     }
 
     target.searchParams.set('filename', filename);
