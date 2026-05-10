@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { ADMIN_PRODUCT_IMAGE_ACCEPT } from '@/lib/adminProductImageUpload';
 
 interface ImageUploaderProps {
     name: string;
@@ -118,14 +119,14 @@ export function ImageUploader({ name, label, initialUrls, maxImages = 5, onUploa
             <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept={ADMIN_PRODUCT_IMAGE_ACCEPT}
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
             />
 
             <p className="text-xs text-zinc-500">
-                สูงสุด {maxImages} รูป • ลากเพื่อเรียงลำดับ • รูปแรกจะแสดงเป็นหลัก
+                สูงสุด {maxImages} รูป • JPEG/PNG/WebP/GIF/AVIF • ลากเพื่อเรียงลำดับ • รูปแรกจะแสดงเป็นหลัก
             </p>
         </div>
     );

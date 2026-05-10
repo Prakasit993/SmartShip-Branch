@@ -3,6 +3,12 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import {
+    ADMIN_PRODUCT_IMAGE_SHORT_LABEL_TH,
+    EXTENSION_BY_MIME,
+    PRODUCT_IMAGE_MAX_BYTES,
+    resolveProductImageMime,
+} from '@/lib/adminProductImageUpload';
 
 export async function updateSettings(formData: FormData) {
     try {
@@ -63,8 +69,18 @@ export async function uploadImage(formData: FormData): Promise<{ url: string } |
             return { error: 'No file provided' };
         }
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const mime = resolveProductImageMime(file);
+        const ext = mime ? EXTENSION_BY_MIME[mime] : undefined;
+        if (!mime || !ext) {
+            return {
+                error: `ประเภทไฟล์ไม่รองรับ ใช้ได้เฉพาะ ${ADMIN_PRODUCT_IMAGE_SHORT_LABEL_TH}`,
+            };
+        }
+        if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+            return { error: 'ไฟล์ใหญ่เกินไป (สูงสุด 5 MB)' };
+        }
+
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
         const filePath = `settings/${fileName}`;
 
         // Convert to buffer
@@ -75,7 +91,7 @@ export async function uploadImage(formData: FormData): Promise<{ url: string } |
         const { error: uploadError } = await supabaseAdmin.storage
             .from('images')
             .upload(filePath, buffer, {
-                contentType: file.type,
+                contentType: mime,
                 upsert: false
             });
 

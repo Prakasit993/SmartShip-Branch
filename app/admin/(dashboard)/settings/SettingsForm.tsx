@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { HOME_DEFAULTS } from '@/lib/home-defaults';
+import { ADMIN_PRODUCT_IMAGE_ACCEPT } from '@/lib/adminProductImageUpload';
 import { CollapsibleSection, InputField } from './SettingsComponents';
 import { uploadImage } from './actions';
 
@@ -167,7 +168,7 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                                     )}
                                     <input
                                         type="file"
-                                        accept="image/*"
+                                        accept={ADMIN_PRODUCT_IMAGE_ACCEPT}
                                         multiple
                                         onChange={handleImageUpload}
                                         disabled={uploading}
@@ -348,7 +349,7 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                                 📷 อัพโหลด QR Code
                                 <input
                                     type="file"
-                                    accept="image/*"
+                                    accept={ADMIN_PRODUCT_IMAGE_ACCEPT}
                                     className="hidden"
                                     onChange={async (e) => {
                                         const file = e.target.files?.[0];

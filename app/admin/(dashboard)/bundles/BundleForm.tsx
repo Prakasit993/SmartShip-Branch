@@ -3,6 +3,12 @@
 import { useState, useRef } from 'react';
 import { BundleInput, createBundle, updateBundle } from './actions';
 import { useRouter } from 'next/navigation';
+import {
+    ADMIN_PRODUCT_IMAGE_ACCEPT,
+    ADMIN_PRODUCT_IMAGE_HELP_TH,
+    PRODUCT_IMAGE_MAX_BYTES,
+    resolveProductImageMime,
+} from '@/lib/adminProductImageUpload';
 
 type Product = { id: number; name: string; price: number; width?: number; length?: number; height?: number; dimension_unit?: string };
 type Category = { id: number; name: string };
@@ -63,6 +69,18 @@ export default function BundleForm({ initialData, categories, products }: Bundle
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        const mime = resolveProductImageMime(file);
+        if (!mime) {
+            alert(ADMIN_PRODUCT_IMAGE_HELP_TH);
+            e.target.value = '';
+            return;
+        }
+        if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+            alert('ไฟล์ใหญ่เกินไป (สูงสุด 5 MB)');
+            e.target.value = '';
+            return;
+        }
 
         setUploadingImage(true);
         try {
@@ -248,6 +266,7 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                 </div>
                 <div>
                     <label className="block text-sm font-medium mb-1">🖼️ รูปภาพ</label>
+                    <p className="text-xs text-zinc-500 mb-2">{ADMIN_PRODUCT_IMAGE_HELP_TH}</p>
                     <div className="flex gap-2">
                         <input
                             value={formData.image_urls?.[0] || ''}
@@ -259,7 +278,7 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept={ADMIN_PRODUCT_IMAGE_ACCEPT}
                                 onChange={handleImageUpload}
                                 className="hidden"
                             />
@@ -272,7 +291,13 @@ export default function BundleForm({ initialData, categories, products }: Bundle
                         </label>
                     </div>
                     {formData.image_urls?.[0] && (
-                        <img src={formData.image_urls[0]} alt="Preview" className="mt-2 w-20 h-20 object-cover rounded-lg border" />
+                        <img
+                            src={formData.image_urls[0]}
+                            alt="Preview"
+                            className="mt-2 w-20 h-20 object-cover rounded-lg border"
+                            loading="lazy"
+                            decoding="async"
+                        />
                     )}
                 </div>
 

@@ -42,7 +42,7 @@ export default function ProductSearch() {
     const hasFilters = name || width || length || height;
 
     return (
-        <div className="w-full max-w-5xl mx-auto mb-10">
+        <div className="w-full max-w-5xl mx-auto mb-8 sm:mb-12">
             {/* Search Card */}
             <div className="bg-gradient-to-br from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-lg">
                 {/* Header */}

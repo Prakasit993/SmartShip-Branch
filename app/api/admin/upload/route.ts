@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import {
+    EXTENSION_BY_MIME,
+    PRODUCT_IMAGE_MAX_BYTES,
+    resolveProductImageMime,
+    ADMIN_PRODUCT_IMAGE_SHORT_LABEL_TH,
+} from '@/lib/adminProductImageUpload';
 
 const PRODUCT_IMAGE_PREFIX = 'products/';
-const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
-const EXTENSION_BY_MIME: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/jpg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'image/gif': 'gif',
-};
+const MAX_UPLOAD_SIZE = PRODUCT_IMAGE_MAX_BYTES;
 
 function isSafeProductImagePath(fileName: unknown): fileName is string {
     if (typeof fileName !== 'string') return false;
@@ -31,16 +30,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'ไม่พบไฟล์' }, { status: 400 });
         }
 
-        const extension = EXTENSION_BY_MIME[file.type];
-        if (!extension) {
+        const mime = resolveProductImageMime(file);
+        const extension = mime ? EXTENSION_BY_MIME[mime] : undefined;
+        if (!mime || !extension) {
             return NextResponse.json({
-                error: 'ประเภทไฟล์ไม่รองรับ กรุณาใช้ JPG, PNG, WebP หรือ GIF'
+                error: `ประเภทไฟล์ไม่รองรับ กรุณาใช้ภาพมาตรฐาน: ${ADMIN_PRODUCT_IMAGE_SHORT_LABEL_TH}`,
             }, { status: 400 });
         }
 
         if (file.size > MAX_UPLOAD_SIZE) {
             return NextResponse.json({
-                error: 'ไฟล์ใหญ่เกินไป (สูงสุด 5MB)'
+                error: 'ไฟล์ใหญ่เกินไป (สูงสุด 5 MB)',
             }, { status: 400 });
         }
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         const { data, error } = await supabaseAdmin.storage
             .from('product-images')
             .upload(fileName, buffer, {
-                contentType: file.type,
+                contentType: mime,
                 upsert: false,
             });
 

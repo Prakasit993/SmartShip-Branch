@@ -3,6 +3,12 @@
 import { createProduct, updateProduct } from '../actions';
 import { useFormStatus } from 'react-dom';
 import { useState, useRef } from 'react';
+import {
+    ADMIN_PRODUCT_IMAGE_ACCEPT,
+    ADMIN_PRODUCT_IMAGE_HELP_TH,
+    PRODUCT_IMAGE_MAX_BYTES,
+    resolveProductImageMime,
+} from '@/lib/adminProductImageUpload';
 
 interface ProductFormProps {
     product?: any; // If provided, it's an Edit form
@@ -36,6 +42,18 @@ function ImageUpload({ index, defaultValue, onUrlChange }: ImageUploadProps) {
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        const mime = resolveProductImageMime(file);
+        if (!mime) {
+            setError(ADMIN_PRODUCT_IMAGE_HELP_TH);
+            e.target.value = '';
+            return;
+        }
+        if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+            setError('ไฟล์ใหญ่เกินไป (สูงสุด 5 MB)');
+            e.target.value = '';
+            return;
+        }
 
         setUploading(true);
         setError('');
@@ -98,7 +116,7 @@ function ImageUpload({ index, defaultValue, onUrlChange }: ImageUploadProps) {
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                                accept={ADMIN_PRODUCT_IMAGE_ACCEPT}
                                 onChange={handleFileUpload}
                                 className="hidden"
                                 disabled={uploading}
@@ -134,6 +152,8 @@ function ImageUpload({ index, defaultValue, onUrlChange }: ImageUploadProps) {
                                 src={url}
                                 alt={`รูปที่ ${index + 1}`}
                                 className="w-16 h-16 object-cover rounded-lg border"
+                                loading="lazy"
+                                decoding="async"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).src = 'https://placehold.co/100x100?text=Error';
                                 }}
@@ -359,7 +379,9 @@ export default function ProductForm({ product }: ProductFormProps) {
             <div className="border-t border-zinc-100 dark:border-zinc-800 pt-6">
                 <div className="mb-4">
                     <label className="block text-sm font-medium mb-2">🖼️ รูปสินค้า (สูงสุด 5 รูป)</label>
-                    <p className="text-xs text-zinc-500 mb-3">อัพโหลดไฟล์ JPG, PNG, WebP หรือใส่ URL รูปภาพ</p>
+                    <p className="text-xs text-zinc-500 mb-3">
+                        อัปโหลดภาพมาตรฐานหรือใส่ URL — {ADMIN_PRODUCT_IMAGE_HELP_TH}
+                    </p>
 
                     <div className="space-y-4">
                         {[0, 1, 2, 3, 4].map((index) => (
