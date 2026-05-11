@@ -17,10 +17,10 @@ export default async function AdminLayout({
 
     return (
         <AdminClientWrapper>
-            <div className="admin-scrollbar-hide flex min-h-[100dvh] min-h-screen bg-gradient-to-b from-[#050913] via-[#070c18] to-[#090f1f] text-zinc-100">
+            <div className="admin-scrollbar-hide flex h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden bg-gradient-to-b from-[#050913] via-[#070c18] to-[#090f1f] text-zinc-100">
                 <AdminSidebar role={role} />
 
-                <div className="flex flex-1 flex-col min-w-0 min-h-0 md:ml-64 transition-all duration-300">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden min-w-0 md:ml-64 transition-all duration-300">
                     <div className="hidden md:flex sticky top-0 z-30 shrink-0 items-center justify-end gap-3 border-b border-zinc-800/80 bg-[#070c18]/95 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
                         <AdminGlobalDate className="text-right text-sm font-medium text-zinc-100" />
                     </div>

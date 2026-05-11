@@ -71,8 +71,18 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
         try {
             const optionsRes = await fetch('/api/auth/webauthn?action=authenticate');
             if (!optionsRes.ok) {
-                const error = await optionsRes.json();
-                throw new Error(error.error || 'Failed to get authentication options');
+                let message = 'เริ่ม Passkey ไม่ได้';
+                try {
+                    const errBody = (await optionsRes.json()) as { error?: string };
+                    if (errBody.error === 'No fingerprint registered') {
+                        message = 'ยังไม่มี Passkey';
+                    } else if (errBody.error) {
+                        message = errBody.error;
+                    }
+                } catch {
+                    /* use default */
+                }
+                throw new Error(message);
             }
             const options = await optionsRes.json();
 
@@ -85,7 +95,7 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
             });
 
             if (verifyRes.ok) {
-                showToast('เข้าสู่ระบบด้วยลายนิ้วมือสำเร็จ กำลังเข้าแดชบอร์ด…', 'success');
+                showToast('เข้าระบบสำเร็จ', 'success');
                 onSuccess?.();
                 window.location.replace('/admin');
             } else {
@@ -95,8 +105,8 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             showToast(
                 errorMessage === 'Authentication failed'
-                    ? 'ยืนยันลายนิ้วมือไม่สำเร็จ กรุณาลองอีกครั้ง'
-                    : `ไม่สำเร็จ: ${errorMessage}`,
+                    ? 'ยืนยันไม่สำเร็จ'
+                    : errorMessage,
                 'error',
             );
         } finally {
@@ -110,9 +120,10 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
                 type="button"
                 onClick={handleLogin}
                 disabled={status === 'loading'}
+                aria-label="เข้าด้วย Passkey"
                 className="w-full py-3 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-                {status === 'loading' ? <>กำลังสแกน…</> : <>สแกนนิ้ว</>}
+                {status === 'loading' ? <>กำลังยืนยัน…</> : <>เข้าด้วย Passkey</>}
             </button>
         </div>
     );

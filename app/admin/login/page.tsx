@@ -216,13 +216,18 @@ export default function AdminLogin() {
                             </div>
                         </div>
 
-                        <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
+                        <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5" autoComplete="on">
                             <div className="space-y-1">
-                                <label className="block pl-1 text-[12px] font-semibold leading-5 text-zinc-300 sm:text-xs">
+                                <label
+                                    htmlFor="admin-login-username"
+                                    className="block pl-1 text-[12px] font-semibold leading-5 text-zinc-300 sm:text-xs"
+                                >
                                     ชื่อผู้ใช้
                                 </label>
                                 <div className="group relative">
                                     <input
+                                        id="admin-login-username"
+                                        name="username"
                                         type="text"
                                         className="w-full rounded-2xl border border-zinc-700/80 bg-zinc-900/70 px-4 py-3 text-[15px] leading-6 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 group-hover:border-zinc-500 sm:py-3.5"
                                         value={username}
@@ -235,11 +240,16 @@ export default function AdminLogin() {
                             </div>
 
                             <div className="space-y-1">
-                                <label className="block pl-1 text-[12px] font-semibold leading-5 text-zinc-300 sm:text-xs">
+                                <label
+                                    htmlFor="admin-login-password"
+                                    className="block pl-1 text-[12px] font-semibold leading-5 text-zinc-300 sm:text-xs"
+                                >
                                     รหัสผ่าน
                                 </label>
                                 <div className="group relative">
                                     <input
+                                        id="admin-login-password"
+                                        name="password"
                                         type="password"
                                         className="w-full rounded-2xl border border-zinc-700/80 bg-zinc-900/70 px-4 py-3 text-[15px] leading-6 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 group-hover:border-zinc-500 sm:py-3.5"
                                         value={password}
@@ -298,10 +308,18 @@ export default function AdminLogin() {
                             </div>
                         </div>
 
-                        <FingerprintLoginButton />
+                        <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-4 ring-1 ring-cyan-500/10 sm:p-5">
+                            <p className="text-[13px] font-bold leading-5 text-cyan-100 sm:text-sm">Passkey</p>
+                            <p className="mt-1.5 text-[11px] leading-5 text-zinc-400 sm:text-xs">
+                                ยืนยันอุปกรณ์ทุกครั้ง (เช่น Hello / ลายนิ้ว / PIN)
+                            </p>
+                            <div className="mt-2.5">
+                                <FingerprintLoginButton />
+                            </div>
+                        </div>
 
                         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-[12px] leading-5 text-zinc-400 sm:mt-6 sm:p-4 sm:text-xs">
-                            ระบบจะตรวจสอบบัญชี รหัสผ่าน และความปลอดภัยก่อนเข้าแดชบอร์ดทุกครั้ง
+                            รหัสผ่าน + Turnstile · Passkey ยืนยันอุปกรณ์
                         </div>
                     </section>
                 </div>
