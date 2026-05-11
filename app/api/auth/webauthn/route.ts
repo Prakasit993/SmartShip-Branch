@@ -14,17 +14,49 @@ import {
     issueAdminSessionToken,
 } from '@app/lib/adminSession';
 
-// WebAuthn configuration
 const rpName = 'SmartShip Admin';
-const rpID = process.env.NEXT_PUBLIC_SITE_URL
-    ? new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname
-    : 'localhost';
-const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
-// Store challenge temporarily (in production, use Redis or database)
-const challengeStore = new Map<string, string>();
+/** Challenge ต้องอยู่ระหว่าง GET (options) กับ POST (verify) — ใช้ cookie แทน Map ในหน่วยความจำ เพื่อให้ dev / serverless ไม่หลุดคนละ process */
+const WEBAUTHN_CHALLENGE_COOKIE = 'admin_webauthn_challenge';
+const CHALLENGE_MAX_AGE_SEC = 300;
 
-// Generate registration options
+function challengeCookieOptions() {
+    return {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        maxAge: CHALLENGE_MAX_AGE_SEC,
+        path: '/',
+    };
+}
+
+/** ใช้ Origin จากเบราว์เซอร์เป็นหลัก ให้ตรงกับ host ที่ผู้ใช้เปิดจริง (localhost vs 127.0.0.1 ฯลฯ) */
+function webauthnOriginAndRpId(request: Request): { origin: string; rpID: string } {
+    const originHeader = request.headers.get('origin')?.trim();
+    if (originHeader) {
+        try {
+            const u = new URL(originHeader);
+            return { origin: u.origin, rpID: u.hostname };
+        } catch {
+            /* fall through */
+        }
+    }
+
+    const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+    if (envUrl) {
+        const u = new URL(envUrl);
+        return { origin: u.origin, rpID: u.hostname };
+    }
+
+    return { origin: 'http://localhost:3000', rpID: 'localhost' };
+}
+
+function jsonWithClearedChallenge(body: unknown, init?: ResponseInit) {
+    const res = NextResponse.json(body, init);
+    res.cookies.delete(WEBAUTHN_CHALLENGE_COOKIE);
+    return res;
+}
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
@@ -34,14 +66,15 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Admin not configured' }, { status: 500 });
     }
 
+    const { origin, rpID } = webauthnOriginAndRpId(request);
+
     if (action === 'register') {
-        // Get existing credentials
         const { data: existingCredentials } = await supabaseAdmin
             .from('webauthn_credentials')
             .select('credential_id')
             .eq('admin_email', adminEmail);
 
-        const excludeCredentials = (existingCredentials || []).map(cred => ({
+        const excludeCredentials = (existingCredentials || []).map((cred) => ({
             id: cred.credential_id,
             type: 'public-key' as const,
         }));
@@ -60,14 +93,12 @@ export async function GET(request: Request) {
             },
         });
 
-        // Store challenge
-        challengeStore.set(adminEmail, options.challenge);
-
-        return NextResponse.json(options);
+        const res = NextResponse.json(options);
+        res.cookies.set(WEBAUTHN_CHALLENGE_COOKIE, options.challenge, challengeCookieOptions());
+        return res;
     }
 
     if (action === 'authenticate') {
-        // Get existing credentials for this admin
         const { data: credentials } = await supabaseAdmin
             .from('webauthn_credentials')
             .select('credential_id')
@@ -77,7 +108,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'No fingerprint registered' }, { status: 404 });
         }
 
-        const allowCredentials = credentials.map(cred => ({
+        const allowCredentials = credentials.map((cred) => ({
             id: cred.credential_id,
             type: 'public-key' as const,
         }));
@@ -88,16 +119,14 @@ export async function GET(request: Request) {
             userVerification: 'required',
         });
 
-        // Store challenge
-        challengeStore.set(adminEmail, options.challenge);
-
-        return NextResponse.json(options);
+        const res = NextResponse.json(options);
+        res.cookies.set(WEBAUTHN_CHALLENGE_COOKIE, options.challenge, challengeCookieOptions());
+        return res;
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
 
-// Verify registration or authentication
 export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
@@ -107,9 +136,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Admin not configured' }, { status: 500 });
     }
 
-    const expectedChallenge = challengeStore.get(adminEmail);
+    const { origin: expectedOrigin, rpID: expectedRPID } = webauthnOriginAndRpId(request);
+
+    const cookieStore = await cookies();
+    const expectedChallenge = cookieStore.get(WEBAUTHN_CHALLENGE_COOKIE)?.value ?? null;
+
     if (!expectedChallenge) {
-        return NextResponse.json({ error: 'Challenge expired' }, { status: 400 });
+        return jsonWithClearedChallenge({ error: 'Challenge expired' }, { status: 400 });
     }
 
     try {
@@ -119,14 +152,13 @@ export async function POST(request: Request) {
             const verification = await verifyRegistrationResponse({
                 response: body,
                 expectedChallenge,
-                expectedOrigin: origin,
-                expectedRPID: rpID,
+                expectedOrigin,
+                expectedRPID,
             });
 
             if (verification.verified && verification.registrationInfo) {
                 const { credential } = verification.registrationInfo;
 
-                // Save credential to database
                 await supabaseAdmin.from('webauthn_credentials').insert({
                     id: crypto.randomUUID(),
                     admin_email: adminEmail,
@@ -136,19 +168,15 @@ export async function POST(request: Request) {
                     device_name: 'Fingerprint Device',
                 });
 
-                // Clear challenge
-                challengeStore.delete(adminEmail);
-
-                return NextResponse.json({ verified: true });
+                return jsonWithClearedChallenge({ verified: true });
             }
 
-            return NextResponse.json({ error: 'Verification failed' }, { status: 400 });
+            return jsonWithClearedChallenge({ error: 'Verification failed' }, { status: 400 });
         }
 
         if (action === 'authenticate') {
             const body = await request.json();
 
-            // Get credential from database
             const { data: credentialData } = await supabaseAdmin
                 .from('webauthn_credentials')
                 .select('*')
@@ -156,14 +184,14 @@ export async function POST(request: Request) {
                 .single();
 
             if (!credentialData) {
-                return NextResponse.json({ error: 'Credential not found' }, { status: 404 });
+                return jsonWithClearedChallenge({ error: 'Credential not found' }, { status: 404 });
             }
 
             const verification = await verifyAuthenticationResponse({
                 response: body,
                 expectedChallenge,
-                expectedOrigin: origin,
-                expectedRPID: rpID,
+                expectedOrigin,
+                expectedRPID,
                 credential: {
                     id: credentialData.credential_id,
                     publicKey: Buffer.from(credentialData.public_key, 'base64'),
@@ -172,27 +200,20 @@ export async function POST(request: Request) {
             });
 
             if (verification.verified) {
-                // Update counter
                 await supabaseAdmin
                     .from('webauthn_credentials')
                     .update({ counter: verification.authenticationInfo.newCounter })
                     .eq('id', credentialData.id);
 
-                // Clear challenge
-                challengeStore.delete(adminEmail);
-
                 const maxAgeSec = getAdminSessionMaxAgeSec();
-                const sessionToken = await issueAdminSessionToken(
-                    maxAgeSec,
-                    adminSessionContextFromRequest(request)
-                );
+                const sessionToken = await issueAdminSessionToken(maxAgeSec, adminSessionContextFromRequest(request));
                 const cookieOpts = buildAdminCookieOptions(maxAgeSec);
 
-                const cookieStore = await cookies();
-                cookieStore.set('admin_session', sessionToken, cookieOpts);
-                cookieStore.set('admin_role', 'admin', cookieOpts);
+                const res = NextResponse.json({ verified: true });
+                res.cookies.delete(WEBAUTHN_CHALLENGE_COOKIE);
+                res.cookies.set('admin_session', sessionToken, cookieOpts);
+                res.cookies.set('admin_role', 'admin', cookieOpts);
 
-                // Log the login
                 const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
                 const userAgent = request.headers.get('user-agent') || 'unknown';
                 await supabaseAdmin.from('admin_login_logs').insert({
@@ -203,15 +224,15 @@ export async function POST(request: Request) {
                     failure_reason: null,
                 });
 
-                return NextResponse.json({ verified: true });
+                return res;
             }
 
-            return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+            return jsonWithClearedChallenge({ error: 'Authentication failed' }, { status: 401 });
         }
     } catch (error) {
         console.error('WebAuthn error:', error);
-        return NextResponse.json({ error: 'WebAuthn error' }, { status: 500 });
+        return jsonWithClearedChallenge({ error: 'WebAuthn error' }, { status: 500 });
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    return jsonWithClearedChallenge({ error: 'Invalid action' }, { status: 400 });
 }

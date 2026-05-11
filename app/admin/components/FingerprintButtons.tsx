@@ -14,7 +14,7 @@ export function FingerprintRegisterButton() {
 
         try {
             // Get registration options from server
-            const optionsRes = await fetch('/api/auth/webauthn?action=register');
+            const optionsRes = await fetch('/api/auth/webauthn?action=register', { credentials: 'same-origin' });
             if (!optionsRes.ok) {
                 throw new Error('Failed to get registration options');
             }
@@ -26,6 +26,7 @@ export function FingerprintRegisterButton() {
             // Verify with server
             const verifyRes = await fetch('/api/auth/webauthn?action=register', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credential),
             });
@@ -69,7 +70,7 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
         setStatus('loading');
 
         try {
-            const optionsRes = await fetch('/api/auth/webauthn?action=authenticate');
+            const optionsRes = await fetch('/api/auth/webauthn?action=authenticate', { credentials: 'same-origin' });
             if (!optionsRes.ok) {
                 let message = 'เริ่ม Passkey ไม่ได้';
                 try {
@@ -90,6 +91,7 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
 
             const verifyRes = await fetch('/api/auth/webauthn?action=authenticate', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credential),
             });
@@ -99,16 +101,22 @@ export function FingerprintLoginButton({ onSuccess }: { onSuccess?: () => void }
                 onSuccess?.();
                 window.location.replace('/admin');
             } else {
-                throw new Error('Authentication failed');
+                let failMsg = 'ยืนยันไม่สำเร็จ';
+                try {
+                    const errBody = (await verifyRes.json()) as { error?: string };
+                    if (errBody.error === 'Challenge expired') failMsg = 'หมดเวลายืนยัน กรุณากดอีกครั้ง';
+                    else if (errBody.error === 'Credential not found') failMsg = 'ไม่พบ Passkey — ลงทะเบียนใหม่บน URL นี้';
+                    else if (errBody.error === 'Authentication failed')
+                        failMsg = 'ยืนยันไม่สำเร็จ — ใช้ URL เดียวกับตอนลงทะเบียน หรือลงทะเบียน Passkey ใหม่';
+                    else if (errBody.error) failMsg = errBody.error;
+                } catch {
+                    /* keep default */
+                }
+                throw new Error(failMsg);
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            showToast(
-                errorMessage === 'Authentication failed'
-                    ? 'ยืนยันไม่สำเร็จ'
-                    : errorMessage,
-                'error',
-            );
+            showToast(errorMessage, 'error');
         } finally {
             setStatus('idle');
         }
