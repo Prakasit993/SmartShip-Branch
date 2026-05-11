@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'security';
 
@@ -16,9 +16,13 @@ export const logger = {
         const timestamp = new Date().toISOString();
         console.log(`[${timestamp}] [${entry.level.toUpperCase()}] ${entry.action}`, entry.details || '');
 
-        // 2. Database Log (Best Effort)
+        // 2. Database Log (เฉพาะเซิร์ฟเวอร์ — ใช้ service role; อย่า import logger จาก client)
+        if (typeof window !== 'undefined') {
+            return;
+        }
+
         try {
-            const { error } = await supabase.from('system_logs').insert({
+            const { error } = await supabaseAdmin.from('system_logs').insert({
                 action: entry.action,
                 details: entry.details,
                 level: entry.level,
@@ -27,7 +31,6 @@ export const logger = {
             });
 
             if (error) {
-                // Silent fail for DB log to avoid crashing app, but warn console
                 console.warn('Failed to write to system_logs:', error.message);
             }
         } catch (err) {

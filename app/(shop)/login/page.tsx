@@ -158,6 +158,8 @@ function LoginForm() {
                 if (result.error) throw result.error;
 
                 console.log('Login successful, redirecting to:', next);
+                // Ensure session is persisted to cookies before navigation (avoids checkout seeing no session).
+                await supabase.auth.getSession();
                 router.push(next);
                 router.refresh();
             }

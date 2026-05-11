@@ -23,12 +23,15 @@ export default function CheckoutPage() {
     useEffect(() => {
         const checkUser = async () => {
             try {
-                const { data: { user }, error } = await supabase.auth.getUser();
-                if (error) {
-                    console.error('Auth error:', error);
+                // Use getSession for the gate: getUser() throws AuthSessionMissingError when
+                // there is no session, which is expected for guests and spams the dev console.
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                if (sessionError) {
+                    console.error('Auth error:', sessionError);
                     router.push('/login?next=/checkout');
                     return;
                 }
+                const user = session?.user;
                 if (!user) {
                     router.push('/login?next=/checkout');
                     return;
