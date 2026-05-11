@@ -4,7 +4,6 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { AiFinancialReportCard } from './AiFinancialReportCard';
-import { DeepDiveAiAssistant } from './DeepDiveAiAssistant';
 import { DeepDiveDashboardTabs } from './DeepDiveDashboardTabs';
 import { N8nWebhookFileUpload } from './N8nWebhookFileUpload';
 
@@ -63,7 +62,6 @@ export function DeepDiveDashboardPageClient({ showN8nFileUpload = true }: Props)
                     className={hideAllNumbers ? 'pointer-events-none select-none blur-[6px]' : ''}
                     aria-hidden={hideAllNumbers}
                 >
-                    <DeepDiveAiAssistant />
                     <DeepDiveDashboardTabs />
                 </div>
 
