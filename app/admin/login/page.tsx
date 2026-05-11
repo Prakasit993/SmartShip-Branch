@@ -317,10 +317,6 @@ export default function AdminLogin() {
                                 <FingerprintLoginButton />
                             </div>
                         </div>
-
-                        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-[12px] leading-5 text-zinc-400 sm:mt-6 sm:p-4 sm:text-xs">
-                            รหัสผ่าน + Turnstile · Passkey ยืนยันอุปกรณ์
-                        </div>
                     </section>
                 </div>
             </div>
