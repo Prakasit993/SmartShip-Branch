@@ -28,6 +28,40 @@ type SuccessInfo =
 const ACCEPT =
     '.csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+/** แปลงข้อความ error จาก API / โฮสต์ เป็นหัวข้อและคำอธิบายที่อ่านง่าย */
+function friendlyUploadError(
+    detail: string,
+    httpStatus: number
+): { headline: string; body: string } {
+    const d = detail.trim();
+    const lower = d.toLowerCase();
+
+    if (
+        httpStatus === 413 ||
+        lower.includes('request entity too large') ||
+        lower.includes('payload_too_large') ||
+        lower.includes('function_payload_too_large')
+    ) {
+        return {
+            headline: 'ไฟล์ใหญ่เกินขีดจำกัด',
+            body:
+                'ขนาดไฟล์เกินที่เซิร์ฟเวอร์หรือระบบอัตโนมัติรองรับ ลองแยกข้อมูลเป็นหลายไฟล์ที่เล็กลง บันทึกเป็น CSV ที่จำกัดจำนวนแถว หรือลดขนาดไฟล์แล้วส่งใหม่',
+        };
+    }
+
+    if (httpStatus >= 500) {
+        return {
+            headline: 'ระบบฝั่งเซิร์ฟเวอร์ตอบกลับผิดพลาด',
+            body: d || 'กรุณาลองใหม่อีกครั้งในอีกสักครู่',
+        };
+    }
+
+    return {
+        headline: 'นำเข้าไม่สำเร็จ',
+        body: d || 'ตรวจสอบไฟล์และรูปแบบ แล้วลองอีกครั้ง',
+    };
+}
+
 function statusBadgeClass(status: string): string {
     const s = status.toLowerCase();
     if (s === 'processing' || s === 'pending') {
@@ -140,9 +174,10 @@ export function N8nWebhookFileUpload() {
                     typeof parsed === 'object' && parsed !== null && 'error' in parsed
                         ? String((parsed as { error: string }).error)
                         : text.slice(0, 500);
+                const { headline, body } = friendlyUploadError(errMsg, res.status);
                 setStatus('error');
-                setMessage(res.status >= 500 ? 'เซิร์ฟเวอร์หรือ n8n ตอบกลับผิดพลาด' : 'นำเข้าไม่สำเร็จ');
-                setDetail(errMsg);
+                setMessage(headline);
+                setDetail(body);
                 return;
             }
 
@@ -203,7 +238,7 @@ export function N8nWebhookFileUpload() {
             <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                title="นำเข้าข้อมูลจากไฟล์ Excel หรือ CSV"
+                title="เปิดหน้าต่างนำเข้าจากไฟล์ Excel หรือ CSV"
                 aria-label="นำเข้าข้อมูลจากไฟล์ Excel หรือ CSV"
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/25 transition hover:bg-emerald-500/25 hover:ring-emerald-500/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             >
@@ -226,10 +261,10 @@ export function N8nWebhookFileUpload() {
                                 </div>
                                 <div className="min-w-0">
                                     <h2 id="n8n-upload-modal-title" className="text-base font-semibold text-white">
-                                        นำเข้าข้อมูล (Excel / CSV)
+                                        นำเข้าจากไฟล์ Excel หรือ CSV
                                     </h2>
                                     <p className="mt-0.5 text-xs text-slate-500">
-                                        เลือกไฟล์แล้วกดส่ง — ไฟล์และชื่อไฟล์จะถูกส่งต่อไปยัง n8n
+                                        เลือกไฟล์จากเครื่องของคุณ แล้วกดส่ง — ระบบจะส่งไฟล์และชื่อไฟล์ไปประมวลผลอัตโนมัติ
                                     </p>
                                 </div>
                             </div>
@@ -245,44 +280,61 @@ export function N8nWebhookFileUpload() {
 
                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
                             <p className="text-xs leading-relaxed text-slate-400">
-                                Webhook ตั้งค่าไว้ที่เซิร์ฟเวอร์แล้ว — ไม่ต้องกรอกลิงก์หรือรหัสในหน้านี้
+                                การเชื่อมต่อกับระบบนำเข้ากำหนดไว้ที่เซิร์ฟเวอร์แล้ว — ไม่ต้องวางลิงก์หรือรหัสลับในหน้านี้
                             </p>
 
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                                 <div className="flex-1 space-y-2">
-                                    <label className="block text-xs font-medium text-slate-400" htmlFor="n8n-upload-file-input">
-                                        เลือกไฟล์
-                                    </label>
-                                    <input
-                                        id="n8n-upload-file-input"
-                                        ref={inputRef}
-                                        type="file"
-                                        accept={ACCEPT}
-                                        onChange={onFileChange}
-                                        disabled={status === 'uploading'}
-                                        className="block w-full cursor-pointer rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-200 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:border-slate-600 disabled:opacity-50"
-                                    />
+                                    <span className="block text-xs font-medium text-slate-400" id="n8n-upload-file-label">
+                                        ไฟล์ที่จะนำเข้า
+                                    </span>
+                                    <div className="flex min-h-[42px] flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 hover:border-slate-600">
+                                        <input
+                                            id="n8n-upload-file-input"
+                                            ref={inputRef}
+                                            type="file"
+                                            accept={ACCEPT}
+                                            onChange={onFileChange}
+                                            disabled={status === 'uploading'}
+                                            className="sr-only"
+                                            aria-labelledby="n8n-upload-file-label"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => inputRef.current?.click()}
+                                            disabled={status === 'uploading'}
+                                            className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            เลือกไฟล์…
+                                        </button>
+                                        <span
+                                            className={`min-w-0 flex-1 truncate text-sm ${displayName ? 'text-slate-200' : 'text-slate-500'}`}
+                                            title={displayName || undefined}
+                                        >
+                                            {displayName || 'ยังไม่ได้เลือกไฟล์'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
                             {displayName ? (
                                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2.5">
                                     <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                        ไฟล์ที่เลือก
+                                        สรุปไฟล์ที่จะส่ง
                                     </p>
                                     <p className="mt-1 truncate font-mono text-sm text-sky-200" title={displayName}>
                                         {displayName}
                                     </p>
                                 </div>
                             ) : (
-                                <p className="text-xs text-slate-500">ยังไม่ได้เลือกไฟล์</p>
+                                <p className="text-xs text-slate-500">เมื่อเลือกไฟล์แล้ว ชื่อไฟล์จะแสดงด้านบนและในช่องสรุปนี้</p>
                             )}
 
                             {status === 'uploading' && (
                                 <div className="space-y-2" role="status" aria-live="polite">
                                     <div className="flex items-center gap-2 text-sm text-slate-300">
                                         <Loader2 className="h-4 w-4 animate-spin text-sky-400" aria-hidden />
-                                        <span>กำลังส่ง…</span>
+                                        <span>กำลังอัปโหลดและส่งไฟล์…</span>
                                     </div>
                                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
                                         <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-slate-800 via-sky-500/90 to-slate-800" />
@@ -302,7 +354,7 @@ export function N8nWebhookFileUpload() {
                                     ) : (
                                         <Upload className="h-4 w-4" aria-hidden />
                                     )}
-                                    ส่งนำเข้า
+                                    ส่งไฟล์เพื่อนำเข้า
                                 </button>
                                 {file ? (
                                     <button
@@ -311,7 +363,7 @@ export function N8nWebhookFileUpload() {
                                         disabled={status === 'uploading'}
                                         className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 disabled:opacity-40"
                                     >
-                                        ยกเลิกการเลือก
+                                        ล้างและเลือกใหม่
                                     </button>
                                 ) : null}
                             </div>
@@ -320,7 +372,7 @@ export function N8nWebhookFileUpload() {
                                 <div className="flex gap-3 rounded-xl border border-emerald-800/60 bg-emerald-950/35 px-3 py-3 text-sm text-emerald-200">
                                     <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
                                     <div className="min-w-0 flex-1 space-y-2">
-                                        <p className="font-semibold text-white">นำเข้าสำเร็จ</p>
+                                        <p className="font-semibold text-white">ส่งไฟล์สำเร็จ</p>
 
                                         {successInfo.kind === 'payload' ? (
                                             <>
