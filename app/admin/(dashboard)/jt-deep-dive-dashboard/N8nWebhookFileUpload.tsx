@@ -28,6 +28,29 @@ type SuccessInfo =
 const ACCEPT =
     '.csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+/** มีการตั้ง NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB ใน build หรือไม่ (ใช้ควบคุมข้อความ + เช็กก่อนส่ง) */
+function hasN8nUploadMaxFileMbFromEnv(): boolean {
+    return Boolean(process.env.NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB?.trim());
+}
+
+/**
+ * ขนาดไฟล์สูงสุดต่อครั้ง (MB) สำหรับข้อความและการเช็กก่อนอัปโหลด
+ * - ถ้าตั้ง NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB จะใช้ค่านั้น (ตรงกับโฮสต์จริง)
+ * - ถ้าไม่ตั้ง ใช้ 4.5 เป็นค่าอ้างอิงทั่วไป (ขีดจำกัดคำขอแบบ Serverless บน Vercel ที่มักทำให้เกิด FUNCTION_PAYLOAD_TOO_LARGE)
+ */
+function getN8nUploadMaxFileMb(): number {
+    const raw = process.env.NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB?.trim();
+    if (!raw) return 4.5;
+    const n = Number.parseFloat(raw.replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? n : 4.5;
+}
+
+function formatMbDisplay(n: number): string {
+    const rounded = Math.round(n * 100) / 100;
+    if (Number.isInteger(rounded)) return String(rounded);
+    return String(rounded);
+}
+
 /** แปลงข้อความ error จาก API / โฮสต์ เป็นหัวข้อและคำอธิบายที่อ่านง่าย */
 function friendlyUploadError(
     detail: string,
@@ -42,10 +65,14 @@ function friendlyUploadError(
         lower.includes('payload_too_large') ||
         lower.includes('function_payload_too_large')
     ) {
+        const maxMb = getN8nUploadMaxFileMb();
+        const maxStr = formatMbDisplay(maxMb);
+        const limitSentence = hasN8nUploadMaxFileMbFromEnv()
+            ? `ต่อการส่งหนึ่งครั้งกำหนดไว้ไม่เกิน ${maxStr} MB`
+            : `ต่อการส่งหนึ่งครั้งมักรองรับได้ไม่เกินประมาณ ${maxStr} MB (ขึ้นกับผู้ให้บริการโฮสต์ — ตั้งค่า NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB ให้ตรงกับระบบของคุณ)`;
         return {
             headline: 'ไฟล์ใหญ่เกินขีดจำกัด',
-            body:
-                'ขนาดไฟล์เกินที่เซิร์ฟเวอร์หรือระบบอัตโนมัติรองรับ ลองแยกข้อมูลเป็นหลายไฟล์ที่เล็กลง บันทึกเป็น CSV ที่จำกัดจำนวนแถว หรือลดขนาดไฟล์แล้วส่งใหม่',
+            body: `ขนาดไฟล์เกินที่ระบบรองรับ (${limitSentence}) ลองแยกข้อมูลเป็นหลายไฟล์ บันทึกเป็น CSV ที่จำกัดจำนวนแถว หรือลดขนาดไฟล์แล้วส่งใหม่`,
         };
     }
 
@@ -142,6 +169,19 @@ export function N8nWebhookFileUpload() {
 
     const submit = async () => {
         if (!file) return;
+
+        if (hasN8nUploadMaxFileMbFromEnv()) {
+            const maxMb = getN8nUploadMaxFileMb();
+            const maxBytes = maxMb * 1024 * 1024;
+            if (file.size > maxBytes) {
+                setStatus('error');
+                setMessage('ไฟล์ใหญ่เกินขีดจำกัด');
+                setDetail(
+                    `ไฟล์นี้มีขนาดเกิน ${formatMbDisplay(maxMb)} MB ต่อการส่งหนึ่งครั้งที่กำหนดไว้ — ลองแยกหรือลดขนาดไฟล์แล้วส่งใหม่`
+                );
+                return;
+            }
+        }
 
         setStatus('uploading');
         setMessage('');

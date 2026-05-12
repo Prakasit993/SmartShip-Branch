@@ -5,6 +5,7 @@ import { requireAdminApiAuth } from '@/lib/adminApiAuth';
  * โพรซี multipart ไปยัง n8n Webhook — เก็บ URL ใน NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL
  * Query: ?filename=... (แนบชื่อไฟล์ให้ n8n ใช้ตั้งชื่อเมื่อบันทึก)
  * Body: multipart/form-data ฟิลด์ `file`
+ * ขีดจำกัดขนาดคำขอขึ้นกับโฮสต์ (เช่น Vercel Serverless ~4.5 MB) — ให้ตั้ง NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB ใน client ให้ตรงกับขีดจำกัดจริงเพื่อข้อความแจ้งเตือนที่ถูกต้อง
  */
 export async function POST(request: NextRequest) {
     const denied = await requireAdminApiAuth('admin-or-staff', request);
