@@ -1,7 +1,32 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AlertTriangle, CalendarDays, ChevronDown, Clock3, PackageCheck, RefreshCw } from 'lucide-react';
+import {
+    toYmd as toLocalYmd,
+    addDays as addLocalDays,
+    addCalendarMonths as addLocalMonths,
+    parseLocalYmd,
+    monthStartFromYmd,
+    monthKey,
+    formatCalendarMonth,
+    formatThaiDateRange,
+    pct,
+} from '@/lib/jtDashboardDateUtils';
+
+/** SLA tab shows THB with no decimals (whole baht). */
+function formatThb(value: number): string {
+    return value.toLocaleString('th-TH', {
+        style: 'currency',
+        currency: 'THB',
+        maximumFractionDigits: 0,
+    });
+}
+
+/** SLA tab shows plain count without unit suffix. */
+function formatCount(value: number): string {
+    return value.toLocaleString('th-TH');
+}
 
 type SlaDashboardSummary = {
     count: number;
@@ -73,79 +98,12 @@ type SlaSummaryState =
     | { status: 'success'; data: SlaDashboardSummary; error: null }
     | { status: 'error'; data: SlaDashboardSummary | null; error: string };
 
-function toLocalYmd(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-function addLocalDays(date: Date, days: number): Date {
-    const next = new Date(date);
-    next.setDate(next.getDate() + days);
-    return next;
-}
-
 function getDefaultSlaRange(): { from: string; to: string } {
     const today = new Date();
     return {
         from: toLocalYmd(addLocalDays(today, -6)),
         to: toLocalYmd(today),
     };
-}
-
-function formatThaiDateRange(range: { from: string; to: string }): string {
-    const format = (ymd: string) => {
-        const t = Date.parse(`${ymd}T12:00:00.000Z`);
-        if (Number.isNaN(t)) return ymd;
-        return new Date(t).toLocaleDateString('th-TH', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-        });
-    };
-
-    return range.from === range.to ? format(range.from) : `${format(range.from)} ถึง ${format(range.to)}`;
-}
-
-function parseLocalYmd(ymd: string): Date | null {
-    const [year, month, day] = ymd.split('-').map(Number);
-    if (!year || !month || !day) return null;
-    return new Date(year, month - 1, day);
-}
-
-function monthStartFromYmd(ymd: string): Date {
-    const date = parseLocalYmd(ymd) ?? new Date();
-    return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addLocalMonths(date: Date, months: number): Date {
-    return new Date(date.getFullYear(), date.getMonth() + months, 1);
-}
-
-function formatCalendarMonth(date: Date): string {
-    return date.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-}
-
-function monthKey(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function formatCount(value: number): string {
-    return value.toLocaleString('th-TH');
-}
-
-function formatThb(value: number): string {
-    return value.toLocaleString('th-TH', {
-        style: 'currency',
-        currency: 'THB',
-        maximumFractionDigits: 0,
-    });
-}
-
-function pct(value: number, total: number): string {
-    if (total <= 0) return '0%';
-    return `${Math.round((value / total) * 1000) / 10}%`;
 }
 
 function normaliseSummary(json: Partial<SlaDashboardSummary>, range: { from: string; to: string }): SlaDashboardSummary {
@@ -288,12 +246,12 @@ export function SLATab() {
         error: null,
     });
 
-    const loadSummary = useCallback(async (signal?: AbortSignal) => {
+    const loadSummary = useCallback(async (range: { from: string; to: string }, signal?: AbortSignal) => {
         setState((prev) => ({ status: 'loading', data: prev.data, error: null }));
 
         const params = new URLSearchParams();
-        params.set('date_from', appliedRange.from);
-        params.set('date_to', appliedRange.to);
+        params.set('date_from', range.from);
+        params.set('date_to', range.to);
 
         const res = await fetch(`/api/admin/jt-shipments/dashboard?${params.toString()}`, {
             credentials: 'same-origin',
@@ -305,12 +263,12 @@ export function SLATab() {
             throw new Error(json.error || 'โหลดข้อมูล SLA ไม่สำเร็จ');
         }
 
-        setState({ status: 'success', data: normaliseSummary(json, appliedRange), error: null });
-    }, [appliedRange]);
+        setState({ status: 'success', data: normaliseSummary(json, range), error: null });
+    }, []);
 
     useEffect(() => {
         const controller = new AbortController();
-        loadSummary(controller.signal).catch((e: unknown) => {
+        loadSummary(appliedRange, controller.signal).catch((e: unknown) => {
             if ((e as { name?: string }).name === 'AbortError') return;
             setState((prev) => ({
                 status: 'error',
@@ -319,12 +277,20 @@ export function SLATab() {
             }));
         });
         return () => controller.abort();
-    }, [loadSummary]);
+    }, [appliedRange, loadSummary]);
+
+    // Debounced calendar month: delays fetch by 300ms so rapid month
+    // navigation doesn't spam the backend.
+    const [debouncedCalendarMonth, setDebouncedCalendarMonth] = useState(calendarMonth);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedCalendarMonth(calendarMonth), 300);
+        return () => clearTimeout(timer);
+    }, [calendarMonth]);
 
     useEffect(() => {
         if (!activeDatePicker) return;
         const controller = new AbortController();
-        const month = monthKey(calendarMonth);
+        const month = monthKey(debouncedCalendarMonth);
 
         fetch(`/api/admin/jt-shipments/sla-calendar?month=${encodeURIComponent(month)}`, {
             credentials: 'same-origin',
@@ -351,7 +317,7 @@ export function SLATab() {
             });
 
         return () => controller.abort();
-    }, [activeDatePicker, calendarMonth]);
+    }, [activeDatePicker, debouncedCalendarMonth]);
 
     const data = state.data;
     const isLoading = state.status === 'loading';
@@ -609,7 +575,7 @@ export function SLATab() {
                     </p>
                     <button
                         type="button"
-                        onClick={() => loadSummary().catch((e: unknown) => {
+                        onClick={() => loadSummary(appliedRange).catch((e: unknown) => {
                             setState((prev) => ({
                                 status: 'error',
                                 data: prev.data,
@@ -795,14 +761,26 @@ function CalendarPopover({
     onSelect: (date: string) => void;
     onClose: () => void;
 }) {
+    const popoverRef = useRef<HTMLDivElement>(null);
     const today = toLocalYmd(new Date());
     const monthIndex = month.getMonth();
     const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
     const firstGridDay = addLocalDays(firstDay, -firstDay.getDay());
     const days = Array.from({ length: 42 }, (_, i) => addLocalDays(firstGridDay, i));
 
+    // Close popover when clicking outside
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+                onClose();
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [onClose]);
+
     return (
-        <div className="absolute left-0 top-full z-30 mt-2 w-80 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]">
+        <div ref={popoverRef} className="absolute left-0 top-full z-30 mt-2 w-80 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]">
             <div className="flex items-center justify-between gap-2">
                 <button
                     type="button"

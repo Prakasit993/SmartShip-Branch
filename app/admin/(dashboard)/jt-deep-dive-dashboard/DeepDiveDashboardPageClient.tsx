@@ -14,6 +14,17 @@ type Props = {
 
 export function DeepDiveDashboardPageClient({ showN8nFileUpload = true }: Props) {
     const [hideAllNumbers, setHideAllNumbers] = useState(true);
+    // Track whether the user has ever revealed data so we don't unmount/remount
+    // (and re-fetch) when they toggle back to hidden.
+    const [hasEverRevealed, setHasEverRevealed] = useState(false);
+
+    const toggleVisibility = () => {
+        setHideAllNumbers((v) => {
+            const next = !v;
+            if (!next) setHasEverRevealed(true);
+            return next;
+        });
+    };
 
     return (
         <div className="space-y-6 pb-20">
@@ -42,7 +53,7 @@ export function DeepDiveDashboardPageClient({ showN8nFileUpload = true }: Props)
                 </p>
                 <button
                     type="button"
-                    onClick={() => setHideAllNumbers((v) => !v)}
+                    onClick={toggleVisibility}
                     className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white"
                     aria-pressed={hideAllNumbers}
                 >
@@ -58,15 +69,17 @@ export function DeepDiveDashboardPageClient({ showN8nFileUpload = true }: Props)
             <AiFinancialReportCard />
 
             <div className="relative">
-                <div
-                    className={hideAllNumbers ? 'pointer-events-none select-none blur-[6px]' : ''}
-                    aria-hidden={hideAllNumbers}
-                >
-                    <DeepDiveDashboardTabs />
-                </div>
+                {hasEverRevealed ? (
+                    <div
+                        className={hideAllNumbers ? 'pointer-events-none select-none blur-[6px]' : ''}
+                        aria-hidden={hideAllNumbers}
+                    >
+                        <DeepDiveDashboardTabs />
+                    </div>
+                ) : null}
 
                 {hideAllNumbers ? (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl border border-slate-700/50 bg-slate-950/35 p-4">
+                    <div className={`${hasEverRevealed ? 'absolute inset-0' : ''} z-10 flex items-center justify-center rounded-2xl border border-slate-700/50 bg-slate-950/35 p-4`}>
                         <div className="max-w-md rounded-xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-center shadow-xl shadow-black/25">
                             <p className="text-sm font-semibold text-white">ซ่อนข้อมูลตัวเลขอยู่</p>
                             <p className="mt-1 text-xs leading-relaxed text-slate-400">

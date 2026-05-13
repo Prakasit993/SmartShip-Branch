@@ -1,7 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AlertCircle, Calculator, CalendarDays, ChevronDown, Database, Eye, EyeOff, Info, RefreshCw, TrendingUp } from 'lucide-react';
+import {
+    toYmd,
+    addDays,
+    addMonths,
+    addCalendarMonths,
+    monthStartFromYmd,
+    monthKey,
+    formatCalendarMonth,
+    formatThb,
+    formatThbCompact,
+    formatCountWithUnit,
+    formatDayLabel,
+} from '@/lib/jtDashboardDateUtils';
 
 type FinancialSummary = {
     date_from: string;
@@ -80,54 +93,6 @@ const RANGE_PRESETS: Array<{ key: Exclude<FinancialRangePreset, 'custom'>; label
     { key: '1y', label: '1 ปีย้อนหลัง' },
 ];
 
-function toYmd(d: Date): string {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-function addDays(d: Date, days: number): Date {
-    const next = new Date(d);
-    next.setDate(next.getDate() + days);
-    return next;
-}
-
-function addMonths(d: Date, months: number): Date {
-    const next = new Date(d);
-    next.setMonth(next.getMonth() + months);
-    return next;
-}
-
-function addCalendarMonths(d: Date, months: number): Date {
-    return new Date(d.getFullYear(), d.getMonth() + months, 1);
-}
-
-function parseLocalYmd(ymd: string): Date | null {
-    const [year, month, day] = ymd.split('-').map(Number);
-    if (!year || !month || !day) return null;
-    return new Date(year, month - 1, day);
-}
-
-function monthStartFromYmd(ymd: string): Date {
-    const date = parseLocalYmd(ymd) ?? new Date();
-    return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function monthKey(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function monthRange(date: Date): { from: string; to: string } {
-    const from = new Date(date.getFullYear(), date.getMonth(), 1);
-    const to = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    return { from: toYmd(from), to: toYmd(to) };
-}
-
-function formatCalendarMonth(date: Date): string {
-    return date.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-}
-
 function rangeForPreset(preset: Exclude<FinancialRangePreset, 'custom'>): { from: string; to: string } {
     const today = new Date();
     const from =
@@ -147,30 +112,9 @@ function rangeForPreset(preset: Exclude<FinancialRangePreset, 'custom'>): { from
     };
 }
 
-function formatThb(value: number): string {
-    return value.toLocaleString('th-TH', {
-        style: 'currency',
-        currency: 'THB',
-        maximumFractionDigits: 2,
-    });
-}
-
-function compactThb(value: number): string {
-    const abs = Math.abs(value);
-    if (abs >= 1_000_000) return `${value < 0 ? '-' : ''}${(abs / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `${value < 0 ? '-' : ''}${Math.round(abs / 1_000)}K`;
-    return Math.round(value).toLocaleString('th-TH');
-}
-
-function formatCount(value: number): string {
-    return `${value.toLocaleString('th-TH')} ชิ้น`;
-}
-
-function formatDayLabel(ymd: string): string {
-    const t = Date.parse(`${ymd}T12:00:00.000Z`);
-    if (Number.isNaN(t)) return ymd;
-    return new Date(t).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
-}
+/** Alias retained for in-file readability (delegates to shared util). */
+const compactThb = formatThbCompact;
+const formatCount = formatCountWithUnit;
 
 export function FinancialTab() {
     const initialRange = useMemo(() => rangeForPreset('30d'), []);
@@ -277,30 +221,40 @@ export function FinancialTab() {
         return () => controller.abort();
     }, [appliedRange, loadSummary]);
 
+    // Debounced calendar month: delays fetch by 300ms so rapid month
+    // navigation doesn't spam the backend.
+    const [debouncedCalendarMonth, setDebouncedCalendarMonth] = useState(calendarMonth);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedCalendarMonth(calendarMonth), 300);
+        return () => clearTimeout(timer);
+    }, [calendarMonth]);
+
     useEffect(() => {
         if (!activeDatePicker) return;
         const controller = new AbortController();
-        const range = monthRange(calendarMonth);
-        const params = new URLSearchParams();
-        params.set('date_from', range.from);
-        params.set('date_to', range.to);
+        const month = monthKey(debouncedCalendarMonth);
 
-        fetch(`/api/admin/jt-shipments/financial-summary?${params.toString()}`, {
+        // Use the lightweight /financial-calendar endpoint (single RPC)
+        // instead of /financial-summary (5 RPCs).
+        fetch(`/api/admin/jt-shipments/financial-calendar?month=${encodeURIComponent(month)}`, {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
             signal: controller.signal,
         })
             .then(async (res) => {
-                const json = (await res.json()) as Partial<FinancialSummary> & { error?: string };
+                const json = (await res.json()) as {
+                    error?: string;
+                    days?: Array<{ date: string; totalProfit: number; shipmentCount: number }>;
+                };
                 if (!res.ok) throw new Error(json.error || 'โหลดกำไรรายวันไม่สำเร็จ');
                 const next: Record<string, FinancialCalendarDay> = {};
-                for (const row of json.dailyProfit ?? []) {
-                    const date = String((row as FinancialDailyProfitRow).date || '');
+                for (const row of json.days ?? []) {
+                    const date = String(row.date || '');
                     if (!date) continue;
                     next[date] = {
                         date,
-                        totalProfit: Number((row as FinancialDailyProfitRow).totalProfit) || 0,
-                        shipmentCount: Number((row as FinancialDailyProfitRow).shipmentCount) || 0,
+                        totalProfit: Number(row.totalProfit) || 0,
+                        shipmentCount: Number(row.shipmentCount) || 0,
                     };
                 }
                 setCalendarDays(next);
@@ -313,7 +267,7 @@ export function FinancialTab() {
             });
 
         return () => controller.abort();
-    }, [activeDatePicker, calendarMonth]);
+    }, [activeDatePicker, debouncedCalendarMonth]);
 
     const data = state.data;
     const isLoading = state.status === 'loading';
@@ -1076,14 +1030,26 @@ function FinancialCalendarPopover({
     onSelect: (date: string) => void;
     onClose: () => void;
 }) {
+    const popoverRef = useRef<HTMLDivElement>(null);
     const today = toYmd(new Date());
     const monthIndex = month.getMonth();
     const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
     const firstGridDay = addDays(firstDay, -firstDay.getDay());
     const gridDays = Array.from({ length: 42 }, (_, i) => addDays(firstGridDay, i));
 
+    // Close popover when clicking outside
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+                onClose();
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [onClose]);
+
     return (
-        <div className="absolute left-0 top-full z-30 mt-2 w-80 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]">
+        <div ref={popoverRef} className="absolute left-0 top-full z-30 mt-2 w-80 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]">
             <div className="flex items-center justify-between gap-2">
                 <button
                     type="button"
