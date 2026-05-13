@@ -620,8 +620,19 @@ export function SLATab() {
                     )}
 
                     {!data && isLoading ? (
-                        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/50 p-5 text-sm text-slate-500">
-                            กำลังโหลดข้อมูลจากการ์ด...
+                        <div className="space-y-2">
+                            {[0, 1].map((i) => (
+                                <div key={i} className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="space-y-2">
+                                            <div className="h-4 w-28 animate-pulse rounded bg-slate-800" />
+                                            <div className="h-3 w-48 animate-pulse rounded bg-slate-800/60" />
+                                        </div>
+                                        <div className="h-5 w-16 animate-pulse rounded-full bg-slate-800" />
+                                    </div>
+                                    <div className="mt-3 h-10 w-full animate-pulse rounded-lg bg-slate-900/60" />
+                                </div>
+                            ))}
                         </div>
                     ) : null}
                 </div>

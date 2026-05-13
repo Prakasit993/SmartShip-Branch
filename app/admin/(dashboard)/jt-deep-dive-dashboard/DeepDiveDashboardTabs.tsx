@@ -108,8 +108,37 @@ export function DeepDiveDashboardTabs() {
 
 function TabLoading({ label }: { label: string }) {
     return (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-sm text-slate-400">
-            {label}
+        <div className="space-y-4">
+            {/* Header skeleton */}
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+                <div className="h-4 w-4 animate-pulse rounded-full bg-slate-700" />
+                <span className="text-sm text-slate-400">{label}</span>
+            </div>
+
+            {/* Metric cards skeleton — matches the 3-column KPI grid */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {[0, 1, 2].map((i) => (
+                    <div
+                        key={i}
+                        className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900/85 to-slate-950/90 p-2.5 ring-1 ring-white/[0.03]"
+                    >
+                        <div className="mb-2 flex items-start justify-between gap-2">
+                            <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-800" />
+                            <div className="h-3 w-16 animate-pulse rounded bg-slate-800" />
+                        </div>
+                        <div className="h-7 w-32 animate-pulse rounded bg-slate-800" />
+                    </div>
+                ))}
+            </div>
+
+            {/* Content area skeleton */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+                <div className="space-y-3">
+                    <div className="h-4 w-40 animate-pulse rounded bg-slate-800" />
+                    <div className="h-3 w-64 animate-pulse rounded bg-slate-800/60" />
+                    <div className="mt-4 h-32 w-full animate-pulse rounded-xl bg-slate-800/40" />
+                </div>
+            </div>
         </div>
     );
 }
