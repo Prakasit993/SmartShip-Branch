@@ -22,6 +22,9 @@ import { JT_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/jtReturnAcknowledgements
  */
 const AGG_PAGE = 1000;
 
+/** Safety cap: max iterations for any pagination-based aggregation loop (200 × 1000 = 200k rows). */
+const MAX_AGG_ITERATIONS = 200;
+
 type FixedTotalsRow = {
     total_count: number | string;
     sum_cod: number | string;
@@ -71,8 +74,14 @@ async function aggregateCodPendingCases(
 ): Promise<CodPendingCaseRow[]> {
     let offset = 0;
     const cases: CodPendingCaseRow[] = [];
+    let iterations = 0;
 
     for (;;) {
+        iterations++;
+        if (iterations > MAX_AGG_ITERATIONS) {
+            console.warn(`[jt-shipments/dashboard] aggregateCodPendingCases capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
+            break;
+        }
         let q = supabaseAdmin
             .from('jt_shipments')
             .select('awb_number,receiver_name,receiver_phone,cod_amount,cod_status,booking_date')
@@ -139,8 +148,14 @@ async function aggregateExceptionReasonStats(
         exception_reason: string;
         issue_registered_time: string;
     }> = [];
+    let iterations = 0;
 
     for (;;) {
+        iterations++;
+        if (iterations > MAX_AGG_ITERATIONS) {
+            console.warn(`[jt-shipments/dashboard] aggregateExceptionReasonStats capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
+            break;
+        }
         let q = supabaseAdmin
             .from('jt_shipments')
             .select('awb_number,sender_name,receiver_name,receiver_phone,exception_reason,issue_registered_time,booking_date,sign_branch_code')
@@ -217,8 +232,14 @@ async function aggregateReturnTypeCount(
 ): Promise<number> {
     let offset = 0;
     let returnCount = 0;
+    let iterations = 0;
 
     for (;;) {
+        iterations++;
+        if (iterations > MAX_AGG_ITERATIONS) {
+            console.warn(`[jt-shipments/dashboard] aggregateReturnTypeCount capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
+            break;
+        }
         let q = supabaseAdmin.from('jt_shipments').select('awb_number,return_type,sign_branch_name,delivery_staff_id');
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
@@ -273,8 +294,14 @@ async function aggregateReturnTypeCases(
         return_branch_name: string;
         issue_registered_time: string;
     }> = [];
+    let iterations = 0;
 
     for (;;) {
+        iterations++;
+        if (iterations > MAX_AGG_ITERATIONS) {
+            console.warn(`[jt-shipments/dashboard] aggregateReturnTypeCases capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
+            break;
+        }
         let q = supabaseAdmin
             .from('jt_shipments')
             .select('awb_number,sender_name,receiver_name,receiver_phone,exception_reason,return_branch_name,issue_registered_time,booking_date,return_type,sign_branch_name,delivery_staff_id')
@@ -560,13 +587,19 @@ export async function GET(req: Request) {
             const selectCols = [...new Set([...baseAggCols, ...extraCols])].join(',');
 
             let offset = 0;
+            let aggIterations = 0;
             for (;;) {
+                aggIterations++;
+                if (aggIterations > MAX_AGG_ITERATIONS) {
+                    console.warn(`[jt-shipments/dashboard] main aggregation capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
+                    break;
+                }
                 let q = supabaseAdmin.from('jt_shipments').select(selectCols);
                 q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
                 const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
                 if (error) {
                     console.error('[jt-shipments/dashboard] agg', error);
-                    return NextResponse.json({ error: error.message }, { status: 500 });
+                    return NextResponse.json({ error: 'Aggregation failed' }, { status: 500 });
                 }
                 const rows = data ?? [];
                 for (const row of rows) {

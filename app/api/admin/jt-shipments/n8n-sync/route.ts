@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAdminApiAuth, verifyN8nJtSyncSecret } from '@/lib/adminApiAuth';
 
+const MAX_N8N_BATCH = 2000;
+
 /**
  * POST /api/admin/jt-shipments/n8n-sync
  *
@@ -37,6 +39,13 @@ export async function POST(req: Request) {
 
         if (!rawRows.length) {
             return NextResponse.json({ error: 'No rows provided' }, { status: 400 });
+        }
+
+        if (rawRows.length > MAX_N8N_BATCH) {
+            return NextResponse.json(
+                { error: `Batch too large: ${rawRows.length} rows (max ${MAX_N8N_BATCH})` },
+                { status: 413 },
+            );
         }
 
         // Normalize column names (case-insensitive, trim whitespace)
@@ -91,7 +100,7 @@ export async function POST(req: Request) {
 
         if (error) {
             console.error('[n8n-sync] Upsert error:', error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
+            return NextResponse.json({ error: 'Upsert failed — check server logs' }, { status: 500 });
         }
 
         return NextResponse.json({

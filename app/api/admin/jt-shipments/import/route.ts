@@ -17,6 +17,8 @@ const FALLBACK_COLUMNS: RpcRow[] = [
 
 const SKIP_FROM_FILE = new Set(['id']);
 
+const MAX_IMPORT_ROWS = 10_000;
+
 function coerceValue(colName: string, raw: string, dataType: string): unknown {
     const s = String(raw ?? '').trim();
     if (s === '') return null;
@@ -83,6 +85,13 @@ export async function POST(req: Request) {
 
         if (!rows || rows.length === 0) {
             return NextResponse.json({ error: 'No data provided' }, { status: 400 });
+        }
+
+        if (rows.length > MAX_IMPORT_ROWS) {
+            return NextResponse.json(
+                { error: `ข้อมูลมากเกินไป: ${rows.length} แถว (สูงสุด ${MAX_IMPORT_ROWS.toLocaleString()})` },
+                { status: 413 },
+            );
         }
 
         const colMeta = await loadColumnMeta();
