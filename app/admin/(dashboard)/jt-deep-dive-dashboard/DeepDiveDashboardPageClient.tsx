@@ -66,14 +66,13 @@ export function DeepDiveDashboardPageClient({ showN8nFileUpload = true }: Props)
                 </button>
             </section>
 
-            <AiFinancialReportCard />
-
             <div className="relative">
                 {hasEverRevealed ? (
                     <div
-                        className={hideAllNumbers ? 'pointer-events-none select-none blur-[6px]' : ''}
+                        className={`space-y-6 ${hideAllNumbers ? 'pointer-events-none select-none blur-[6px]' : ''}`}
                         aria-hidden={hideAllNumbers}
                     >
+                        <AiFinancialReportCard />
                         <DeepDiveDashboardTabs />
                     </div>
                 ) : null}

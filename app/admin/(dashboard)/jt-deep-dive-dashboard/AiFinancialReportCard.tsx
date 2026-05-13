@@ -169,6 +169,11 @@ export function AiFinancialReportCard() {
     const totalCost = report.keyMetrics.total_cost;
     const totalProfit = report.keyMetrics.total_profit;
     const margin = report.keyMetrics.profit_margin_percent;
+    const shipmentCount = report.keyMetrics.shipment_count;
+    const extraFeePercent = report.keyMetrics.extra_fee_percent;
+    const topCustomerInsight = typeof report.keyMetrics.top_customer_insight === 'string'
+        ? report.keyMetrics.top_customer_insight
+        : null;
 
     return (
         <section className="rounded-2xl border border-slate-800/70 bg-gradient-to-br from-slate-900/80 to-slate-950/80 p-4 shadow-xl shadow-black/10 ring-1 ring-white/[0.03]">
@@ -216,11 +221,31 @@ export function AiFinancialReportCard() {
                 <MetricPill label="อัตรากำไร" value={formatPercent(margin)} />
             </div>
 
+            {/* Extra metrics from upgraded prompt — shown only when present */}
+            {(shipmentCount != null || extraFeePercent != null) ? (
+                <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                    {shipmentCount != null ? (
+                        <MetricPill label="จำนวน Shipments" value={Number(shipmentCount).toLocaleString('th-TH')} />
+                    ) : null}
+                    {extraFeePercent != null ? (
+                        <MetricPill label="สัดส่วน Extra Fee" value={formatPercent(extraFeePercent)} />
+                    ) : null}
+                </div>
+            ) : null}
+
             {showDetails ? (
                 <div className="mt-4 grid gap-3 lg:grid-cols-3">
                     <InsightList title="ประเด็นเด่น" items={report.highlights} tone="emerald" />
                     <InsightList title="ความเสี่ยง" items={report.risks} tone="amber" />
                     <InsightList title="คำแนะนำ" items={report.recommendedActions} tone="sky" />
+
+                    {topCustomerInsight ? (
+                        <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-3 text-violet-200 lg:col-span-3">
+                            <h3 className="text-sm font-semibold">วิเคราะห์ลูกค้า</h3>
+                            <p className="mt-2 text-xs leading-relaxed">{topCustomerInsight}</p>
+                        </div>
+                    ) : null}
+
                     {report.dataQualityNotes.length > 0 ? (
                         <div className="lg:col-span-3">
                             <InsightList title="หมายเหตุคุณภาพข้อมูล" items={report.dataQualityNotes} tone="slate" />
