@@ -68,6 +68,8 @@ export type JtDashboardViewProps = {
     lastRefreshed?: Date | null;
     /** charts/topSenders ยังโหลดอยู่ (Phase B) — KPI cards แสดงแล้วแต่ charts ยังไม่มา */
     chartsLoading?: boolean;
+    /** COD cards ยังโหลดอยู่ (Phase C) — โหลดจาก /cod-summary แยก */
+    codLoading?: boolean;
 };
 
 /** Compare current vs previous. `inverseGood = true` flips color (e.g. returnCount: ▼ = good). */
@@ -323,6 +325,7 @@ export function JtDashboardView({
     mockMode,
     lastRefreshed,
     chartsLoading,
+    codLoading,
 }: JtDashboardViewProps) {
     const [showAllIssues, setShowAllIssues] = useState(false);
     const [showAllReturns, setShowAllReturns] = useState(false);
@@ -854,7 +857,7 @@ export function JtDashboardView({
                     <div className="mt-5 sm:mt-6">
                         <div className="mb-3 flex items-center gap-2 px-1">
                             <span
-                                className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
+                                className={`inline-block h-1.5 w-1.5 rounded-full ${codLoading ? 'bg-slate-600 animate-pulse' : 'bg-emerald-400'}`}
                                 aria-hidden
                             />
                             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -863,8 +866,31 @@ export function JtDashboardView({
                             <span className="text-[10px] text-slate-600">
                                 แยกช่องทาง JMS / Marketplace / อื่นๆ ให้อัตโนมัติ
                             </span>
+                            {codLoading ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
+                                    <span className="inline-block h-2 w-2 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+                                    กำลังโหลด...
+                                </span>
+                            ) : null}
                         </div>
                         <div className="space-y-3 sm:space-y-4">
+                        {codLoading ? (
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+                                {[...Array(4)].map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="animate-pulse rounded-2xl border border-white/[0.06] bg-slate-900/60 p-4 sm:p-5"
+                                    >
+                                        <div className="mb-3 flex items-center gap-3">
+                                            <div className="h-9 w-9 rounded-xl bg-white/[0.06]" />
+                                            <div className="h-3 w-24 rounded bg-white/[0.06]" />
+                                        </div>
+                                        <div className="mb-2 h-7 w-32 rounded bg-white/[0.08]" />
+                                        <div className="h-2.5 w-40 rounded bg-white/[0.05]" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
                             <AnimatedKpiCard
                                 index={4}
@@ -978,6 +1004,7 @@ export function JtDashboardView({
                                 }
                             />
                         </div>
+                        )}
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:items-stretch">
                             <AnimatedKpiCard

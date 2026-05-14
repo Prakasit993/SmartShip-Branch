@@ -76,6 +76,7 @@ export function JtDashboardPageClient() {
     const [initialDateRange] = useState(() => getDefaultParcelDateRange());
     const [state, setState] = useState<FetchState>({ status: 'idle' });
     const [chartsLoading, setChartsLoading] = useState(true);
+    const [codLoading, setCodLoading] = useState(true);
     const [showKpiPercentDelta, setShowKpiPercentDelta] = useState(false);
     const [parcelDateFrom, setParcelDateFrom] = useState(initialDateRange.from);
     const [parcelDateTo, setParcelDateTo] = useState(initialDateRange.to);
@@ -99,6 +100,7 @@ export function JtDashboardPageClient() {
             setState({ status: 'loading' });
         }
         setChartsLoading(true);
+        setCodLoading(true);
 
         const params = new URLSearchParams();
         if (from.trim()) params.set('date_from', from.trim());
@@ -110,8 +112,9 @@ export function JtDashboardPageClient() {
 
         const dashUrl = `/api/admin/jt-shipments/dashboard?${params.toString()}`;
         const statsUrl = `/api/admin/jt-shipments/stats?${statsParams.toString()}`;
+        const codUrl = `/api/admin/jt-shipments/cod-summary?${params.toString()}`;
 
-        // เริ่ม 3 requests พร้อมกัน — process เป็น 2 phase
+        // เริ่ม 4 requests พร้อมกัน — process เป็น 3 phase
         const dashFetch = fetch(dashUrl, {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
@@ -123,6 +126,11 @@ export function JtDashboardPageClient() {
             signal: controller.signal,
         });
         const detailFetch = fetch('/api/admin/jt-shipments/detail-fields-settings', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+        });
+        const codFetch = fetch(codUrl, {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
             signal: controller.signal,
@@ -229,17 +237,19 @@ export function JtDashboardPageClient() {
             metrics: {
                 totalParcels: json.count ?? 0,
                 closedCount: json.closedCount ?? 0,
-                sumCod: json.sumCod ?? 0,
                 avgShippingFee: json.avgShippingFee ?? 0,
                 returnCount: json.returnCount ?? 0,
                 jmsCount: json.jmsCount ?? 0,
                 sumTotalFeeJms: json.sumTotalFeeJms ?? 0,
                 sumTotalShippingFee: json.sumTotalShippingFee ?? 0,
-                codPaidCount: json.codPaidCount ?? 0,
-                codPaidAmount: json.codPaidAmount ?? 0,
-                codPendingCount: json.codPendingCount ?? 0,
-                codPendingAmount: json.codPendingAmount ?? 0,
-                codNoCollectionCount: json.codNoCollectionCount ?? 0,
+                // COD fields — โหลดแยกจาก /cod-summary ใน Phase C (ใช้ cache ถ้ามี)
+                codPaidCount: cacheRef.current?.metrics.codPaidCount ?? 0,
+                codPaidAmount: cacheRef.current?.metrics.codPaidAmount ?? 0,
+                codPendingCount: cacheRef.current?.metrics.codPendingCount ?? 0,
+                codPendingAmount: cacheRef.current?.metrics.codPendingAmount ?? 0,
+                codNoCollectionCount: cacheRef.current?.metrics.codNoCollectionCount ?? 0,
+                codCollectionRate: cacheRef.current?.metrics.codCollectionRate ?? 0,
+                sumCod: cacheRef.current?.metrics.sumCod ?? 0,
                 exceptionCount: json.exceptionCount ?? 0,
                 topExceptionReasons: Array.isArray(json.topExceptionReasons)
                     ? json.topExceptionReasons
@@ -293,7 +303,6 @@ export function JtDashboardPageClient() {
                           )
                           .slice(0, 100)
                     : [],
-                codCollectionRate: json.codCollectionRate ?? 0,
             },
             previousMetrics: json.previous ?? null,
             recent: json.recent ?? [],
@@ -405,6 +414,53 @@ export function JtDashboardPageClient() {
         cacheRef.current = fullData;
         setState({ status: 'success', ...fullData });
         setChartsLoading(false);
+
+        // ── Phase C: COD Summary → โหลดการ์ด COD จาก dedicated endpoint ──
+        try {
+            const codRes = await codFetch;
+            if (controller.signal.aborted) return;
+
+            const codRaw = await codRes.text();
+            let codJson: {
+                error?: string;
+                sumCod?: number;
+                paidCount?: number;
+                paidAmount?: number;
+                pendingCount?: number;
+                pendingAmount?: number;
+                noCollectionCount?: number;
+                paymentRate?: number;
+            };
+            try {
+                codJson = JSON.parse(codRaw) as typeof codJson;
+            } catch {
+                codJson = {};
+            }
+
+            if (codRes.ok) {
+                const latest = cacheRef.current ?? fullData;
+                const withCod: SuccessData = {
+                    ...latest,
+                    metrics: {
+                        ...latest.metrics,
+                        sumCod: codJson.sumCod ?? 0,
+                        codPaidCount: codJson.paidCount ?? 0,
+                        codPaidAmount: codJson.paidAmount ?? 0,
+                        codPendingCount: codJson.pendingCount ?? 0,
+                        codPendingAmount: codJson.pendingAmount ?? 0,
+                        codNoCollectionCount: codJson.noCollectionCount ?? 0,
+                        codCollectionRate: codJson.paymentRate ?? 0,
+                    },
+                };
+                cacheRef.current = withCod;
+                setState({ status: 'success', ...withCod });
+            }
+        } catch (e) {
+            if (controller.signal.aborted) return;
+            console.warn('[dashboard] cod-summary fetch error:', e instanceof Error ? e.message : e);
+        }
+
+        setCodLoading(false);
     }, []);
 
     useEffect(() => {
@@ -549,6 +605,7 @@ export function JtDashboardPageClient() {
             onToggleKpiPercentDelta={() => setShowKpiPercentDelta((prev) => !prev)}
             loading={loading}
             chartsLoading={chartsLoading}
+            codLoading={codLoading}
             error={err}
             parcelDateFrom={parcelDateFrom}
             parcelDateTo={parcelDateTo}
