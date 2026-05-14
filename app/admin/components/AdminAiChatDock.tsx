@@ -203,63 +203,65 @@ export default function AdminAiChatDock() {
         >
             {panelOpen ? (
                 <section
-                    className="pointer-events-auto flex max-h-[min(90vh,40rem)] w-[min(calc(100vw-1.5rem),20rem)] flex-col overflow-hidden rounded-xl border border-slate-800/80 bg-slate-950/95 shadow-lg shadow-black/25 ring-1 ring-white/[0.03] sm:w-[min(calc(100vw-2rem),22rem)] lg:max-h-[min(92vh,44rem)] lg:w-[min(calc(100vw-2.5rem),24rem)]"
+                    className="pointer-events-auto flex max-h-[min(90vh,40rem)] w-[min(calc(100vw-1.5rem),22rem)] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-950/85 shadow-2xl shadow-black/50 backdrop-blur-xl ring-1 ring-white/[0.02] sm:w-[min(calc(100vw-2rem),24rem)] lg:max-h-[min(92vh,44rem)] lg:w-[min(calc(100vw-2.5rem),28rem)]"
                     role="dialog"
                     aria-label="ผู้ช่วยวิเคราะห์ข้อมูล AI"
                 >
                     {/* ── Header ─────────────────────────────────────────── */}
-                    <header className="flex shrink-0 items-start justify-between gap-2 border-b border-slate-800/70 px-3 py-2.5 sm:px-3.5">
-                        <div className="flex min-w-0 items-start gap-2">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800/90 text-slate-400 ring-1 ring-slate-700/80">
-                                <Bot className="h-3.5 w-3.5" aria-hidden />
+                    <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-3.5">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-indigo-500/20 to-purple-500/20 text-indigo-400 ring-1 ring-indigo-500/30">
+                                <div className="absolute inset-0 rounded-xl bg-indigo-500/20 blur-md" />
+                                <Bot className="relative z-10 h-5 w-5" aria-hidden />
                             </div>
                             <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                    <h2 className="text-sm font-medium tracking-tight text-slate-200">
-                                        ผู้ช่วยวิเคราะห์ข้อมูล
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className="text-[15px] font-semibold tracking-wide text-slate-100">
+                                        Data Analyst AI
                                     </h2>
-                                    <span className="rounded border border-slate-700/90 bg-slate-800/80 px-1 py-px text-[9px] font-medium text-slate-500">
-                                        n8n AI
+                                    <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-indigo-300">
+                                        n8n
                                     </span>
                                 </div>
-                                <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-                                    สรุป COD / ขนส่ง — ตามหน้าที่เปิดอยู่
+                                <p className="mt-0.5 text-xs text-slate-400">
+                                    พร้อมช่วยสรุปและวิเคราะห์ข้อมูล
                                 </p>
                             </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
+                        <div className="flex shrink-0 items-center gap-1.5">
                             {messages.length > 0 && (
                                 <button
                                     type="button"
                                     onClick={clearChat}
-                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 text-slate-500 transition hover:bg-rose-950/40 hover:text-rose-400"
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
                                     aria-label="ล้างแชท"
                                     title="ล้างประวัติแชท"
                                 >
-                                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                    <Trash2 className="h-4 w-4" aria-hidden />
                                 </button>
                             )}
                             <button
                                 type="button"
                                 onClick={() => setPanelOpen(false)}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 text-slate-500 transition hover:bg-slate-800/80 hover:text-slate-300"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
                                 aria-label="ปิดแชท"
                             >
-                                <X className="h-4 w-4" aria-hidden />
+                                <X className="h-5 w-5" aria-hidden />
                             </button>
                         </div>
                     </header>
 
                     {/* ── Messages ────────────────────────────────────────── */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-3.5">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-2">
                         <div
                             ref={scrollRef}
-                            className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain scroll-pb-3 py-0.5 pr-0.5 pb-4"
+                            className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto overscroll-contain scroll-pb-4 py-1 pr-1 pb-4"
                         >
                             {messages.length === 0 && !loading ? (
-                                <div className="flex min-h-[10rem] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-slate-800/70 bg-slate-900/25 px-3 text-center sm:min-h-[12rem]">
-                                    <p className="max-w-[16rem] text-xs leading-relaxed text-slate-500">
-                                        เลือกคีย์เวิร์ดด้านล่าง หรือพิมพ์คำถาม
+                                <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 text-center sm:min-h-[14rem]">
+                                    <Bot className="mb-3 h-8 w-8 text-slate-600/50" />
+                                    <p className="max-w-[16rem] text-sm text-slate-500">
+                                        สอบถามข้อมูลเกี่ยวกับยอดขาย COD หรือกำไรได้เลยครับ
                                     </p>
                                 </div>
                             ) : (
@@ -280,7 +282,7 @@ export default function AdminAiChatDock() {
 
                     {/* ── Input form ──────────────────────────────────────── */}
                     <form
-                        className="shrink-0 border-t border-slate-800/70 p-3 sm:px-3.5 sm:pb-3 sm:pt-2.5"
+                        className="shrink-0 border-t border-white/[0.06] bg-slate-950/50 p-4 pb-4"
                         onSubmit={(e) => {
                             e.preventDefault();
                             void submitChat();
@@ -289,38 +291,41 @@ export default function AdminAiChatDock() {
                         <label htmlFor="admin-ai-chat-input" className="sr-only">
                             พิมพ์คำถาม AI
                         </label>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <div className="relative flex items-end gap-2 rounded-2xl border border-white/10 bg-slate-900/50 p-1.5 shadow-inner transition-all focus-within:border-indigo-500/50 focus-within:bg-slate-900/80 focus-within:ring-1 focus-within:ring-indigo-500/20">
                             <textarea
                                 id="admin-ai-chat-input"
                                 value={input}
-                                onChange={(e) => setInput(e.target.value)}
+                                onChange={(e) => {
+                                    setInput(e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         void submitChat();
                                     }
                                 }}
-                                rows={2}
-                                placeholder="พิมพ์คำถาม…"
-                                className="min-h-[3.25rem] flex-1 resize-y rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-2 text-[13px] leading-snug text-slate-200 outline-none placeholder:text-slate-600 focus:border-slate-600 focus:ring-1 focus:ring-slate-600/50"
+                                rows={1}
+                                style={{ minHeight: '44px', maxHeight: '120px' }}
+                                placeholder="ถามอะไรก็ตอบได้..."
+                                className="scrollbar-hide flex-1 resize-none bg-transparent px-3 py-3 text-[14px] text-slate-200 outline-none placeholder:text-slate-500"
                             />
                             <button
                                 type="submit"
                                 disabled={loading || !input.trim()}
-                                className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-4 text-xs font-medium text-slate-200 shadow-sm transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-45 sm:min-w-[4.5rem]"
+                                className="mb-0.5 mr-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-900/20 transition-all hover:scale-105 hover:shadow-indigo-900/40 disabled:pointer-events-none disabled:opacity-40"
                             >
                                 {loading ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                                 ) : (
-                                    <Send className="h-3.5 w-3.5" aria-hidden />
+                                    <Send className="h-4 w-4 -ml-0.5" aria-hidden />
                                 )}
-                                ส่ง
                             </button>
                         </div>
-                        <p className="mt-1.5 text-[10px] leading-normal text-slate-600">Enter ส่ง · Shift+Enter บรรทัดใหม่</p>
-                        <div className="mt-2">
-                            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">คีย์เวิร์ด</p>
-                            <div className="flex flex-wrap gap-1.5">
+                        <p className="mt-2 text-center text-[10px] tracking-wide text-slate-500">Enter เพื่อส่ง · Shift+Enter เพื่อขึ้นบรรทัดใหม่</p>
+                        <div className="mt-3">
+                            <div className="flex flex-wrap gap-2">
                                 {KEYWORD_ACTIONS.map((action) => (
                                     <button
                                         key={action.keyword}
@@ -328,7 +333,7 @@ export default function AdminAiChatDock() {
                                         disabled={loading}
                                         title={action.prompt}
                                         onClick={() => void submitChat(action.prompt)}
-                                        className="rounded-full border border-slate-800 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:border-slate-600 hover:bg-slate-800/60 hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium tracking-wide text-slate-300 transition-all hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-200 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {action.keyword}
                                     </button>
@@ -361,11 +366,12 @@ export default function AdminAiChatDock() {
             <button
                 type="button"
                 onClick={() => setPanelOpen((o) => !o)}
-                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-700/90 bg-slate-900/95 text-slate-400 shadow-md shadow-black/20 ring-1 ring-black/20 transition hover:border-slate-600 hover:bg-slate-800 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/40 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-950"
+                className="group pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-xl shadow-indigo-900/30 ring-1 ring-white/20 transition-all hover:scale-105 hover:shadow-indigo-900/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 aria-label={panelOpen ? 'ปิดแชท AI' : 'เปิดแชท AI'}
                 aria-expanded={panelOpen}
             >
-                {panelOpen ? <X className="h-5 w-5" aria-hidden /> : <MessageCircle className="h-5 w-5" aria-hidden />}
+                <div className="absolute inset-0 rounded-full bg-white/0 transition-colors group-hover:bg-white/10" />
+                {panelOpen ? <X className="relative z-10 h-6 w-6" aria-hidden /> : <MessageCircle className="relative z-10 h-6 w-6" aria-hidden />}
             </button>
         </div>
     );
@@ -377,17 +383,18 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     const isUser = message.role === 'user';
 
     return (
-        <div className={`flex min-w-0 gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    return (
+        <div className={`flex min-w-0 gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
             {!isUser ? (
-                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800/80 text-slate-500">
-                    <Bot className="h-3 w-3" aria-hidden />
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800/80 text-indigo-400 ring-1 ring-white/10">
+                    <Bot className="h-3.5 w-3.5" aria-hidden />
                 </div>
             ) : null}
             <div
-                className={`min-w-0 max-w-[min(94%,20rem)] rounded-lg px-2.5 py-2 text-[13px] leading-snug ${
+                className={`min-w-0 max-w-[min(94%,24rem)] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed shadow-sm ${
                     isUser
-                        ? 'border border-slate-700/80 bg-slate-800/90 text-slate-100'
-                        : 'border border-slate-800 bg-slate-900/80 text-slate-300'
+                        ? 'rounded-tr-sm border border-indigo-500/20 bg-gradient-to-br from-indigo-600 to-indigo-800 text-indigo-50 shadow-indigo-900/20'
+                        : 'rounded-tl-sm border border-white/5 bg-white/[0.03] text-slate-200 shadow-black/10'
                 }`}
             >
                 <p
@@ -402,8 +409,8 @@ function ChatBubble({ message }: { message: ChatMessage }) {
                 </div>
             </div>
             {isUser ? (
-                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800/80 text-slate-500">
-                    <UserRound className="h-3 w-3" aria-hidden />
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30">
+                    <UserRound className="h-3.5 w-3.5" aria-hidden />
                 </div>
             ) : null}
         </div>

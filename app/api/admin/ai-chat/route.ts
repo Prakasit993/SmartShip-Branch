@@ -19,10 +19,10 @@ interface ChatHistoryEntry {
 }
 
 interface AiChatRequestBody {
-    message?: string;
-    sessionId?: string;
-    history?: ChatHistoryEntry[];
-    context?: Record<string, unknown>;
+    message?: unknown;
+    sessionId?: unknown;
+    history?: unknown;
+    context?: unknown;
 }
 
 /** Keys n8n / AI nodes commonly use for the assistant message body. */
@@ -153,13 +153,17 @@ export async function POST(req: Request) {
             );
         }
 
-        // ── Parse body ──────────────────────────────────────────────
+        // ── Parse & Validate body ───────────────────────────────────
         const body = (await req.json()) as AiChatRequestBody;
 
-        const message = String(body.message ?? '').trim();
-        if (!message) {
-            return NextResponse.json({ error: 'message is required' }, { status: 400 });
+        if (typeof body.message !== 'string' || !body.message.trim()) {
+            return NextResponse.json(
+                { error: 'message is required and must be a string' },
+                { status: 400 }
+            );
         }
+        const message = body.message.trim();
+
         if (message.length > MAX_MESSAGE_LENGTH) {
             return NextResponse.json(
                 { error: `ข้อความยาวเกินไป (สูงสุด ${MAX_MESSAGE_LENGTH} ตัวอักษร)` },
@@ -179,8 +183,7 @@ export async function POST(req: Request) {
             ? body.history
                   .filter(
                       (h): h is ChatHistoryEntry =>
-                          typeof h === 'object' &&
-                          h !== null &&
+                          isRecord(h) &&
                           (h.role === 'user' || h.role === 'assistant') &&
                           typeof h.text === 'string' &&
                           h.text.trim().length > 0,
@@ -195,14 +198,21 @@ export async function POST(req: Request) {
             message,
             ...(sessionId ? { sessionId } : {}),
             ...(history.length > 0 ? { history } : {}),
-            context: body.context ?? {},
+            context: isRecord(body.context) ? body.context : {},
         };
+
+        // Enforce a timeout to prevent hanging connections
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 seconds
 
         const upstream = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify(n8nPayload),
+            signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
 
         const raw = await upstream.text();
         let parsed: unknown = null;
@@ -239,6 +249,9 @@ export async function POST(req: Request) {
         });
     } catch (e) {
         console.error('[ai-chat] Error:', e);
+        if (e instanceof Error && e.name === 'AbortError') {
+            return NextResponse.json({ error: 'n8n webhook timeout (ใช้เวลานานเกินไป)' }, { status: 504 });
+        }
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
