@@ -162,9 +162,17 @@ export default function AdminAiChatDock() {
                 if (!res.ok) {
                     throw new Error(parsed.error || 'ส่งคำถามไม่สำเร็จ');
                 }
+                const answerStr =
+                    typeof parsed.answer === 'string'
+                        ? parsed.answer.trim()
+                        : typeof parsed.answer === 'number' || typeof parsed.answer === 'boolean'
+                          ? String(parsed.answer)
+                          : '';
                 const assistantMsg: ChatMessage = {
                     role: 'assistant',
-                    text: parsed.answer ?? '-',
+                    text:
+                        answerStr ||
+                        'ไม่ได้รับข้อความจากผู้ช่วย (ลองใหม่หรือตรวจสอบ workflow n8n ว่าส่งฟิลด์ answer/output/text)',
                     ts: Date.now(),
                 };
                 const withReply = [...updated, assistantMsg];
@@ -243,13 +251,13 @@ export default function AdminAiChatDock() {
                     </header>
 
                     {/* ── Messages ────────────────────────────────────────── */}
-                    <div className="min-h-0 flex-1 overflow-hidden px-3 py-2 sm:px-3.5">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-3.5">
                         <div
                             ref={scrollRef}
-                            className="scrollbar-hide flex max-h-[min(62vh,22rem)] min-h-[12rem] flex-col gap-2 overflow-y-auto overscroll-contain pr-0.5 sm:max-h-[min(68vh,26rem)] sm:min-h-[14rem] lg:max-h-[min(72vh,30rem)] lg:min-h-[16rem]"
+                            className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain scroll-pb-3 py-0.5 pr-0.5 pb-4"
                         >
                             {messages.length === 0 && !loading ? (
-                                <div className="flex min-h-[12rem] items-center justify-center rounded-lg border border-dashed border-slate-800/70 bg-slate-900/25 px-3 text-center sm:min-h-[14rem] lg:min-h-[16rem]">
+                                <div className="flex min-h-[10rem] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-slate-800/70 bg-slate-900/25 px-3 text-center sm:min-h-[12rem]">
                                     <p className="max-w-[16rem] text-xs leading-relaxed text-slate-500">
                                         เลือกคีย์เวิร์ดด้านล่าง หรือพิมพ์คำถาม
                                     </p>
@@ -260,7 +268,7 @@ export default function AdminAiChatDock() {
                                         <ChatBubble key={idx} message={message} />
                                     ))}
                                     {loading && (
-                                        <div className="mr-6 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-2 text-xs leading-relaxed text-slate-400">
+                                        <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-2 text-xs leading-relaxed text-slate-400">
                                             <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-slate-500" aria-hidden />
                                             กำลังวิเคราะห์…
                                         </div>
@@ -369,14 +377,14 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     const isUser = message.role === 'user';
 
     return (
-        <div className={`flex gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex min-w-0 gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
             {!isUser ? (
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800/80 text-slate-500">
                     <Bot className="h-3 w-3" aria-hidden />
                 </div>
             ) : null}
             <div
-                className={`max-w-[min(94%,20rem)] rounded-lg px-2.5 py-2 text-[13px] leading-snug ${
+                className={`min-w-0 max-w-[min(94%,20rem)] rounded-lg px-2.5 py-2 text-[13px] leading-snug ${
                     isUser
                         ? 'border border-slate-700/80 bg-slate-800/90 text-slate-100'
                         : 'border border-slate-800 bg-slate-900/80 text-slate-300'
@@ -389,7 +397,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
                 >
                     {isUser ? 'คุณ' : 'ผู้ช่วย AI'}
                 </p>
-                <div className="whitespace-pre-wrap break-words">
+                <div className="min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                     {isUser ? normalizeChatText(message.text) : <FormattedAiText text={message.text} />}
                 </div>
             </div>
@@ -431,9 +439,9 @@ function FormattedAiText({ text }: { text: string }) {
                 // Bullet points
                 if (/^[\s]*[-•]\s/.test(line)) {
                     return (
-                        <div key={i} className="flex gap-1 pl-1">
+                        <div key={i} className="flex min-w-0 gap-1 pl-1">
                             <span className="shrink-0 text-slate-500">•</span>
-                            <span>{rendered}</span>
+                            <span className="min-w-0">{rendered}</span>
                         </div>
                     );
                 }
@@ -442,9 +450,9 @@ function FormattedAiText({ text }: { text: string }) {
                 if (numMatch) {
                     const rest = line.slice(numMatch[0].length);
                     return (
-                        <div key={i} className="flex gap-1 pl-1">
+                        <div key={i} className="flex min-w-0 gap-1 pl-1">
                             <span className="shrink-0 text-slate-500">{numMatch[1].trim()}</span>
-                            <span>{renderBoldSegments(rest)}</span>
+                            <span className="min-w-0">{renderBoldSegments(rest)}</span>
                         </div>
                     );
                 }

@@ -44,6 +44,8 @@ function pickAnswerString(obj: Record<string, unknown>): string | null {
     for (const key of ANSWER_KEYS) {
         const v = obj[key];
         if (typeof v === 'string' && v.trim()) return v;
+        if (typeof v === 'number' && !Number.isNaN(v)) return String(v);
+        if (typeof v === 'boolean') return v ? 'true' : 'false';
     }
     return null;
 }
@@ -73,6 +75,13 @@ function extractAnswerFromValue(value: unknown, depth = 0): string | null {
     const obj = value as Record<string, unknown>;
     const direct = pickAnswerString(obj);
     if (direct) return direct;
+
+    // e.g. { "answer": { "content": "..." } } — value under a known key is nested JSON
+    for (const key of ANSWER_KEYS) {
+        if (!(key in obj)) continue;
+        const nested = extractAnswerFromValue(obj[key], depth + 1);
+        if (nested) return nested;
+    }
 
     if ('json' in obj) {
         const nested = extractAnswerFromValue(obj.json, depth + 1);
@@ -220,8 +229,14 @@ export async function POST(req: Request) {
         }
 
         // ── Success ─────────────────────────────────────────────────
-        const answer = extractAnswer(parsed, raw);
-        return NextResponse.json({ answer, sessionId });
+        const answer = extractAnswer(parsed, raw).trim();
+        return NextResponse.json({
+            answer:
+                answer.length > 0
+                    ? answer
+                    : 'ได้รับคำตอบแล้ว แต่ไม่มีข้อความแสดงผล (ตรวจสอบว่า n8n ส่งฟิลด์ข้อความใน JSON)',
+            sessionId,
+        });
     } catch (e) {
         console.error('[ai-chat] Error:', e);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
