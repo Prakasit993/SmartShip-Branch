@@ -17,6 +17,7 @@ import {
     utcDayKeyFromIso,
 } from '@/lib/utcDayKey';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
 
 type ChartAxisMode = 'rolling' | 'month' | 'range';
 
@@ -229,16 +230,21 @@ async function aggregateTopNames(
         .map(([name, count]) => ({ name, count }));
 }
 
-async function aggregateTopProductNames(topN = 10): Promise<{ name: string; count: number }[]> {
+async function aggregateTopProductNames(
+    topN = 10,
+    dateFrom = '',
+    dateTo = '',
+): Promise<{ name: string; count: number }[]> {
     let offset = 0;
     const map: Record<string, number> = {};
 
     for (;;) {
-        const { data, error } = await supabaseAdmin
+        let q = supabaseAdmin
             .from('jt_shipments')
-            .select('product_name')
-            .not('product_name', 'is', null)
-            .range(offset, offset + AGG_PAGE_SIZE - 1);
+            .select('product_name,booking_date')
+            .not('product_name', 'is', null);
+        q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
+        const { data, error } = await q.range(offset, offset + AGG_PAGE_SIZE - 1);
         if (error) {
             console.error('[jt-stats] aggregateTopProductNames', error);
             break;
@@ -261,16 +267,19 @@ async function aggregateTopProductNames(topN = 10): Promise<{ name: string; coun
 
 async function aggregateTopSendersByShippingFee(
     topN = 10,
+    dateFrom = '',
+    dateTo = '',
 ): Promise<Array<{ name: string; totalShippingFee: number }>> {
     let offset = 0;
     const map: Record<string, number> = {};
 
     for (;;) {
-        const { data, error } = await supabaseAdmin
+        let q = supabaseAdmin
             .from('jt_shipments')
-            .select('sender_name,total_shipping_fee')
-            .not('sender_name', 'is', null)
-            .range(offset, offset + AGG_PAGE_SIZE - 1);
+            .select('sender_name,total_shipping_fee,booking_date')
+            .not('sender_name', 'is', null);
+        q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
+        const { data, error } = await q.range(offset, offset + AGG_PAGE_SIZE - 1);
         if (error) {
             console.error('[jt-stats] aggregateTopSendersByShippingFee', error);
             break;
@@ -495,20 +504,10 @@ export async function GET(request: Request) {
         );
         const channelFields = uniqueFieldsForSelect(priority);
         const platformSelect = channelFields.length ? channelFields.join(',') : 'platform,order_source';
-        const recentSelect = [...new Set(['awb_number', 'booking_date', 'sender_name', 'receiver_name', 'shipping_fee', ...channelFields])].join(',');
         const feeSelect = [...new Set(['shipping_fee', ...channelFields])].join(',');
 
         const anchorMs = latestRow?.booking_date ? Date.parse(String(latestRow.booking_date)) : Date.now();
         const anchorSafe = Number.isNaN(anchorMs) ? Date.now() : anchorMs;
-        const now = new Date(anchorSafe);
-
-        const todayStart = new Date(now);
-        todayStart.setHours(0, 0, 0, 0);
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - 7);
-        const monthStart = new Date(now);
-        monthStart.setDate(1);
-        monthStart.setHours(0, 0, 0, 0);
 
         const axis = resolveChartAxis(searchParams, anchorSafe);
         const { dayKeysWindow, startDateWindow, endDateWindow } = axis;
@@ -530,41 +529,16 @@ export async function GET(request: Request) {
 
         // Hot path: single RPC for fee aggregates + top senders/receivers + platform counts.
         // Skip only when admin overrode the channel-priority setting (RPC hardcodes default).
+        // Pass actual date range so RPC scans only relevant rows (not full table).
         const canUseStatsRpc = isDefaultChannelPriority(priority);
+        const rpcDateFrom = rawFrom?.trim() ?? '';
+        const rpcDateTo = rawTo?.trim() ?? '';
         const rpcSummaryPromise: Promise<StatsSummaryReady | null> = canUseStatsRpc
-            ? fetchStatsSummaryViaRpc('', '')
+            ? fetchStatsSummaryViaRpc(rpcDateFrom, rpcDateTo)
             : Promise.resolve(null);
 
-        const [
-            totalRes,
-            todayRes,
-            weekRes,
-            monthRes,
-            rpcSummary,
-            recentRes,
-            bookingNullRes,
-            rpcStats30,
-        ] = await Promise.all([
-            supabaseAdmin.from('jt_shipments').select('*', { count: 'exact', head: true }),
-            supabaseAdmin
-                .from('jt_shipments')
-                .select('*', { count: 'exact', head: true })
-                .gte('booking_date', todayStart.toISOString()),
-            supabaseAdmin
-                .from('jt_shipments')
-                .select('*', { count: 'exact', head: true })
-                .gte('booking_date', weekStart.toISOString()),
-            supabaseAdmin
-                .from('jt_shipments')
-                .select('*', { count: 'exact', head: true })
-                .gte('booking_date', monthStart.toISOString()),
+        const [rpcSummary, rpcStats30] = await Promise.all([
             rpcSummaryPromise,
-            supabaseAdmin
-                .from('jt_shipments')
-                .select(recentSelect)
-                .order('booking_date', { ascending: false })
-                .limit(10),
-            supabaseAdmin.from('jt_shipments').select('*', { count: 'exact', head: true }).is('booking_date', null),
             rpcDailyStatsUtc(startDateWindow, endDateWindow),
         ]);
 
@@ -598,8 +572,8 @@ export async function GET(request: Request) {
                 platformCounts,
             } = rpcSummary);
             const [sendersByFee, products] = await Promise.all([
-                aggregateTopSendersByShippingFee(10),
-                aggregateTopProductNames(10),
+                aggregateTopSendersByShippingFee(10, rpcDateFrom, rpcDateTo),
+                aggregateTopProductNames(10, rpcDateFrom, rpcDateTo),
             ]);
             topSenders = sendersByFee;
             topProducts = products;
@@ -607,9 +581,9 @@ export async function GET(request: Request) {
         } else {
             const [feeAggregates, sendersByFee, sendersByCount, products, receivers, platforms] = await Promise.all([
                 aggregateFeeStats(feeSelect, priority),
-                aggregateTopSendersByShippingFee(10),
+                aggregateTopSendersByShippingFee(10, rpcDateFrom, rpcDateTo),
                 aggregateTopNames('sender_name', 10),
-                aggregateTopProductNames(10),
+                aggregateTopProductNames(10, rpcDateFrom, rpcDateTo),
                 aggregateTopNames('receiver_name', 10),
                 aggregatePlatformCounts(platformSelect, priority),
             ]);
@@ -652,16 +626,10 @@ export async function GET(request: Request) {
         const sumDailyFee30 = dailyFee30.reduce((a, d) => a + d.feeTotal, 0);
         const sumDailyCod30 = dailyCod30.reduce((a, d) => a + d.codTotal, 0);
         const distinctDaysWithCount = daily30.filter((d) => d.count > 0).length;
-        const bookingNull = bookingNullRes.count ?? 0;
-        const rowsOutsideWindowApprox = Math.max(0, (totalRes.count || 0) - bookingNull - sumDaily30);
 
         const sectionsVal = settingsRows.find((r) => r.key === 'jt_dashboard_sections')?.value;
 
         return NextResponse.json({
-            total: totalRes.count || 0,
-            today: todayRes.count || 0,
-            week: weekRes.count || 0,
-            month: monthRes.count || 0,
             totalFee: Math.round(totalFee * 100) / 100,
             avgFee: Math.round(avgFee * 100) / 100,
             avgFeeMarketplace: Math.round(avgFeeMarketplace * 100) / 100,
@@ -669,7 +637,6 @@ export async function GET(request: Request) {
             countAvgFeeMarketplace: countFeeMarketplace,
             countAvgFeeJms: countFeeJms,
             maxFee: Math.round(maxFee * 100) / 100,
-            recent: recentRes.data || [],
             topSenders,
             topSendersCount,
             topProducts,
@@ -680,17 +647,14 @@ export async function GET(request: Request) {
             sumDaily30,
             sumDailyFee30,
             sumDailyCod30,
-            bookingDateNullCount: bookingNull,
             chartWindow: {
                 mode: axis.mode,
                 windowDays: axis.axisDayCount,
                 rollingWindowDays: axis.rollingWindowDays,
                 utcStart: startDateWindow,
                 utcEnd: endDateWindow,
-                /** จำนวนวันบนแกนที่มีอย่างน้อย 1 รายการ (จำนวนแท่งที่เห็นมีข้อมูล) */
                 distinctDaysWithData: distinctDaysWithCount,
                 rowsInWindow: sumDaily30,
-                rowsOutsideWindowApprox,
                 anchorHint: axis.anchorHint,
                 dailyStatsSource: rpcStats30 !== null ? 'rpc' : 'fallback',
                 paramNotes,
