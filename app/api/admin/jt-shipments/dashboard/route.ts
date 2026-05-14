@@ -28,12 +28,14 @@ const MAX_AGG_ITERATIONS = 200;
 
 type FixedTotalsRow = {
     total_count: number | string;
+    closed_count?: number | string;          // v2: พัสดุปิดงานแล้ว (signer_name ไม่ว่าง)
     sum_cod: number | string;
     sum_fee_positive: number | string;
     count_fee_positive: number | string;
     return_count: number | string;
     // Business KPIs (P6) — optional because older RPC versions may not include them
     sum_total_fee_jms?: number | string;
+    sum_total_shipping_fee?: number | string; // v2: ขจัด TS pagination loop
     cod_paid_count?: number | string;
     cod_paid_amount?: number | string;
     cod_pending_count?: number | string;
@@ -43,11 +45,13 @@ type FixedTotalsRow = {
 
 type FixedTotals = {
     totalCount: number;
+    closedCount: number;                      // v2: พัสดุปิดงานแล้ว
     sumCod: number;
     sumFeePositive: number;
     countFeePositive: number;
     returnCount: number;
     sumTotalFeeJms: number;
+    sumTotalShippingFee: number;              // v2: รวมค่าส่งสุทธิ
     codPaidCount: number;
     codPaidAmount: number;
     codPendingCount: number;
@@ -374,11 +378,13 @@ async function fetchFixedTotalsViaRpc(
     if (!row) return null;
     return {
         totalCount: Number(row.total_count) || 0,
+        closedCount: Number(row.closed_count) || 0,
         sumCod: Number(row.sum_cod) || 0,
         sumFeePositive: Number(row.sum_fee_positive) || 0,
         countFeePositive: Number(row.count_fee_positive) || 0,
         returnCount: Number(row.return_count) || 0,
         sumTotalFeeJms: Number(row.sum_total_fee_jms) || 0,
+        sumTotalShippingFee: Number(row.sum_total_shipping_fee) || 0,
         codPaidCount: Number(row.cod_paid_count) || 0,
         codPaidAmount: Number(row.cod_paid_amount) || 0,
         codPendingCount: Number(row.cod_pending_count) || 0,
@@ -468,11 +474,7 @@ export async function GET(req: Request) {
         let countQ = supabaseAdmin.from('jt_shipments').select('awb_number', { count: 'exact', head: true });
         countQ = applyBookingDateRangeFilters(countQ, dateFrom, dateTo);
 
-        let closedCountQ = supabaseAdmin.from('jt_shipments').select('awb_number', { count: 'exact', head: true })
-            .not('signer_name', 'is', null)
-            .neq('signer_name', 'NULL')
-            .neq('signer_name', '');
-        closedCountQ = applyBookingDateRangeFilters(closedCountQ, dateFrom, dateTo);
+        // closedCountQ ถูกลบออก — v2 RPC คืน closed_count แล้ว (ลด 1 round-trip)
 
         let recentQ = supabaseAdmin
             .from('jt_shipments')
@@ -516,7 +518,6 @@ export async function GET(req: Request) {
 
         const [
             countResult,
-            closedCountResult,
             recentResult,
             rpcTotals,
             previousTotals,
@@ -530,7 +531,6 @@ export async function GET(req: Request) {
             topCodPendingCases,
         ] = await Promise.all([
             countQ,
-            closedCountQ,
             recentQ
                 .order('booking_date', { ascending: false, nullsFirst: false })
                 .limit(5),
@@ -556,11 +556,8 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: cErr.message }, { status: 500 });
         }
 
-        const { count: closedCount, error: ccErr } = closedCountResult;
-        if (ccErr) {
-            console.error('[jt-shipments/dashboard] closed count', ccErr);
-            // Non-fatal, just log
-        }
+        // closed_count มาจาก RPC v2 โดยตรง (ลด 1 round-trip เทียบกับ closedCountQ แยก)
+        const closedCount = rpcTotals?.closedCount ?? 0;
 
         const { data: recent, error: rErr } = recentResult;
         if (rErr) {
@@ -569,8 +566,8 @@ export async function GET(req: Request) {
         }
 
         // ── Phase 2: Aggregation ──
-        // Fixed totals: prefer RPC (O(1) round-trip). TS pagination only if RPC missing.
-        // Custom metrics: always paginate TS-side (per-card filter/agg is dynamic).
+        // Fixed totals: prefer RPC v2 (O(1) round-trip). TS pagination only if RPC missing.
+        // Custom metrics: paginate TS-side when configured (per-card filter/agg is dynamic).
         let sumCod = rpcTotals?.sumCod ?? 0;
         let sumFeePositive = rpcTotals?.sumFeePositive ?? 0;
         let countFeePositive = rpcTotals?.countFeePositive ?? 0;
@@ -578,17 +575,20 @@ export async function GET(req: Request) {
         const needFixedTotalsFallback = rpcTotals === null;
 
         const metricAcc = createMetricAccumulators(customDefs);
-        // Force loop to calculate total_shipping_fee since RPC doesn't have it for all rows
-        const needAggregationLoop = true; 
+        // Loop เฉพาะเมื่อ RPC ไม่มี หรือมี custom metrics (v2 RPC คืน sum_total_shipping_fee แล้ว)
+        const needAggregationLoop = needFixedTotalsFallback || customDefs.length > 0;
 
-        let sumTotalShippingFee = 0;
+        let sumTotalShippingFee = rpcTotals?.sumTotalShippingFee ?? 0;
 
         if (needAggregationLoop) {
             const baseAggCols = needFixedTotalsFallback
-                ? ['shipping_fee', 'cod_amount', 'latest_scan_type', 'total_shipping_fee']
+                ? ['shipping_fee', 'cod_amount', 'total_shipping_fee']
                 : ['total_shipping_fee'];
             const extraCols = unionColumnsForCustomMetrics(customDefs);
             const selectCols = [...new Set([...baseAggCols, ...extraCols])].join(',');
+
+            // reset เฉพาะเมื่อ fallback (RPC ไม่มี) ไม่ใช้ค่าจาก RPC ไปแล้ว
+            if (needFixedTotalsFallback) sumTotalShippingFee = 0;
 
             let offset = 0;
             let aggIterations = 0;
@@ -608,11 +608,9 @@ export async function GET(req: Request) {
                 const rows = data ?? [];
                 for (const row of rows) {
                     const r = row as unknown as Record<string, unknown>;
-                    
-                    // Always calculate sumTotalShippingFee
-                    sumTotalShippingFee += parseJtMoneyText(r.total_shipping_fee);
 
                     if (needFixedTotalsFallback) {
+                        sumTotalShippingFee += parseJtMoneyText(r.total_shipping_fee);
                         sumCod += parseJtMoneyText(r.cod_amount);
                         const fee = parseJtMoneyText(r.shipping_fee);
                         if (fee > 0) {
@@ -682,7 +680,9 @@ export async function GET(req: Request) {
                 : null;
 
         const elapsed = Math.round(performance.now() - t0);
-        const source = rpcTotals ? (customDefs.length > 0 ? 'rpc+paginate-custom' : 'rpc') : 'paginate';
+        const source = rpcTotals
+            ? customDefs.length > 0 ? 'rpc+paginate-custom' : 'rpc-v2'
+            : 'paginate';
         console.log(`[jt-shipments/dashboard] done in ${elapsed}ms — ${count} rows (${source})`);
 
         return NextResponse.json({

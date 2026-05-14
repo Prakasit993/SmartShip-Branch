@@ -383,7 +383,6 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     const isUser = message.role === 'user';
 
     return (
-    return (
         <div className={`flex min-w-0 gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
             {!isUser ? (
                 <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800/80 text-indigo-400 ring-1 ring-white/10">
