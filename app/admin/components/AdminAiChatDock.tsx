@@ -1,13 +1,22 @@
 'use client';
 
-import { Bot, Loader2, MessageCircle, Send, UserRound, X } from 'lucide-react';
+import { Bot, Loader2, MessageCircle, RotateCcw, Send, Trash2, UserRound, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 type ChatMessage = {
     role: 'user' | 'assistant';
     text: string;
+    ts?: number;
 };
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'admin-ai-chat-messages';
+const SESSION_KEY = 'admin-ai-chat-session';
+const MAX_HISTORY = 50;
 
 /** คีย์เวิร์ดเดียวใต้ช่องพิมพ์ — แสดง `keyword` ส่ง `prompt` ไปยัง AI */
 const KEYWORD_ACTIONS: { keyword: string; prompt: string }[] = [
@@ -31,6 +40,34 @@ const KEYWORD_ACTIONS: { keyword: string; prompt: string }[] = [
         prompt: 'ช่วยจัดลำดับเคสขนส่งที่ควรติดตามวันนี้ โดยดูจาก COD ค้าง พัสดุผิดปกติ และรายการที่กระทบรายได้',
     },
 ];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function getOrCreateSessionId(): string {
+    if (typeof window === 'undefined') return '';
+    let id = sessionStorage.getItem(SESSION_KEY);
+    if (!id) {
+        id = crypto.randomUUID();
+        sessionStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+}
+
+function loadMessages(): ChatMessage[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? (JSON.parse(raw) as ChatMessage[]).slice(-MAX_HISTORY) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveMessages(msgs: ChatMessage[]) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-MAX_HISTORY)));
+    } catch { /* quota exceeded — ignore */ }
+}
 
 function normalizeChatText(text: string): string {
     return text.replace(/\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -56,6 +93,8 @@ function contextForPath(pathname: string | null): Record<string, string> {
     return { page: slug, focus: 'general' };
 }
 
+// ── Component ────────────────────────────────────────────────────────────────
+
 export default function AdminAiChatDock() {
     const pathname = usePathname();
     const [panelOpen, setPanelOpen] = useState(false);
@@ -63,6 +102,25 @@ export default function AdminAiChatDock() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Load persisted messages on mount
+    useEffect(() => {
+        setMessages(loadMessages());
+    }, []);
+
+    // Auto-scroll to bottom when messages change
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, [messages, loading]);
+
+    const clearChat = useCallback(() => {
+        setMessages([]);
+        setError(null);
+        localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(SESSION_KEY);
+    }, []);
 
     const submitChat = useCallback(
         async (messageText?: string) => {
@@ -72,15 +130,22 @@ export default function AdminAiChatDock() {
             setLoading(true);
             setError(null);
             setInput('');
-            setMessages((prev) => [...prev, { role: 'user', text }]);
+
+            const userMsg: ChatMessage = { role: 'user', text, ts: Date.now() };
+            const updated = [...messages, userMsg];
+            setMessages(updated);
+            saveMessages(updated);
 
             try {
+                const sessionId = getOrCreateSessionId();
                 const res = await fetch('/api/admin/ai-chat', {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                     body: JSON.stringify({
                         message: text,
+                        sessionId,
+                        history: updated.slice(-20).map((m) => ({ role: m.role, text: m.text })),
                         context: {
                             ...contextForPath(pathname),
                             pathname: pathname ?? '',
@@ -97,14 +162,21 @@ export default function AdminAiChatDock() {
                 if (!res.ok) {
                     throw new Error(parsed.error || 'ส่งคำถามไม่สำเร็จ');
                 }
-                setMessages((prev) => [...prev, { role: 'assistant', text: parsed.answer ?? '-' }]);
+                const assistantMsg: ChatMessage = {
+                    role: 'assistant',
+                    text: parsed.answer ?? '-',
+                    ts: Date.now(),
+                };
+                const withReply = [...updated, assistantMsg];
+                setMessages(withReply);
+                saveMessages(withReply);
             } catch (e) {
                 setError(e instanceof Error ? e.message : 'ส่งคำถามไม่สำเร็จ');
             } finally {
                 setLoading(false);
             }
         },
-        [input, loading, pathname],
+        [input, loading, pathname, messages],
     );
 
     useEffect(() => {
@@ -127,6 +199,7 @@ export default function AdminAiChatDock() {
                     role="dialog"
                     aria-label="ผู้ช่วยวิเคราะห์ข้อมูล AI"
                 >
+                    {/* ── Header ─────────────────────────────────────────── */}
                     <header className="flex shrink-0 items-start justify-between gap-2 border-b border-slate-800/70 px-3 py-2.5 sm:px-3.5">
                         <div className="flex min-w-0 items-start gap-2">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800/90 text-slate-400 ring-1 ring-slate-700/80">
@@ -138,7 +211,7 @@ export default function AdminAiChatDock() {
                                         ผู้ช่วยวิเคราะห์ข้อมูล
                                     </h2>
                                     <span className="rounded border border-slate-700/90 bg-slate-800/80 px-1 py-px text-[9px] font-medium text-slate-500">
-                                        AI
+                                        n8n AI
                                     </span>
                                 </div>
                                 <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
@@ -146,41 +219,58 @@ export default function AdminAiChatDock() {
                                 </p>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setPanelOpen(false)}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-800 text-slate-500 transition hover:bg-slate-800/80 hover:text-slate-300"
-                            aria-label="ปิดแชท"
-                        >
-                            <X className="h-4 w-4" aria-hidden />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                            {messages.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={clearChat}
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 text-slate-500 transition hover:bg-rose-950/40 hover:text-rose-400"
+                                    aria-label="ล้างแชท"
+                                    title="ล้างประวัติแชท"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setPanelOpen(false)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 text-slate-500 transition hover:bg-slate-800/80 hover:text-slate-300"
+                                aria-label="ปิดแชท"
+                            >
+                                <X className="h-4 w-4" aria-hidden />
+                            </button>
+                        </div>
                     </header>
 
+                    {/* ── Messages ────────────────────────────────────────── */}
                     <div className="min-h-0 flex-1 overflow-hidden px-3 py-2 sm:px-3.5">
-                        <div className="scrollbar-hide flex max-h-[min(62vh,22rem)] min-h-[12rem] flex-col-reverse gap-2 overflow-y-auto overscroll-contain pr-0.5 sm:max-h-[min(68vh,26rem)] sm:min-h-[14rem] lg:max-h-[min(72vh,30rem)] lg:min-h-[16rem]">
-                            {loading ? (
-                                <div className="mr-6 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-2 text-xs leading-relaxed text-slate-400">
-                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-slate-500" aria-hidden />
-                                    กำลังวิเคราะห์…
-                                </div>
-                            ) : null}
-                            {messages.length === 0 ? (
+                        <div
+                            ref={scrollRef}
+                            className="scrollbar-hide flex max-h-[min(62vh,22rem)] min-h-[12rem] flex-col gap-2 overflow-y-auto overscroll-contain pr-0.5 sm:max-h-[min(68vh,26rem)] sm:min-h-[14rem] lg:max-h-[min(72vh,30rem)] lg:min-h-[16rem]"
+                        >
+                            {messages.length === 0 && !loading ? (
                                 <div className="flex min-h-[12rem] items-center justify-center rounded-lg border border-dashed border-slate-800/70 bg-slate-900/25 px-3 text-center sm:min-h-[14rem] lg:min-h-[16rem]">
                                     <p className="max-w-[16rem] text-xs leading-relaxed text-slate-500">
                                         เลือกคีย์เวิร์ดด้านล่าง หรือพิมพ์คำถาม
                                     </p>
                                 </div>
                             ) : (
-                                messages
-                                    .map((message, origIdx) => ({ message, origIdx }))
-                                    .reverse()
-                                    .map(({ message, origIdx }) => (
-                                        <ChatBubble key={origIdx} message={message} />
-                                    ))
+                                <>
+                                    {messages.map((message, idx) => (
+                                        <ChatBubble key={idx} message={message} />
+                                    ))}
+                                    {loading && (
+                                        <div className="mr-6 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-2 text-xs leading-relaxed text-slate-400">
+                                            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-slate-500" aria-hidden />
+                                            กำลังวิเคราะห์…
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
 
+                    {/* ── Input form ──────────────────────────────────────── */}
                     <form
                         className="shrink-0 border-t border-slate-800/70 p-3 sm:px-3.5 sm:pb-3 sm:pt-2.5"
                         onSubmit={(e) => {
@@ -245,12 +335,21 @@ export default function AdminAiChatDock() {
                                         ตั้งค่า N8N_AI_WEBHOOK_URL ใน env แล้วรีสตาร์ทเซิร์ฟเวอร์
                                     </p>
                                 ) : null}
+                                <button
+                                    type="button"
+                                    onClick={() => setError(null)}
+                                    className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-rose-300/70 transition hover:text-rose-200"
+                                >
+                                    <RotateCcw className="h-2.5 w-2.5" aria-hidden />
+                                    ปิดข้อผิดพลาด
+                                </button>
                             </div>
                         ) : null}
                     </form>
                 </section>
             ) : null}
 
+            {/* ── FAB toggle ─────────────────────────────────────────── */}
             <button
                 type="button"
                 onClick={() => setPanelOpen((o) => !o)}
@@ -263,6 +362,8 @@ export default function AdminAiChatDock() {
         </div>
     );
 }
+
+// ── Chat bubble ──────────────────────────────────────────────────────────────
 
 function ChatBubble({ message }: { message: ChatMessage }) {
     const isUser = message.role === 'user';
@@ -286,9 +387,11 @@ function ChatBubble({ message }: { message: ChatMessage }) {
                         isUser ? 'text-slate-500' : 'text-slate-600'
                     }`}
                 >
-                    {isUser ? 'คุณ' : 'ผู้ช่วย'}
+                    {isUser ? 'คุณ' : 'ผู้ช่วย AI'}
                 </p>
-                <p className="whitespace-pre-wrap break-words">{normalizeChatText(message.text)}</p>
+                <div className="whitespace-pre-wrap break-words">
+                    {isUser ? normalizeChatText(message.text) : <FormattedAiText text={message.text} />}
+                </div>
             </div>
             {isUser ? (
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800/80 text-slate-500">
@@ -296,5 +399,56 @@ function ChatBubble({ message }: { message: ChatMessage }) {
                 </div>
             ) : null}
         </div>
+    );
+}
+
+// ── Simple markdown-like renderer for AI responses ───────────────────────────
+
+function FormattedAiText({ text }: { text: string }) {
+    const normalized = normalizeChatText(text);
+    const lines = normalized.split('\n');
+
+    return (
+        <>
+            {lines.map((line, i) => {
+                // Bold: **text**
+                const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                const rendered = parts.map((part, j) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return (
+                            <strong key={j} className="font-semibold text-slate-100">
+                                {part.slice(2, -2)}
+                            </strong>
+                        );
+                    }
+                    return <span key={j}>{part}</span>;
+                });
+
+                // Bullet points
+                if (/^[\s]*[-•]\s/.test(line)) {
+                    return (
+                        <div key={i} className="flex gap-1 pl-1">
+                            <span className="shrink-0 text-slate-500">•</span>
+                            <span>{rendered}</span>
+                        </div>
+                    );
+                }
+                // Numbered lists
+                if (/^\s*\d+[.)]\s/.test(line)) {
+                    const match = line.match(/^(\s*\d+[.)]\s)/);
+                    return (
+                        <div key={i} className="flex gap-1 pl-1">
+                            <span className="shrink-0 text-slate-500">{match?.[1]?.trim()}</span>
+                            <span>{rendered.slice(1)}</span>
+                        </div>
+                    );
+                }
+                // Empty line
+                if (!line.trim()) {
+                    return <div key={i} className="h-1.5" />;
+                }
+                return <div key={i}>{rendered}</div>;
+            })}
+        </>
     );
 }
