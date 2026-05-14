@@ -2,7 +2,7 @@
 
 import { Bot, Loader2, MessageCircle, RotateCcw, Send, Trash2, UserRound, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -404,6 +404,21 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 
 // ── Simple markdown-like renderer for AI responses ───────────────────────────
 
+/** Inline **bold** segments — must not confuse with numbered-list layout. */
+function renderBoldSegments(line: string): ReactNode[] {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, j) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+                <strong key={j} className="font-semibold text-slate-100">
+                    {part.slice(2, -2)}
+                </strong>
+            );
+        }
+        return <span key={j}>{part}</span>;
+    });
+}
+
 function FormattedAiText({ text }: { text: string }) {
     const normalized = normalizeChatText(text);
     const lines = normalized.split('\n');
@@ -411,18 +426,7 @@ function FormattedAiText({ text }: { text: string }) {
     return (
         <>
             {lines.map((line, i) => {
-                // Bold: **text**
-                const parts = line.split(/(\*\*[^*]+\*\*)/g);
-                const rendered = parts.map((part, j) => {
-                    if (part.startsWith('**') && part.endsWith('**')) {
-                        return (
-                            <strong key={j} className="font-semibold text-slate-100">
-                                {part.slice(2, -2)}
-                            </strong>
-                        );
-                    }
-                    return <span key={j}>{part}</span>;
-                });
+                const rendered = renderBoldSegments(line);
 
                 // Bullet points
                 if (/^[\s]*[-•]\s/.test(line)) {
@@ -433,13 +437,14 @@ function FormattedAiText({ text }: { text: string }) {
                         </div>
                     );
                 }
-                // Numbered lists
-                if (/^\s*\d+[.)]\s/.test(line)) {
-                    const match = line.match(/^(\s*\d+[.)]\s)/);
+                // Numbered lists: strip "1. " then bold-parse the remainder (avoid dropping text vs. slice(1) on nodes).
+                const numMatch = line.match(/^(\s*\d+[.)]\s)/);
+                if (numMatch) {
+                    const rest = line.slice(numMatch[0].length);
                     return (
                         <div key={i} className="flex gap-1 pl-1">
-                            <span className="shrink-0 text-slate-500">{match?.[1]?.trim()}</span>
-                            <span>{rendered.slice(1)}</span>
+                            <span className="shrink-0 text-slate-500">{numMatch[1].trim()}</span>
+                            <span>{renderBoldSegments(rest)}</span>
                         </div>
                     );
                 }

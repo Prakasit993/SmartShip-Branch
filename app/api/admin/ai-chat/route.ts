@@ -25,28 +25,84 @@ interface AiChatRequestBody {
     context?: Record<string, unknown>;
 }
 
-// n8n may return the AI answer under various keys depending on the workflow.
-interface N8nResponseShape {
-    output?: string;
-    text?: string;
-    answer?: string;
-    reply?: string;
-    message?: string;
-    error?: string;
+/** Keys n8n / AI nodes commonly use for the assistant message body. */
+const ANSWER_KEYS = [
+    'output',
+    'text',
+    'answer',
+    'reply',
+    'message',
+    'content',
+    'response',
+] as const;
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+    return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function pickAnswerString(obj: Record<string, unknown>): string | null {
+    for (const key of ANSWER_KEYS) {
+        const v = obj[key];
+        if (typeof v === 'string' && v.trim()) return v;
+    }
+    return null;
+}
+
+/**
+ * Walk n8n webhook payloads (object, array, `{ json: {...} }`, nested wrappers)
+ * so we do not drop the model reply when the workflow shape differs slightly.
+ */
+function extractAnswerFromValue(value: unknown, depth = 0): string | null {
+    if (depth > 12) return null;
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string') {
+        const t = value.trim();
+        return t.length > 0 ? value : null;
+    }
+    if (typeof value !== 'object') return null;
+
+    if (Array.isArray(value)) {
+        const parts: string[] = [];
+        for (const item of value) {
+            const s = extractAnswerFromValue(item, depth + 1);
+            if (s) parts.push(s.trim());
+        }
+        return parts.length ? parts.join('\n') : null;
+    }
+
+    const obj = value as Record<string, unknown>;
+    const direct = pickAnswerString(obj);
+    if (direct) return direct;
+
+    if ('json' in obj) {
+        const nested = extractAnswerFromValue(obj.json, depth + 1);
+        if (nested) return nested;
+    }
+    for (const wrap of ['body', 'data', 'result', 'results'] as const) {
+        if (wrap in obj) {
+            const nested = extractAnswerFromValue(obj[wrap], depth + 1);
+            if (nested) return nested;
+        }
+    }
+
+    return null;
+}
+
+function getPayloadError(parsed: unknown): string | undefined {
+    if (!isRecord(parsed)) return undefined;
+    const e = parsed.error;
+    return typeof e === 'string' && e.trim() ? e : undefined;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Extract the AI answer from n8n's response — supports multiple field names
- * and gracefully falls back to the raw text body.
+ * Extract the AI answer from n8n's response — supports multiple field names,
+ * array roots, `json` envelopes, and falls back to the raw text body.
  */
-function extractAnswer(parsed: N8nResponseShape | null, rawBody: string): string {
-    if (parsed) {
-        const candidate =
-            parsed.output ?? parsed.text ?? parsed.answer ?? parsed.reply ?? parsed.message;
-        if (typeof candidate === 'string' && candidate.trim()) return candidate;
-    }
+function extractAnswer(parsed: unknown, rawBody: string): string {
+    const fromParsed = extractAnswerFromValue(parsed);
+    if (fromParsed) return fromParsed;
     if (rawBody.trim()) return rawBody;
     return 'ได้รับคำตอบแล้ว แต่ไม่มีข้อความแสดงผล';
 }
@@ -140,9 +196,9 @@ export async function POST(req: Request) {
         });
 
         const raw = await upstream.text();
-        let parsed: N8nResponseShape | null = null;
+        let parsed: unknown = null;
         try {
-            parsed = raw ? (JSON.parse(raw) as N8nResponseShape) : null;
+            parsed = raw ? JSON.parse(raw) : null;
         } catch {
             parsed = null;
         }
@@ -154,7 +210,11 @@ export async function POST(req: Request) {
                     ? ' ตรวจสอบ N8N_AI_WEBHOOK_URL ให้ตรงกับ Production URL ใน Webhook node (คัดลอกจาก n8n) และให้ workflow เปิดใช้งาน (Active) แล้ว'
                     : '';
             return NextResponse.json(
-                { error: parsed?.error || `n8n webhook failed: HTTP ${upstream.status}${hint404}` },
+                {
+                    error:
+                        getPayloadError(parsed) ||
+                        `n8n webhook failed: HTTP ${upstream.status}${hint404}`,
+                },
                 { status: 502 },
             );
         }
