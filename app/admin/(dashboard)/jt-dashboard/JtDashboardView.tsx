@@ -66,6 +66,8 @@ export type JtDashboardViewProps = {
     mockMode?: boolean;
     /** เวลาที่โหลดข้อมูลสำเร็จล่าสุด */
     lastRefreshed?: Date | null;
+    /** charts/topSenders ยังโหลดอยู่ (Phase B) — KPI cards แสดงแล้วแต่ charts ยังไม่มา */
+    chartsLoading?: boolean;
 };
 
 /** Compare current vs previous. `inverseGood = true` flips color (e.g. returnCount: ▼ = good). */
@@ -320,6 +322,7 @@ export function JtDashboardView({
     appliedRange,
     mockMode,
     lastRefreshed,
+    chartsLoading,
 }: JtDashboardViewProps) {
     const [showAllIssues, setShowAllIssues] = useState(false);
     const [showAllReturns, setShowAllReturns] = useState(false);
@@ -1278,7 +1281,7 @@ export function JtDashboardView({
                     <div className="min-w-0">
                         <JtDashboardDailyCharts
                             data={charts}
-                            loading={loading}
+                            loading={chartsLoading ?? loading}
                             error={chartError}
                             chartsAlignedWithSummaryCards={chartsAlignedWithSummaryCards}
                         />
@@ -1291,6 +1294,20 @@ export function JtDashboardView({
                                     <JtTopSendersCountPanel rows={topSendersCount} />
                                 ) : null}
                                 {topProducts.length > 0 ? <JtTopProductsPanel rows={topProducts} /> : null}
+                            </div>
+                        </div>
+                    ) : chartsLoading ? (
+                        <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">
+                            <div className="space-y-4">
+                                <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 animate-pulse">
+                                    <div className="h-4 w-32 rounded bg-white/10 mb-3" />
+                                    {[...Array(5)].map((_, i) => (
+                                        <div key={i} className="flex items-center justify-between py-1.5">
+                                            <div className="h-3 w-24 rounded bg-white/10" />
+                                            <div className="h-3 w-16 rounded bg-white/10" />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     ) : null}
