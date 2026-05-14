@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { parseJtChannelPriorityFromSettingValue } from '@/lib/jtChannelSettings';
 import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { applyRateLimit, RATE_LIMIT_DEFAULT, RATE_LIMIT_MUTATE, RATE_LIMIT_BULK } from '@/lib/rateLimit';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,9 @@ const MAX_SHIPPING_FEE = 1_000_000;
 
 export async function GET(req: Request) {
     try {
+        const rateLimited = applyRateLimit(req, 'jt-shipments:GET', RATE_LIMIT_DEFAULT);
+        if (rateLimited) return rateLimited;
+
         const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
@@ -126,6 +130,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
+        const rateLimited = applyRateLimit(req, 'jt-shipments:POST', RATE_LIMIT_MUTATE);
+        if (rateLimited) return rateLimited;
+
         const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
@@ -177,6 +184,9 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
     try {
+        const rateLimited = applyRateLimit(req, 'jt-shipments:PUT', RATE_LIMIT_MUTATE);
+        if (rateLimited) return rateLimited;
+
         const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
@@ -258,6 +268,14 @@ export async function DELETE(req: Request) {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
         const deleteAll = searchParams.get('delete_all') === 'true';
+
+        // Mass delete gets stricter rate limiting than single-item delete
+        const rateLimited = applyRateLimit(
+            req,
+            deleteAll ? 'jt-shipments:DELETE-ALL' : 'jt-shipments:DELETE',
+            deleteAll ? RATE_LIMIT_BULK : RATE_LIMIT_MUTATE,
+        );
+        if (rateLimited) return rateLimited;
         const dateFrom = searchParams.get('date_from');
         const dateTo = searchParams.get('date_to');
 

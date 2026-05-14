@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAdminApiAuth, verifyN8nJtSyncSecret } from '@/lib/adminApiAuth';
+import { applyRateLimit, RATE_LIMIT_BULK } from '@/lib/rateLimit';
 
 const MAX_N8N_BATCH = 2000;
 
@@ -19,6 +20,9 @@ const MAX_N8N_BATCH = 2000;
  */
 export async function POST(req: Request) {
     try {
+        const rateLimited = applyRateLimit(req, 'jt-shipments:n8n-sync', RATE_LIMIT_BULK);
+        if (rateLimited) return rateLimited;
+
         if (process.env.N8N_JT_SYNC_SECRET?.trim()) {
             if (!verifyN8nJtSyncSecret(req)) {
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
