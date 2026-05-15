@@ -91,6 +91,34 @@ export const AI_AGENT_TOOLS: readonly AiAgentToolDefinition[] = [
             'เลือกใช้ tool นี้แทน get_dashboard_kpi เมื่อต้องการเฉพาะตัวเลข COD — ลด payload ' +
             '~10x และคืนผลเร็วกว่า (RPC ตัวเดียว ไม่มี exception/return aggregation).',
     },
+    {
+        name: 'get_top_not_closed_cases',
+        description:
+            'รายการพัสดุที่ "ยังไม่ปิดงาน" ในช่วงวันที่ที่ระบุ — รวมทุกประเภท (COD pending, ' +
+            'พัสดุ non-COD ที่ยังไม่ส่งมอบ, exception, ตีกลับ ฯลฯ). คืน AWB + receiver + ' +
+            'shipping_fee + cod_amount + latest_scan_type + issue_status เพื่อให้ admin ' +
+            'ไล่ดูเคสได้ครบไม่ใช่แค่ COD pending list ของ get_dashboard_kpi. ' +
+            'ใช้เมื่อผู้ใช้ถาม "พัสดุชิ้นไหนยังไม่ปิดงาน" / "AWB ที่ค้าง" / "เลขพัสดุที่ยังไม่ส่งสำเร็จ".',
+        endpoint: { method: 'GET', path: '/api/admin/jt-shipments/top-not-closed' },
+        parameters: {
+            type: 'object',
+            properties: {
+                ...DATE_RANGE_PROPS,
+                limit: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 500,
+                    description: 'จำนวน case คืนสูงสุด (default 100, max 500)',
+                },
+            },
+            additionalProperties: false,
+        },
+        usageNotes:
+            'ขอบเขต "ยังไม่ปิดงาน" คือ signer_name IS NULL หรือเป็น empty/"NULL" — เหมือนกับ ' +
+            'ที่ jt_dashboard_fixed_totals.closed_count นับ (closed = inverse). ' +
+            'Response มี field `truncated` — ถ้า true แปลว่าอาจมี row เกิน limit ' +
+            'ให้ AI บอกผู้ใช้ว่า "แสดง 100 ตัวแรก จากทั้งหมดอาจมีมากกว่านี้".',
+    },
 ] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
