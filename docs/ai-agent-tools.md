@@ -96,6 +96,35 @@ GET /api/admin/jt-shipments/cod-summary?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
 
 **เมื่อไหร่ควรเรียก**: ผู้ใช้ถามแค่ COD — ไม่ต้องการ exception/return data
 
+### 3. `get_top_not_closed_cases`
+
+```
+GET /api/admin/jt-shipments/top-not-closed?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&limit=100
+```
+
+**Purpose**: Top N พัสดุที่ "ยังไม่ปิดงาน" — ครอบคลุมทุกประเภท (COD pending, non-COD ยัง
+ไม่ส่งสำเร็จ, exception, ตีกลับ) ต่างจาก `topCodPendingCases[]` ของ `get_dashboard_kpi`
+ที่ส่งคืนเฉพาะ COD pending
+
+นิยาม "ปิดงาน": `signer_name IS NOT NULL AND trim(signer_name) NOT IN ('', 'NULL')`
+
+**Response**:
+- `total` — จำนวนเคสที่ filter ได้จาก over-fetch
+- `limit` — limit ที่ใช้จริง
+- `truncated` — `true` ถ้ามีโอกาสมีเคสเพิ่มเติมเกิน limit
+- `cases[]` — array ของ NotClosedCase:
+  ```
+  awb_number, booking_date, receiver_name, receiver_phone,
+  shipping_fee, cod_amount, cod_status,
+  latest_scan_type, issue_status
+  ```
+
+**เมื่อไหร่ควรเรียก**: ผู้ใช้ขอ **รายการ AWB** ของพัสดุที่ยังไม่ปิดงาน เช่น
+"พัสดุชิ้นไหนยังไม่ส่งบ้าง" / "AWB ที่ค้างเดือนนี้"
+
+> ปกติ AI ไม่ควรเรียก tool นี้ถ้าผู้ใช้แค่ถาม "จำนวน" — ใช้ `count - closedCount`
+> จาก `get_dashboard_kpi` แทน (เบากว่า)
+
 ---
 
 ## ตั้งค่า n8n AI Agent node
@@ -141,6 +170,14 @@ Credential ถูก encrypt ใน n8n DB และไม่โผล่ใน 
 - URL: `https://box.mybabymeal.com/api/admin/jt-shipments/cod-summary`
 - Description: ใช้ของ `get_cod_summary` ใน `aiAgentTools.ts`
 
+**Tool 3: get_top_not_closed_cases** — เหมือนตัวที่ 1 แค่:
+- URL: `https://box.mybabymeal.com/api/admin/jt-shipments/top-not-closed`
+- Description: ใช้ของ `get_top_not_closed_cases` ใน `aiAgentTools.ts`
+- เพิ่ม **Add Parameter** ตัวที่ 3:
+  - Name: `limit`
+  - Value: `={{ $fromAI('limit', 'จำนวน case สูงสุด (default 100, max 500)', 'number') }}`
+  - หรือไม่ใส่ก็ได้ (จะใช้ default 100)
+
 ### ⚠️ Pitfall: "Using JSON" ไม่ bind AI args
 
 ถ้าเห็น banner ใน Tool node ว่า
@@ -174,33 +211,44 @@ Context จากหน้าที่ผู้ใช้กำลังดูอ
 
 ```
 คุณคือผู้ช่วยวิเคราะห์ข้อมูลของ SmartShip admin dashboard
-ตอบเป็นภาษาไทย กระชับ ไม่ต้องอธิบายขั้นตอนภายในการเรียกเครื่องมือ
+ตอบเป็นภาษาไทย กระชับ ใช้ตัวเลขจากเครื่องมือเท่านั้น
 
-ข้อมูลบริบทที่จะส่งมาในทุก request:
-- context.today: วันที่วันนี้ (YYYY-MM-DD, Asia/Bangkok) — ใช้นี้เป็นวันนี้เสมอ อย่าใช้นาฬิกาภายในของคุณ
-- context.page: หน้าที่ผู้ใช้กำลังดูอยู่
-- context.pathname: URL path
+บริบทในทุกคำถาม:
+- context.today: วันที่วันนี้ Asia/Bangkok (YYYY-MM-DD) — ใช้เป็น "วันนี้" เสมอ
+- context.page / context.pathname: หน้าที่ผู้ใช้ดูอยู่
 
-เครื่องมือที่ใช้ได้:
-1. get_dashboard_kpi — KPI ครบทุกตัว + Top cases + เทียบช่วงก่อนหน้า
-2. get_cod_summary  — เฉพาะตัวเลข COD (เร็วกว่ามาก)
+เครื่องมือที่ใช้ได้ (เลือกตัวที่ specific สุดก่อน):
 
-สำหรับการทักทาย / small talk (เช่น "สวัสดี", "หวัดดี", "hi"):
-ตอบสั้น 1 ประโยค + ถามว่าต้องการสรุปอะไร — อย่าแจกแจง option ก่อนผู้ใช้ขอ
+Predefined endpoints:
+- get_cod_summary: ตัวเลข COD ของช่วงวันที่ (sumCod, paidCount/Amount, pendingCount/Amount, paymentRate) — เร็วที่สุด ใช้เมื่อคำถามเฉพาะ COD
+- get_dashboard_kpi: KPI ครบ + Top cases + delta เทียบช่วงก่อน — ใช้เมื่อถามภาพรวม กำไร เทียบ จำนวนพัสดุ ค่าส่ง returnCount exceptionCount JMS
+- get_top_not_closed_cases: รายการ AWB ของพัสดุที่ยังไม่ปิดงาน (ทั่วไป ไม่จำกัด COD) — ใช้เมื่อผู้ใช้ขอ "เลข AWB ที่ค้าง" / "พัสดุชิ้นไหนยังไม่ส่ง"
 
-แนวทางการตีความคำขอ:
-- "วันนี้" → date_from = date_to = context.today
-- "เมื่อวาน" → date_from = date_to = (context.today - 1 day)
-- "เดือนนี้" → date_from = วันที่ 1 ของเดือน context.today, date_to = context.today
-- "เดือนที่แล้ว" → ทั้งเดือนก่อน
-- ถ้าผู้ใช้ไม่ระบุช่วง — ถามก่อน อย่าเรียก tool โดยไม่ใส่ date
+หลักการเลือก tool:
+1. เฉพาะ COD → get_cod_summary
+2. ภาพรวม / กำไร / เทียบช่วง / จำนวนรวม → get_dashboard_kpi
+3. ขอรายการ AWB ของพัสดุที่ยังไม่ปิดงาน → get_top_not_closed_cases
+4. ขอรายการ AWB ของประเภทอื่น (เฉพาะ sender X, ค่าส่ง > N, staff X) → Phase 1 ไม่รองรับ แจ้งผู้ใช้
 
-แนวทางเลือก tool:
-- ถามแค่เรื่อง COD → ใช้ get_cod_summary
-- ถามภาพรวม / "เป็นยังไงบ้าง" / ขอเทียบ → ใช้ get_dashboard_kpi
+การ resolve ช่วงเวลา (อ้างอิง context.today):
+- "วันนี้" = date_from = date_to = context.today
+- "เมื่อวาน" = วันก่อน context.today 1 วัน
+- "เดือนนี้" = วันที่ 1 ของเดือน context.today ถึง context.today
+- "เดือนที่แล้ว" = ทั้งเดือนก่อน
+- ถ้าไม่ระบุช่วงเลย — ถามผู้ใช้สั้น ๆ
 
-ตอบสรุปด้วยตัวเลขจริงที่ได้จาก tool เท่านั้น ห้ามคาดเดา
-ถ้าจะแนะนำ insight ให้ระบุชัดเจนว่าเป็นข้อเสนอแนะ
+หลักการตอบ:
+- ตอบเฉพาะตัวเลขที่ผู้ใช้ถาม ไม่ลิสต์ KPI อื่นเพิ่มเอง
+- ถ้าคำถามขอ "จำนวน" พัสดุยังไม่ปิดงาน → ใช้ count - closedCount จาก get_dashboard_kpi
+  (อย่าเรียก get_top_not_closed_cases ถ้าผู้ใช้ไม่ได้ขอ AWB)
+- รายงาน "กำไร" ระบุว่ารวมเฉพาะส่วน JMS ยังไม่หักต้นทุนอื่น
+- ถ้า response มี truncated=true → บอกผู้ใช้ว่า "แสดง N ตัวแรก อาจมีมากกว่านี้"
+- bullet list สั้น 5-8 จุด
+- ข้อเสนอแนะ ระบุชัดว่าเป็น "ข้อเสนอแนะ"
+
+การทักทาย / small talk: ตอบสั้น 1 ประโยค + ชวนถามเรื่องข้อมูล
+
+ห้ามตอบ "ขอตรวจสอบสักครู่" — เรียก tool และตอบในข้อความเดียว
 ```
 
 ---
@@ -239,18 +287,28 @@ Phase 1 endpoint รู้แค่คำตอบสุดท้ายของ
 
 #### ขั้นที่ 1: ดึง tool calls จาก AI Agent execution
 
-หลัง AI Agent node, เพิ่ม **Code (JavaScript)** node ชื่อ `Extract Tools Called`:
+หลัง AI Agent node, เพิ่ม **Code** node ชื่อ `Extract Tools Called`
+
+> **⚠️ ตั้ง Language เป็น `JavaScript`** (dropdown ตัวล่าง Mode) — บาง n8n install
+> default เป็น Python จะ error `Python runner unavailable: Python 3 is missing`
+> เพราะ host ไม่ได้ติดตั้ง Python interpreter
 
 ```javascript
 // n8n Code node — ดึง tool calls ของ run ปัจจุบันจาก AI Agent node
 // ใส่ก่อน "Respond to Webhook"
-const agentNode = $('AI Agent');
-const intermediates = agentNode.first().json.intermediateSteps ?? [];
+//
+// ใช้ $input.all() (ข้อมูลไหลเข้าผ่าน pipe) ไม่ใช่ $('AI Agent')
+// เพราะ reference แบบหลังบางเวอร์ชันของ n8n จะถูกตีความเป็น
+// forward reference → trigger re-execute AI Agent → OpenAI โดน
+// ยิงซ้ำ → timeout 300s
+const items = $input.all();
+const agentOutput = items[0]?.json ?? {};
+const intermediates = agentOutput.intermediateSteps ?? [];
 
 const toolsCalled = intermediates.map((step) => ({
   name: step.action?.tool ?? 'unknown',
   args: step.action?.toolInput ?? {},
-  status: step.observation?.startsWith('Error') ? 'error' : 'success',
+  status: step.observation?.startsWith?.('Error') ? 'error' : 'success',
   result_preview:
     typeof step.observation === 'string'
       ? step.observation.slice(0, 500)
@@ -259,7 +317,7 @@ const toolsCalled = intermediates.map((step) => ({
 
 return [{
   json: {
-    output: agentNode.first().json.output,
+    output: agentOutput.output ?? '',
     tools_called: toolsCalled,
   },
 }];
@@ -270,16 +328,20 @@ return [{
 
 #### ขั้นที่ 2: ปรับ Respond to Webhook ให้ส่ง tools_called กลับ
 
-Body ของ Respond to Webhook ต้อง include `tools_called`:
+Body ของ Respond to Webhook (Respond With: JSON):
 
 ```json
 {
-  "answer": "{{ $json.output }}",
-  "tools_called": {{ $json.tools_called }}
+  "answer": {{ JSON.stringify($json.output ?? '') }},
+  "tools_called": {{ JSON.stringify($json.tools_called ?? []) }}
 }
 ```
 
-หรือถ้าใช้ "All Incoming Items" mode → ตรวจว่ามี field `tools_called` ครบ
+ใช้ `JSON.stringify(...)` แทนการครอบด้วย `"..."` เพราะ:
+- n8n render expression ผ่าน `.toString()` ตามค่า default — array `[]` กลายเป็น
+  empty string → JSON ผิด syntax (`"tools_called": ` ไม่มี value)
+- `JSON.stringify` ใส่ quotes + escape ให้อัตโนมัติ ครอบคลุมทุก type
+- `?? ''` / `?? []` กัน null/undefined ตอน upstream ส่งฟิลด์ไม่ครบ
 
 #### Verify
 
