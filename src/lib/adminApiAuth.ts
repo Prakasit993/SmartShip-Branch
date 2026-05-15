@@ -14,11 +14,14 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  */
 export async function getAdminApiAccess(
     request?: Request
-): Promise<{ allowed: boolean; role: AdminApiRole | null }> {
+): Promise<{ allowed: boolean; role: AdminApiRole | null; email: string | null }> {
     const store = await cookies();
     const sessionVal = store.get('admin_session')?.value;
     if (request && (await isPasswordAdminSessionCookie(sessionVal, adminSessionContextFromRequest(request)))) {
-        return { allowed: true, role: 'admin' };
+        // Password-admin session has no associated email (single-tenant local login).
+        // Use a stable identifier so audit logs can group these turns separately
+        // from OAuth admins.
+        return { allowed: true, role: 'admin', email: 'password-admin' };
     }
 
     const supabase = createServerClient(
@@ -40,7 +43,7 @@ export async function getAdminApiAccess(
     } = await supabase.auth.getUser();
 
     if (error || !user?.email) {
-        return { allowed: false, role: null };
+        return { allowed: false, role: null, email: null };
     }
 
     const adminEmail = process.env.ADMIN_EMAIL?.trim();
@@ -50,13 +53,13 @@ export async function getAdminApiAccess(
         .filter(Boolean);
 
     if (adminEmail && user.email === adminEmail) {
-        return { allowed: true, role: 'admin' };
+        return { allowed: true, role: 'admin', email: user.email };
     }
     if (staffEmails.includes(user.email)) {
-        return { allowed: true, role: 'staff' };
+        return { allowed: true, role: 'staff', email: user.email };
     }
 
-    return { allowed: false, role: null };
+    return { allowed: false, role: null, email: null };
 }
 
 function configuredAllowedOrigins(): Set<string> {

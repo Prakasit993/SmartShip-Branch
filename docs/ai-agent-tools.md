@@ -126,32 +126,33 @@ Credential ถูก encrypt ใน n8n DB และไม่โผล่ใน 
 - Method: `GET`
 - URL: `https://box.mybabymeal.com/api/admin/jt-shipments/dashboard` (hard-code — URL ไม่ใช่ secret)
 - Authentication: **Generic Credential Type** → **Header Auth** → เลือก `SmartShip AI Tools Bearer`
-- Send Query Parameters: **on** → "Using JSON":
-  ```json
-  {
-    "type": "object",
-    "properties": {
-      "date_from": {
-        "type": "string",
-        "format": "date",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-        "description": "จุดเริ่มต้นช่วงวันที่ (YYYY-MM-DD, booking_date)"
-      },
-      "date_to": {
-        "type": "string",
-        "format": "date",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-        "description": "จุดสิ้นสุดช่วงวันที่ (YYYY-MM-DD, inclusive)"
-      }
-    },
-    "additionalProperties": false
-  }
-  ```
+- Send Query Parameters: **on** → **`Using Fields Below`** (สำคัญ! อย่าใช้ "Using JSON"
+  เพราะ mode นั้นแค่ describe schema ไม่ได้ bind ค่าจาก AI เข้า URL query — ผลคือ
+  tool ถูกเรียกโดยไม่มี date params → endpoint คืน aggregate ทั้งตาราง)
+  - Add Parameter:
+    - Name: `date_from`
+    - Value: `={{ $fromAI('date_from', 'YYYY-MM-DD วันที่เริ่มต้นช่วง booking_date', 'string') }}`
+  - Add Parameter:
+    - Name: `date_to`
+    - Value: `={{ $fromAI('date_to', 'YYYY-MM-DD วันที่สิ้นสุดช่วง inclusive', 'string') }}`
 - Send Headers: **off** (Credential ใส่ Authorization ให้แล้ว — ใส่ซ้ำจะชน)
 
 **Tool 2: get_cod_summary** — เหมือนตัวที่ 1 แค่:
 - URL: `https://box.mybabymeal.com/api/admin/jt-shipments/cod-summary`
 - Description: ใช้ของ `get_cod_summary` ใน `aiAgentTools.ts`
+
+### ⚠️ Pitfall: "Using JSON" ไม่ bind AI args
+
+ถ้าเห็น banner ใน Tool node ว่า
+> "No parameters are set up to be filled by AI. Click on the ✨ button next to
+> a parameter to allow AI to set its value."
+
+แปลว่า AI generate args ออกมาแล้ว (อยู่ใน tool_call payload) แต่ n8n ไม่เอาไปใส่ URL —
+ทำให้ HTTP request ออกไปแบบไม่มี query string → endpoint คืน aggregate ทั้งตาราง
+แทนที่จะเป็นช่วงวันที่ที่ระบุ → user เห็นตัวเลขใหญ่ผิดวัน
+
+วิธีแก้: เปลี่ยน "Specify Query Parameters" จาก `Using JSON` → `Using Fields Below`
+แล้วใส่ `$fromAI(...)` expression ในแต่ละ field
 
 ### User Prompt template (Prompt source = "Define below")
 
@@ -218,6 +219,77 @@ curl -H "Authorization: Bearer test-secret-please-rotate" \
 ```
 
 ถ้า secret ไม่ตรงหรือไม่ตั้ง → fallback ไปขอ admin/staff session (401 ถ้าไม่ login)
+
+---
+
+---
+
+## Conversation logging (F2 — เพิ่มหลัง Phase 1)
+
+แต่ละ turn ของแชท (user msg + AI reply) ถูกเก็บลงตาราง
+`admin_ai_chat_logs` (Supabase) — migration:
+[database/db/migrations/20260515_admin_ai_chat_logs.sql](database/db/migrations/20260515_admin_ai_chat_logs.sql)
+
+Admin UI: `/admin/ai-chat-logs` (admin-only)
+
+### Capturing tool calls จาก n8n
+
+Phase 1 endpoint รู้แค่คำตอบสุดท้ายของ AI — ไม่รู้ว่า AI Agent เรียก tool ไหน
+ด้วย args อะไร. ถ้าอยากเก็บข้อมูลนี้ลง log ให้แก้ n8n workflow:
+
+#### ขั้นที่ 1: ดึง tool calls จาก AI Agent execution
+
+หลัง AI Agent node, เพิ่ม **Code (JavaScript)** node ชื่อ `Extract Tools Called`:
+
+```javascript
+// n8n Code node — ดึง tool calls ของ run ปัจจุบันจาก AI Agent node
+// ใส่ก่อน "Respond to Webhook"
+const agentNode = $('AI Agent');
+const intermediates = agentNode.first().json.intermediateSteps ?? [];
+
+const toolsCalled = intermediates.map((step) => ({
+  name: step.action?.tool ?? 'unknown',
+  args: step.action?.toolInput ?? {},
+  status: step.observation?.startsWith('Error') ? 'error' : 'success',
+  result_preview:
+    typeof step.observation === 'string'
+      ? step.observation.slice(0, 500)
+      : JSON.stringify(step.observation).slice(0, 500),
+}));
+
+return [{
+  json: {
+    output: agentNode.first().json.output,
+    tools_called: toolsCalled,
+  },
+}];
+```
+
+(field name `intermediateSteps` ขึ้นกับเวอร์ชัน n8n LangChain integration —
+ถ้าเวอร์ชันไม่ตรงให้ inspect AI Agent output แล้วปรับ path)
+
+#### ขั้นที่ 2: ปรับ Respond to Webhook ให้ส่ง tools_called กลับ
+
+Body ของ Respond to Webhook ต้อง include `tools_called`:
+
+```json
+{
+  "answer": "{{ $json.output }}",
+  "tools_called": {{ $json.tools_called }}
+}
+```
+
+หรือถ้าใช้ "All Incoming Items" mode → ตรวจว่ามี field `tools_called` ครบ
+
+#### Verify
+
+หลัง deploy:
+1. ส่งข้อความที่ trigger tool — เช่น "COD วันนี้"
+2. ดูใน `/admin/ai-chat-logs` — แถวล่าสุดต้องมี chip "1 tool" ขึ้น
+3. คลิก expand → ดู args ที่ AI ใส่ (เช่น `{ "date_from": "2026-05-15", "date_to": "2026-05-15" }`)
+
+ถ้า `tools_called: null` หลังแก้ workflow แล้ว → n8n เวอร์ชันใส่ intermediate
+steps ใน path อื่น ลอง `$json.steps` หรือ `$json.run` แทน
 
 ---
 
