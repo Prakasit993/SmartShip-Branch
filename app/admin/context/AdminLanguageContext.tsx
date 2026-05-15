@@ -23,6 +23,7 @@ const adminTranslations = {
         'nav.coupons': 'คูปอง',
         'nav.bulkDiscounts': 'ส่วนลดซื้อเยอะ',
         'nav.system': 'ระบบ',
+        'nav.aiChatLogs': 'บันทึก AI Chat',
         'nav.settings': 'ตั้งค่า',
         'nav.signOut': 'ออกจากระบบ',
 
@@ -136,6 +137,7 @@ const adminTranslations = {
         'nav.coupons': 'Coupons',
         'nav.bulkDiscounts': 'Bulk Discounts',
         'nav.system': 'System',
+        'nav.aiChatLogs': 'AI Chat Logs',
         'nav.settings': 'Settings',
         'nav.signOut': 'Sign Out',
 
