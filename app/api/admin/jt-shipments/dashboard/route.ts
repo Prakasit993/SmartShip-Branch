@@ -9,7 +9,7 @@ import {
 import { JT_CUSTOM_METRIC_SETTINGS_KEY, parseJtCustomMetricCardsFromSettingsValue } from '@/lib/jtCustomMetricCards';
 import { parseJtMoneyText } from '@/lib/jtMoneyText';
 import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
-import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { requireAiToolAuth } from '@/lib/adminApiAuth';
 import { JT_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/jtReturnAcknowledgements';
 import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
 
@@ -463,7 +463,7 @@ export async function GET(req: Request) {
         const rateLimited = applyRateLimit(req, 'jt-shipments:dashboard', RATE_LIMIT_DEFAULT);
         if (rateLimited) return rateLimited;
 
-        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        const denied = await requireAiToolAuth(req);
         if (denied) return denied;
 
         const { searchParams } = new URL(req.url);

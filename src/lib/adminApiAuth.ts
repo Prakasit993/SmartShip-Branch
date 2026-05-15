@@ -161,3 +161,35 @@ export function verifyN8nJtSyncSecret(req: Request): boolean {
     const header = req.headers.get('x-n8n-jt-sync-secret')?.trim() ?? '';
     return bearer === syncSecret || header === syncSecret;
 }
+
+/**
+ * Shared secret for the n8n AI Agent → read-only dashboard / COD tools.
+ * Separate from N8N_JT_SYNC_SECRET so the AI tool credential cannot be reused
+ * to write to /api/admin/jt-shipments/n8n-sync.
+ *
+ * Accepted on tools enumerated in src/lib/aiAgentTools.ts. Send via:
+ *   Authorization: Bearer <secret>
+ *   X-N8N-AI-Tools-Secret: <secret>
+ */
+export function verifyN8nAiToolsSecret(req: Request): boolean {
+    const secret = process.env.N8N_AI_TOOLS_SECRET?.trim();
+    if (!secret) return false;
+    const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ?? '';
+    const header = req.headers.get('x-n8n-ai-tools-secret')?.trim() ?? '';
+    return bearer === secret || header === secret;
+}
+
+/**
+ * Auth gate for AI tool endpoints. Allows EITHER:
+ *  1. The admin/staff session (so a logged-in admin can curl the endpoint), OR
+ *  2. The n8n AI Agent bearer (N8N_AI_TOOLS_SECRET) — only when the env var is set.
+ *
+ * Returns a NextResponse to short-circuit the handler if neither path is satisfied.
+ * Designed for GET handlers; mutating verbs should keep using requireAdminApiAuth.
+ */
+export async function requireAiToolAuth(request: Request): Promise<NextResponse | null> {
+    if (process.env.N8N_AI_TOOLS_SECRET?.trim() && verifyN8nAiToolsSecret(request)) {
+        return null;
+    }
+    return requireAdminApiAuth('admin-or-staff', request);
+}

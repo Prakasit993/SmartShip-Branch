@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { requireAiToolAuth } from '@/lib/adminApiAuth';
 import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
 
 /**
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
         const rateLimited = applyRateLimit(req, 'jt-shipments:cod-summary', RATE_LIMIT_DEFAULT);
         if (rateLimited) return rateLimited;
 
-        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        const denied = await requireAiToolAuth(req);
         if (denied) return denied;
 
         const { searchParams } = new URL(req.url);

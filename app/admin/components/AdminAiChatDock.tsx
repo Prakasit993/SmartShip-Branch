@@ -73,6 +73,22 @@ function normalizeChatText(text: string): string {
     return text.replace(/\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/**
+ * Today's date in Asia/Bangkok timezone as YYYY-MM-DD. Sent in the chat context so
+ * the n8n agent resolves relative phrases ("วันนี้", "เมื่อวาน", "เดือนนี้") to
+ * concrete `date_from` / `date_to` args when calling `get_dashboard_kpi` /
+ * `get_cod_summary` — without this, the agent guesses based on its own clock.
+ */
+function todayInBangkok(): string {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    return fmt.format(new Date());
+}
+
 function contextForPath(pathname: string | null): Record<string, string> {
     if (!pathname || pathname === '/admin') {
         return { page: 'admin-dashboard', focus: 'overview' };
@@ -149,6 +165,8 @@ export default function AdminAiChatDock() {
                         context: {
                             ...contextForPath(pathname),
                             pathname: pathname ?? '',
+                            today: todayInBangkok(),
+                            timezone: 'Asia/Bangkok',
                         },
                     }),
                 });
