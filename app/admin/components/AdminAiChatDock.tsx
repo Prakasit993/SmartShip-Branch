@@ -1,8 +1,9 @@
 'use client';
 
-import { Bot, Loader2, MessageCircle, RotateCcw, Send, Trash2, UserRound, X } from 'lucide-react';
+import { Bot, Loader2, MessageCircle, RotateCcw, Send, Settings2, Trash2, UserRound, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import AdminShortcutsManager, { type Shortcut } from './AdminShortcutsManager';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,27 +19,12 @@ const STORAGE_KEY = 'admin-ai-chat-messages';
 const SESSION_KEY = 'admin-ai-chat-session';
 const MAX_HISTORY = 50;
 
-/** คีย์เวิร์ดเดียวใต้ช่องพิมพ์ — แสดง `keyword` ส่ง `prompt` ไปยัง AI */
 /**
  * Wording rule: chip prompts must be **direct data requests**, not meta/advice questions.
  * "ดู..."/"สรุป..."/"แสดง..." trigger tool calls; "ควร...อะไรบ้าง"/"แนะนำแนวทาง..."
  * lead the agent into theoretical answers without pulling real data.
+ * Chips are now stored in DB and managed via F1 → AdminShortcutsManager.
  */
-const KEYWORD_ACTIONS: { keyword: string; prompt: string }[] = [
-    { keyword: 'COD วันนี้', prompt: 'สรุปยอด COD วันนี้ พร้อมเคสที่ยังค้างชำระ' },
-    { keyword: 'ภาพรวมวันนี้', prompt: 'สรุปภาพรวม KPI วันนี้' },
-    { keyword: 'กำไรขนส่งเดือนนี้', prompt: 'สรุปกำไรค่าขนส่งเดือนนี้ (ยอดค่าขนส่งรวม, ต้นทุน, กำไรสุทธิ) เทียบกับเดือนที่แล้ว' },
-    { keyword: 'COD เดือนนี้', prompt: 'สรุปยอด COD เดือนนี้ พร้อมอัตราการชำระ' },
-    { keyword: 'เทียบเดือนที่แล้ว', prompt: 'สรุปภาพรวมเดือนนี้เทียบเดือนที่แล้ว — ยอดพัสดุ, COD, ค่าส่ง, อัตราตีกลับ' },
-    {
-        keyword: 'COD ค้างเกิน 24 ชม.',
-        prompt: 'แสดงเคส COD ที่ส่งสำเร็จแต่ยังไม่ได้ชำระเกิน 24 ชั่วโมงในเดือนนี้',
-    },
-    {
-        keyword: 'เคสเร่งด่วนวันนี้',
-        prompt: 'แสดง Top เคสเร่งด่วนวันนี้ — COD ค้าง, พัสดุตีกลับ, ปัญหาที่พบบ่อย',
-    },
-];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -117,12 +103,32 @@ export default function AdminAiChatDock() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
+    const [managerOpen, setManagerOpen] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Load persisted messages on mount
     useEffect(() => {
         setMessages(loadMessages());
     }, []);
+
+    // Load active chips from DB
+    const loadShortcuts = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/ai-chat-shortcuts?active_only=true', {
+                credentials: 'same-origin',
+            });
+            if (!res.ok) return;
+            const json = (await res.json()) as { shortcuts?: Shortcut[] };
+            setShortcuts(json.shortcuts ?? []);
+        } catch {
+            // Silently fall back to empty — don't break the chat UI
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadShortcuts();
+    }, [loadShortcuts]);
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
@@ -205,15 +211,27 @@ export default function AdminAiChatDock() {
     );
 
     useEffect(() => {
-        if (!panelOpen) return;
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setPanelOpen(false);
+            if (e.key === 'F1') {
+                e.preventDefault();
+                setManagerOpen((o) => !o);
+            }
+            if (e.key === 'Escape' && panelOpen && !managerOpen) {
+                setPanelOpen(false);
+            }
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [panelOpen]);
+    }, [panelOpen, managerOpen]);
 
     return (
+        <>
+        {managerOpen && (
+            <AdminShortcutsManager
+                onClose={() => setManagerOpen(false)}
+                onShortcutsChanged={() => void loadShortcuts()}
+            />
+        )}
         <div
             className="pointer-events-none fixed bottom-0 right-0 z-[90] flex max-w-[100vw] flex-col items-end gap-2.5 p-3 sm:p-4"
             style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
@@ -341,21 +359,34 @@ export default function AdminAiChatDock() {
                             </button>
                         </div>
                         <p className="mt-2 text-center text-[10px] tracking-wide text-slate-500">Enter เพื่อส่ง · Shift+Enter เพื่อขึ้นบรรทัดใหม่</p>
-                        <div className="mt-3">
-                            <div className="flex flex-wrap gap-2">
-                                {KEYWORD_ACTIONS.map((action) => (
-                                    <button
-                                        key={action.keyword}
-                                        type="button"
-                                        disabled={loading}
-                                        title={action.prompt}
-                                        onClick={() => void submitChat(action.prompt)}
-                                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium tracking-wide text-slate-300 transition-all hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {action.keyword}
-                                    </button>
-                                ))}
+                        {shortcuts.length > 0 && (
+                            <div className="mt-3">
+                                <div className="flex flex-wrap gap-2">
+                                    {shortcuts.map((s) => (
+                                        <button
+                                            key={s.id}
+                                            type="button"
+                                            disabled={loading}
+                                            title={s.prompt}
+                                            onClick={() => void submitChat(s.prompt)}
+                                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium tracking-wide text-slate-300 transition-all hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {s.keyword}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
+                        )}
+                        <div className="mt-2 flex items-center justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setManagerOpen(true)}
+                                className="flex items-center gap-1 text-[10px] text-slate-600 transition-colors hover:text-slate-400"
+                                title="จัดการ shortcuts (F1)"
+                            >
+                                <Settings2 className="h-3 w-3" aria-hidden />
+                                F1 จัดการ
+                            </button>
                         </div>
                         {error ? (
                             <div className="mt-2 rounded-lg border border-rose-900/40 bg-rose-950/30 px-2.5 py-2">
@@ -391,6 +422,7 @@ export default function AdminAiChatDock() {
                 {panelOpen ? <X className="relative z-10 h-6 w-6" aria-hidden /> : <MessageCircle className="relative z-10 h-6 w-6" aria-hidden />}
             </button>
         </div>
+        </>
     );
 }
 
