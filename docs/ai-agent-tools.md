@@ -434,13 +434,22 @@ Add HTTP Request Tool #4 in AI Agent:
 - **Method**: `POST`
 - **URL**: `https://box.mybabymeal.com/api/admin/ai-tools/sql`
 - **Authentication**: Generic Credential Type → Header Auth → `SmartShip AI Tools Bearer`
-- **Send Body**: on, **Body Content Type**: JSON, **Specify Body**: Using JSON
-  ```json
-  {
-    "sql": "={{ $fromAI('sql', 'SELECT query — see tool description for schema + rules', 'string') }}"
-  }
-  ```
+- **Send Body**: on, **Body Content Type**: JSON
+- **Specify Body**: **`Using Fields Below`** (สำคัญ! อย่าใช้ "Using JSON")
+  - เพิ่ม Body Parameter:
+    - Name: `sql`
+    - Value: `={{ $fromAI('sql', 'SELECT query — see tool description for schema + rules', 'string') }}`
 - **Send Headers**: off (credential ใส่ Authorization ให้แล้ว)
+
+> **⚠️ Pitfall**: "Using JSON" mode ทำให้ AI ส่ง SQL ที่มี newlines (formatted query)
+> → n8n substitute ตรง ๆ → unescaped newlines ใน JSON string literal → invalid JSON
+> error "Bad control character in string literal in JSON at position N".
+> ใช้ "Using Fields Below" ให้ n8n escape ค่า field อัตโนมัติ
+>
+> ทางเลือก: ถ้ายืนยันใช้ "Using JSON" ต้องครอบด้วย `JSON.stringify(...)` ไม่มี outer quotes:
+> ```
+> { "sql": {{ JSON.stringify($fromAI('sql', '...', 'string')) }} }
+> ```
 
 ### System prompt update
 
