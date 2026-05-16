@@ -336,12 +336,20 @@ export async function POST(req: Request) {
         // ── Success ─────────────────────────────────────────────────
         const answer = extractAnswer(parsed, raw).trim();
         const toolsCalled = extractToolsCalled(parsed);
-        const finalAnswer =
-            answer.length > 0
-                ? answer
-                : 'ได้รับคำตอบแล้ว แต่ไม่มีข้อความแสดงผล (ตรวจสอบว่า n8n ส่งฟิลด์ข้อความใน JSON)';
+        const isFallback = answer.length === 0;
+        const finalAnswer = isFallback
+            ? 'ได้รับคำตอบแล้ว แต่ไม่มีข้อความแสดงผล (ตรวจสอบว่า n8n ส่งฟิลด์ข้อความใน JSON)'
+            : answer;
 
-        finishLog({ answer: finalAnswer, toolsCalled, error: null });
+        // Even though n8n returned 2xx, an empty answer is a soft failure —
+        // record it in `error` so admins can filter "errors only" in the log
+        // viewer to find these cases. Include a snippet of the raw response
+        // for debugging (truncated to keep the column small).
+        const softError = isFallback
+            ? `n8n returned 2xx but no parseable answer. Raw response (first 500 chars): ${raw.slice(0, 500)}`
+            : null;
+
+        finishLog({ answer: finalAnswer, toolsCalled, error: softError });
 
         return NextResponse.json({ answer: finalAnswer, sessionId });
     } catch (e) {
