@@ -294,26 +294,54 @@ Phase 1 endpoint รู้แค่คำตอบสุดท้ายของ
 > เพราะ host ไม่ได้ติดตั้ง Python interpreter
 
 ```javascript
-// n8n Code node — ดึง tool calls ของ run ปัจจุบันจาก AI Agent node
-// ใส่ก่อน "Respond to Webhook"
+// n8n Code node — capture tool calls from AI Agent execution
+// Comprehensive: intermediateSteps (executed) + invalid_tool_calls (attempted
+// but malformed) — surfaces "AI tried to call X but format was wrong" so
+// admin มองเห็นใน /admin/ai-chat-logs ได้
 //
 // ใช้ $input.all() (ข้อมูลไหลเข้าผ่าน pipe) ไม่ใช่ $('AI Agent')
 // เพราะ reference แบบหลังบางเวอร์ชันของ n8n จะถูกตีความเป็น
 // forward reference → trigger re-execute AI Agent → OpenAI โดน
 // ยิงซ้ำ → timeout 300s
+
 const items = $input.all();
 const agentOutput = items[0]?.json ?? {};
-const intermediates = agentOutput.intermediateSteps ?? [];
 
-const toolsCalled = intermediates.map((step) => ({
-  name: step.action?.tool ?? 'unknown',
-  args: step.action?.toolInput ?? {},
-  status: step.observation?.startsWith?.('Error') ? 'error' : 'success',
-  result_preview:
-    typeof step.observation === 'string'
-      ? step.observation.slice(0, 500)
-      : JSON.stringify(step.observation).slice(0, 500),
-}));
+const toolsCalled = [];
+
+// Primary: intermediateSteps — tool calls ที่ execute สำเร็จ
+const intermediates = agentOutput.intermediateSteps ?? [];
+for (const step of intermediates) {
+  toolsCalled.push({
+    name: step.action?.tool ?? 'unknown',
+    args: step.action?.toolInput ?? {},
+    status: typeof step.observation === 'string' && step.observation.startsWith?.('Error')
+      ? 'error'
+      : 'success',
+    result_preview:
+      typeof step.observation === 'string'
+        ? step.observation.slice(0, 500)
+        : JSON.stringify(step.observation).slice(0, 500),
+  });
+}
+
+// Secondary: invalid_tool_calls — AI พยายามเรียก tool แต่ format ผิด
+// (LangChain reject ก่อน dispatch → ไม่อยู่ใน intermediateSteps).
+// เก็บไว้ใน log เพื่อ admin debug ว่า AI พยายาม call อะไรแล้วล้มเหลว
+for (const step of intermediates) {
+  const messageLog = step.messageLog ?? [];
+  for (const msg of messageLog) {
+    const invalidCalls = msg.lc_kwargs?.invalid_tool_calls ?? [];
+    for (const ic of invalidCalls) {
+      toolsCalled.push({
+        name: ic.name ?? 'unknown',
+        args: typeof ic.args === 'string' ? { _raw: ic.args.slice(0, 200) } : (ic.args ?? {}),
+        status: 'invalid',
+        result_preview: ic.error?.slice?.(0, 500) ?? 'invalid tool call (malformed JSON?)',
+      });
+    }
+  }
+}
 
 return [{
   json: {
@@ -323,8 +351,9 @@ return [{
 }];
 ```
 
-(field name `intermediateSteps` ขึ้นกับเวอร์ชัน n8n LangChain integration —
-ถ้าเวอร์ชันไม่ตรงให้ inspect AI Agent output แล้วปรับ path)
+(field path `intermediateSteps[].messageLog[].lc_kwargs` มาจาก LangChain
+integration ของ n8n — ดู AI Agent output schema ของเวอร์ชันที่ใช้ ถ้าไม่ตรง
+ปรับ path. AI Agent v3.1+ ต้องเปิด "Return Intermediate Steps" option ด้วย)
 
 #### ขั้นที่ 2: ปรับ Respond to Webhook ให้ส่ง tools_called กลับ
 
