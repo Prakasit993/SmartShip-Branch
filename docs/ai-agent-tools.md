@@ -355,16 +355,124 @@ steps ใน path อื่น ลอง `$json.steps` หรือ `$json.run` 
 
 ---
 
-## Phase 2 — Read-only SQL tool (ยังไม่ทำ)
+## Phase 2 — Read-only SQL tool
 
-แผน:
-- `POST /api/admin/ai-tools/sql` รับ `{ sql: "SELECT ..." }`
-- Validator (server-side):
-  - parse → SELECT only (block INSERT/UPDATE/DELETE/DDL/transaction control)
-  - block dangerous functions (`pg_*`, `dblink_*`, file I/O)
-  - whitelist tables: `jt_shipments`, `shipping_cost_master`, view `*_dashboard`
-  - timeout 5s, max rows 1000
-- ใช้ Supabase service_role connection แยกที่ตั้ง role read-only ที่ DB layer
-- Same `N8N_AI_TOOLS_SECRET` auth
+ให้ AI Agent generate `SELECT` query เองสำหรับคำถาม ad-hoc ที่ Phase 1 tools
+ไม่ครอบคลุม (เช่น filter เจาะ sender / staff / branch / range ค่าส่ง /
+custom aggregation / join ต้นทุน)
 
-ไม่ใช้ก่อนกว่า Phase 1 จะ stable + จัด observability/audit log เรียบร้อย
+### Security layers
+
+1. **Next.js validator** ([src/lib/sqlValidator.ts](src/lib/sqlValidator.ts))
+   - parse ผ่าน `node-sql-parser` (Postgres dialect)
+   - reject ถ้าไม่ใช่ SELECT, มี multiple statements, table นอก whitelist,
+     blocked function (pg_read_file, dblink, pg_sleep, etc.)
+   - auto inject `LIMIT 1000` ถ้า AI ไม่ระบุ
+   - max input 8000 chars
+
+2. **Postgres role + function** ([migration 20260515_ai_readonly_sql_tool.sql](database/db/migrations/20260515_ai_readonly_sql_tool.sql))
+   - `smartship_ai_readonly` role: SELECT only on jt_shipments,
+     shipping_cost_master (REVOKE INSERT/UPDATE/DELETE/TRUNCATE)
+   - `run_ai_readonly_select(p_sql text)` SECURITY DEFINER function:
+     - `SET LOCAL ROLE smartship_ai_readonly`
+     - `SET LOCAL transaction_read_only = on`
+     - `SET LOCAL statement_timeout = '5s'`
+     - wraps user SQL in `SELECT json_agg(...) FROM (USER_SQL) t`
+   - EXECUTE granted only to `service_role`; PUBLIC/anon/authenticated revoked
+
+3. **HTTP layer** ([app/api/admin/ai-tools/sql/route.ts](app/api/admin/ai-tools/sql/route.ts))
+   - Bearer auth (`requireAiToolAuth` — same as Phase 1 tools)
+   - Rate limit: 10/min (stricter than dashboard endpoints)
+   - Maps Postgres error 57014 → HTTP 504; 42501 → HTTP 403
+
+### Setup checklist (deploy order)
+
+1. **Run migration in Supabase SQL Editor**:
+   ```
+   database/db/migrations/20260515_ai_readonly_sql_tool.sql
+   ```
+   - Creates `smartship_ai_readonly` role with SELECT-only grants
+   - Creates `run_ai_readonly_select(text)` RPC function
+   - REVOKE PUBLIC; GRANT EXECUTE to service_role only
+
+2. **Verify role exists**:
+   ```sql
+   SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname = 'smartship_ai_readonly';
+   -- Expected: smartship_ai_readonly | f (NOLOGIN)
+   ```
+
+3. **Verify function exists + perms**:
+   ```sql
+   SELECT proname, prosecdef FROM pg_proc WHERE proname = 'run_ai_readonly_select';
+   -- Expected: run_ai_readonly_select | t (SECURITY DEFINER)
+   ```
+
+4. **Smoke test via curl** (after Vercel deploys the new code):
+   ```bash
+   curl -X POST -H "Authorization: Bearer $secret" \
+     -H "Content-Type: application/json" \
+     -d '{"sql":"SELECT count(*) AS n FROM jt_shipments WHERE booking_date >= '\''2026-05-01'\''"}' \
+     https://box.mybabymeal.com/api/admin/ai-tools/sql
+   ```
+   Expected: `{ "rows": [{ "n": ... }], "rowCount": 1, "truncated": false, "executedSql": "...LIMIT 1000", ... }`
+
+5. **Test rejection** (should return 400):
+   ```bash
+   curl -X POST -H "Authorization: Bearer $secret" \
+     -H "Content-Type: application/json" \
+     -d '{"sql":"DROP TABLE jt_shipments"}' \
+     https://box.mybabymeal.com/api/admin/ai-tools/sql
+   ```
+   Expected: `{ "error": "only SELECT is allowed (got: DROP)" }`
+
+### n8n setup
+
+Add HTTP Request Tool #4 in AI Agent:
+- **Name**: `query_sql`
+- **Description**: paste จาก `aiAgentTools.ts` ของ `query_sql` (มี inline schema เต็ม
+  เพื่อให้ AI รู้ column types โดยไม่ต้องเรียก get_schema)
+- **Method**: `POST`
+- **URL**: `https://box.mybabymeal.com/api/admin/ai-tools/sql`
+- **Authentication**: Generic Credential Type → Header Auth → `SmartShip AI Tools Bearer`
+- **Send Body**: on, **Body Content Type**: JSON, **Specify Body**: Using JSON
+  ```json
+  {
+    "sql": "={{ $fromAI('sql', 'SELECT query — see tool description for schema + rules', 'string') }}"
+  }
+  ```
+- **Send Headers**: off (credential ใส่ Authorization ให้แล้ว)
+
+### System prompt update
+
+เพิ่ม `query_sql` ใน "เครื่องมือที่ใช้ได้" และ "หลักการเลือก tool" — ดู template
+ใน "System Prompt ที่แนะนำ" ด้านบน (ปรับให้รวม query_sql ด้วย):
+
+```
+4. ต้องการ slice/filter ที่ predefined tools ไม่ครอบคลุม → query_sql
+   ก่อนเรียก query_sql เสมอ:
+   - ลองดูว่า predefined tools ตอบได้ไหม → ใช้ตัวนั้นก่อน (เร็ว+ปลอดภัย+ถูก audit)
+   - ระบุ booking_date range ใน WHERE เสมอเพื่อ performance
+   - shipping_fee, cod_amount เป็น text — cast ::numeric ก่อนคำนวณ
+   - LIMIT default 50-100 (ระบบจะ cap 1000)
+   - ถ้า response มี truncated=true → บอกผู้ใช้ + แนะนำ refine WHERE
+```
+
+### Audit
+
+ทุก query ถูก log ใน `admin_ai_chat_logs.tools_called` (F2):
+- `name`: "query_sql"
+- `args`: `{ "sql": "..." }`
+- `result_preview`: snippet ของ response JSON
+- `status`: success / error
+
+ดูได้ที่ `/admin/ai-chat-logs` (admin-only) → expand row ที่มี chip `1 tool`
+
+### What's NOT covered (by design)
+
+- เขียนข้อมูล — เปิด Phase 3 ถ้าจำเป็น (ต้อง human-in-the-loop confirmation)
+- Tables นอก whitelist (auth, settings, orders) — แก้ migration ถ้าต้องการเพิ่ม
+- Query > 5 วินาที — strongly suggest add WHERE / GROUP BY / LIMIT
+- Cross-database query — block by validator + Postgres role
+- Schema introspection via `pg_*` system catalogs — partial: information_schema
+  works (smartship_ai_readonly has USAGE on schema public), but pg_class / pg_attribute
+  direct access ขึ้นกับ default grant ของ Supabase

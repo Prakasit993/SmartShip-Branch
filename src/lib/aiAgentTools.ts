@@ -119,6 +119,68 @@ export const AI_AGENT_TOOLS: readonly AiAgentToolDefinition[] = [
             'Response มี field `truncated` — ถ้า true แปลว่าอาจมี row เกิน limit ' +
             'ให้ AI บอกผู้ใช้ว่า "แสดง 100 ตัวแรก จากทั้งหมดอาจมีมากกว่านี้".',
     },
+    {
+        name: 'query_sql',
+        description:
+            'รัน SELECT query บน jt_shipments / shipping_cost_master เมื่อ predefined ' +
+            'tools ตอบไม่ได้ (เช่น filter เจาะ sender/staff/branch, custom aggregate, ' +
+            'join cost master). อย่าเรียก tool นี้ถ้า predefined tools (get_dashboard_kpi, ' +
+            'get_cod_summary, get_top_not_closed_cases) ตอบได้ — predefined เร็วกว่าและ ' +
+            'safer.\n\n' +
+            'ข้อจำกัด:\n' +
+            '- SELECT only (INSERT/UPDATE/DELETE/DDL ถูก reject)\n' +
+            '- Tables: jt_shipments, shipping_cost_master เท่านั้น (cross-DB, non-public schema ถูก block)\n' +
+            '- Auto inject LIMIT 1000 ถ้าไม่ระบุ (max 1000)\n' +
+            '- Statement timeout 5 วินาที\n' +
+            '- ต้องใส่ WHERE booking_date เสมอ เพื่อ performance (ตารางมี ~30k+ rows)\n\n' +
+            'Schema (jt_shipments — main table):\n' +
+            '- awb_number text (PK)\n' +
+            '- booking_date text "YYYY-MM-DD HH:MM:SS" — string compare ใช้ได้ (เช่น >= \'2026-05-01\')\n' +
+            '- sender_name, sender_phone text\n' +
+            '- receiver_name, receiver_phone, receiver_address text\n' +
+            '- dest_subdistrict, dest_district, dest_province text\n' +
+            '- shipping_fee text — cast ::numeric ก่อนคำนวณ (เช่น sum(shipping_fee::numeric))\n' +
+            '- total_shipping_fee text — ค่าส่งสุทธิ (cast ::numeric)\n' +
+            '- cod_amount text — cast ::numeric\n' +
+            '- cod_status text — "ชำระแล้ว" / "ยังไม่ชำระ" / null\n' +
+            '- cod_payment_method, cod_payment_time text\n' +
+            '- signer_name text — null/empty/"NULL" = ยังไม่ปิดงาน\n' +
+            '- latest_scan_type text\n' +
+            '- exception_reason, issue_status text\n' +
+            '- return_type, return_branch_name text\n' +
+            '- shop_name, platform, order_source text\n' +
+            '- delivery_staff_id text\n' +
+            '- sign_branch_name, sign_branch_code text\n\n' +
+            'Schema (shipping_cost_master):\n' +
+            '- ใช้สำหรับ lookup ราคาต้นทุน (join ตาม weight/zone)\n' +
+            '- ตรวจ column ด้วย SELECT column_name FROM information_schema.columns WHERE table_name = \'shipping_cost_master\' ถ้าจำเป็น\n\n' +
+            'ตัวอย่าง query:\n' +
+            'SELECT sender_name, count(*) AS parcels, sum(shipping_fee::numeric) AS fee\n' +
+            'FROM jt_shipments\n' +
+            'WHERE booking_date >= \'2026-05-01\' AND booking_date < \'2026-05-16\'\n' +
+            'GROUP BY sender_name\n' +
+            'ORDER BY fee DESC NULLS LAST\n' +
+            'LIMIT 10',
+        endpoint: { method: 'POST', path: '/api/admin/ai-tools/sql' },
+        parameters: {
+            type: 'object',
+            properties: {
+                sql: {
+                    type: 'string',
+                    description:
+                        'SELECT query — whitelist tables (jt_shipments, shipping_cost_master), ' +
+                        'auto LIMIT 1000, statement_timeout 5s, ต้องมี WHERE booking_date เพื่อ perf',
+                },
+            },
+            required: ['sql'],
+            additionalProperties: false,
+        },
+        usageNotes:
+            'AI ควรตรวจ response.truncated → ถ้า true บอกผู้ใช้ว่า "แสดง 1000 row แรก ' +
+            'อาจมีมากกว่านี้" + แนะนำให้ refine WHERE. หาก error 400 (validation) ' +
+            'AI สามารถ retry ด้วย SQL ที่แก้ตาม error message ได้ (เช่น add WHERE, ' +
+            'remove blocked function). หาก error 504 (timeout) ให้ระบุ booking_date ที่แคบลง.',
+    },
 ] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
