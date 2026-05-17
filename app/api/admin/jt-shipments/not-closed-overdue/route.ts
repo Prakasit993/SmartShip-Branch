@@ -185,10 +185,6 @@ export async function GET(req: Request) {
         // upper bound exclusive (next day) — ใช้กับ string compare ของ text column
         const cutoffUpperExclusive = dayAfter(cutoffYmd);
 
-        // Over-fetch เผื่อ JS filter (drop rows ที่ปิดงานแล้ว / scan time ไม่ตรง) เหลือ
-        // candidate ไม่พอ. capped ที่ MAX_LIMIT * 2 เพื่อป้องกัน payload ใหญ่.
-        const overFetch = Math.min(limit * 4, MAX_LIMIT * 2);
-
         const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
         // Defensive: AI มักจะ resolve "ค้างเกิน N วัน" เป็นช่วงเวลา today-N → today
         // และส่ง date_from = cutoff_date มา filter ซ้อนทำให้ range ว่าง. ตัดออกถ้า
@@ -207,6 +203,11 @@ export async function GET(req: Request) {
 
         let q = supabaseAdmin.from('jt_shipments').select(SELECT_COLUMNS);
 
+        // Filter signer_name = "ยังไม่ปิดงาน" ใน DB เลย — ลด payload จาก ~30k+ เหลือ
+        // เฉพาะ not-closed rows. ไม่ catch whitespace-only signer_name (rare) แต่
+        // JS filter ด้านล่างจะกรองอีกชั้นเพื่อความถูกต้อง.
+        q = q.or('signer_name.is.null,signer_name.eq.,signer_name.eq.NULL');
+
         if (ageField === 'booking_date') {
             // ใช้ DB filter ตัด rows ที่ booking_date ใหม่กว่า cutoff (ลด payload)
             q = q.lt('booking_date', cutoffUpperExclusive);
@@ -219,8 +220,7 @@ export async function GET(req: Request) {
             q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         }
 
-        // Order ตาม age_field ASC = เก่าสุดก่อน (อาจตามด้วย latest_scan_time ASC ก็ได้
-        // แต่ NULL จะอยู่ท้ายเสมอใน Supabase — เราอยาก NULL อยู่บนสุดถ้า age_field = scan)
+        // Order ตาม age_field ASC = เก่าสุดก่อน
         if (ageField === 'booking_date') {
             q = q.order('booking_date', { ascending: true, nullsFirst: false });
         } else {
@@ -228,18 +228,45 @@ export async function GET(req: Request) {
             q = q.order('latest_scan_time', { ascending: true, nullsFirst: true });
         }
 
-        const { data, error } = await q.range(0, overFetch - 1);
+        // หลังกรอง signer_name + cutoff แล้ว ใช้ DB cap แค่ MAX_LIMIT (500) ก็พอ —
+        // ไม่ต้อง over-fetch เพราะ row pool เหลือน้อยมาก ๆ แล้ว
+        const { data, error } = await q.range(0, MAX_LIMIT - 1);
         if (error) {
             console.error('[jt-shipments/not-closed-overdue]', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // ดึง AWB ที่ admin "รับทราบและปิดเรื่อง" (mute_aging=true) เพื่อตัดออกจากผลลัพธ์.
+        // AI ไม่ต้องรู้ว่าเคสเหล่านี้ถูก ack — ปล่อยให้ silent skip
+        const { data: mutedAcks, error: ackErr } = await supabaseAdmin
+            .from('jt_return_acknowledgements')
+            .select('awb_number')
+            .eq('status', 'active')
+            .eq('mute_aging', true);
+        if (ackErr) {
+            // ไม่ block — log แล้วทำงานต่อ (ดีกว่าโดน 500 เมื่อ ack table มีปัญหา)
+            console.warn('[jt-shipments/not-closed-overdue] muted ack fetch failed:', ackErr);
+        }
+        const mutedSet = new Set<string>(
+            ((mutedAcks ?? []) as Array<{ awb_number: string | null }>)
+                .map((r) => String(r.awb_number ?? '').trim())
+                .filter(Boolean),
+        );
+
         const cutoffStr = cutoffYmd; // ใช้เปรียบเทียบกับ ymd part ของ text field
         const rawRows = (data ?? []) as ShipmentRow[];
         const matched: Array<{ row: ShipmentRow; age: number | null }> = [];
 
+        let mutedSkipped = 0;
         for (const r of rawRows) {
             if (!isNotClosed(r.signer_name)) continue;
+
+            // skip AWB ที่ admin ปิดเรื่องแล้ว (เคลม/ส่งคืน/ไปส่ง/สูญหาย ฯลฯ)
+            const awbTrim = String(r.awb_number ?? '').trim();
+            if (awbTrim && mutedSet.has(awbTrim)) {
+                mutedSkipped++;
+                continue;
+            }
 
             const fieldVal = ageField === 'booking_date' ? r.booking_date : r.latest_scan_time;
 
@@ -263,11 +290,12 @@ export async function GET(req: Request) {
 
         const cases = matched.slice(0, limit).map(({ row, age }) => toCase(row, age));
 
-        const truncated = matched.length >= limit && rawRows.length >= overFetch;
+        // matched > limit หรือ DB คืนเต็ม MAX_LIMIT = อาจมี row เกินที่ยังไม่ได้ดึง
+        const truncated = matched.length > limit || rawRows.length >= MAX_LIMIT;
 
         const elapsed = Math.round(performance.now() - t0);
         console.log(
-            `[jt-shipments/not-closed-overdue] done in ${elapsed}ms — ${cases.length}/${matched.length} returned (age_field=${ageField}, min_age=${minAgeDays}d, dropped: from=${dateFromDropped} to=${dateToDropped})`,
+            `[jt-shipments/not-closed-overdue] done in ${elapsed}ms — ${cases.length}/${matched.length} returned (age_field=${ageField}, min_age=${minAgeDays}d, muted_skipped=${mutedSkipped}, dropped: from=${dateFromDropped} to=${dateToDropped})`,
         );
 
         const warnings: string[] = [];

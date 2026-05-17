@@ -554,12 +554,12 @@ export function JtDashboardPageClient() {
     );
 
     const acknowledgeReturn = useCallback(
-        async (awbNumber: string, reason: string) => {
+        async (awbNumber: string, reason: string, muteAging: boolean) => {
             const res = await fetch('/api/admin/jt-shipments/return-acknowledgements', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify({ awb_number: awbNumber, reason }),
+                body: JSON.stringify({ awb_number: awbNumber, reason, mute_aging: muteAging }),
             });
             const raw = await res.text();
             if (!res.ok) {
