@@ -23,14 +23,17 @@ type CustomerRow = {
 };
 
 type ApiResponse = {
-    vip: CustomerRow[];
-    general: CustomerRow[];
-    total: { vip: number; general: number; matched_senders: number };
+    rows: CustomerRow[];
+    total: number;
+    tab: TabKey;
+    limit: number;
+    offset: number;
 };
 
 type TabKey = 'vip' | 'general';
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 250;
 
 function formatCount(n: number): string {
     return n.toLocaleString('th-TH');
@@ -45,85 +48,107 @@ function maskPhone(phone: string | null): string {
 }
 
 export function CustomerProfileListClient() {
-    const [data, setData] = useState<ApiResponse | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [tab, setTab] = useState<TabKey>('vip');
     const [q, setQ] = useState('');
-    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+    const [debouncedQ, setDebouncedQ] = useState('');
+    const [rows, setRows] = useState<CustomerRow[]>([]);
+    const [total, setTotal] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const sentinelRef = useRef<HTMLTableRowElement | null>(null);
+    const requestSeqRef = useRef(0);
 
-    const fetchList = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetch('/api/admin/customer-profile/list', {
-                credentials: 'include',
-                cache: 'no-store',
-            });
-            if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                throw new Error(body?.error || `HTTP ${res.status}`);
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQ(q.trim()), SEARCH_DEBOUNCE_MS);
+        return () => clearTimeout(t);
+    }, [q]);
+
+    const fetchPage = useCallback(
+        async (opts: { tab: TabKey; search: string; offset: number }) => {
+            const seq = ++requestSeqRef.current;
+            const isInitial = opts.offset === 0;
+            if (isInitial) {
+                setLoading(true);
+                setError(null);
+            } else {
+                setLoadingMore(true);
             }
-            const json = (await res.json()) as ApiResponse;
-            setData(json);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'โหลดข้อมูลไม่สำเร็จ');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+            try {
+                const params = new URLSearchParams({
+                    tab: opts.tab,
+                    limit: String(PAGE_SIZE),
+                    offset: String(opts.offset),
+                });
+                if (opts.search) params.set('search', opts.search);
+                const res = await fetch(`/api/admin/customer-profile/list?${params.toString()}`, {
+                    credentials: 'include',
+                    cache: 'no-store',
+                });
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    throw new Error(body?.error || `HTTP ${res.status}`);
+                }
+                const json = (await res.json()) as ApiResponse;
+                // discard if a newer request started
+                if (seq !== requestSeqRef.current) return;
+                setTotal(json.total);
+                setRows((prev) => (isInitial ? json.rows : [...prev, ...json.rows]));
+            } catch (e) {
+                if (seq !== requestSeqRef.current) return;
+                setError(e instanceof Error ? e.message : 'โหลดข้อมูลไม่สำเร็จ');
+                if (isInitial) {
+                    setRows([]);
+                    setTotal(0);
+                }
+            } finally {
+                if (seq === requestSeqRef.current) {
+                    setLoading(false);
+                    setLoadingMore(false);
+                }
+            }
+        },
+        []
+    );
 
+    // initial / tab / search change → fetch from offset 0
     useEffect(() => {
-        fetchList();
-    }, [fetchList]);
+        fetchPage({ tab, search: debouncedQ, offset: 0 });
+    }, [tab, debouncedQ, fetchPage]);
 
-    const rows = useMemo(() => {
-        if (!data) return [] as CustomerRow[];
-        const list = tab === 'vip' ? data.vip : data.general;
-        if (!q.trim()) return list;
-        const needle = q.trim().toLowerCase();
-        return list.filter((r) => {
-            const name = (r.name ?? '').toLowerCase();
-            const phone = (r.phone ?? '').toLowerCase();
-            const vip = (r.vip_code ?? '').toLowerCase();
-            return name.includes(needle) || phone.includes(needle) || vip.includes(needle);
-        });
-    }, [data, tab, q]);
+    const hasMore = rows.length < total;
 
-    // Reset visible window when filter / tab / dataset changes
+    // IntersectionObserver: load next page when sentinel enters viewport
     useEffect(() => {
-        setVisibleCount(PAGE_SIZE);
-    }, [tab, q, data]);
-
-    const visibleRows = useMemo(() => rows.slice(0, visibleCount), [rows, visibleCount]);
-    const hasMore = visibleCount < rows.length;
-
-    // Auto-grow via IntersectionObserver on the sentinel row at the bottom
-    useEffect(() => {
-        if (!hasMore) return;
+        if (!hasMore || loading || loadingMore) return;
         const el = sentinelRef.current;
         if (!el) return;
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0]?.isIntersecting) {
-                    setVisibleCount((n) => Math.min(n + PAGE_SIZE, rows.length));
+                    fetchPage({ tab, search: debouncedQ, offset: rows.length });
                 }
             },
             { rootMargin: '200px' }
         );
         observer.observe(el);
         return () => observer.disconnect();
-    }, [hasMore, rows.length, visibleCount]);
+    }, [hasMore, loading, loadingMore, rows.length, tab, debouncedQ, fetchPage]);
 
-    const totalVip = data?.total.vip ?? 0;
-    const totalGeneral = data?.total.general ?? 0;
+    const handleRefresh = useCallback(() => {
+        fetchPage({ tab, search: debouncedQ, offset: 0 });
+    }, [tab, debouncedQ, fetchPage]);
+
+    const tabCount = useMemo(
+        () => (loading && rows.length === 0 ? null : total),
+        [loading, rows.length, total]
+    );
 
     return (
         <div className="space-y-6 pb-20">
             <AdminPageHeader
                 title="โปรไฟล์ลูกค้า"
-                description="รายชื่อลูกค้าทั้งหมดใน SmartShip แยกตามสถานะ VIP / ทั่วไป — กดเข้าไปดูสถิติพัสดุ น้ำหนัก และ COD ของลูกค้ารายคน"
+                description="รายชื่อผู้ส่งทั้งหมดจาก J&T แยกตาม VIP / ทั่วไป — กดเข้าไปดูสถิติพัสดุ น้ำหนัก และ COD ของลูกค้ารายคน"
                 tone="dark"
                 meta={
                     <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
@@ -133,7 +158,7 @@ export function CustomerProfileListClient() {
                 actions={
                     <button
                         type="button"
-                        onClick={fetchList}
+                        onClick={handleRefresh}
                         disabled={loading}
                         className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -155,7 +180,7 @@ export function CustomerProfileListClient() {
                         icon={<Crown className="h-4 w-4" aria-hidden />}
                         label="ลูกค้า VIP"
                         description="มี vip_code จาก J&T"
-                        count={totalVip}
+                        count={tab === 'vip' ? tabCount : null}
                     />
                     <TabButton
                         active={tab === 'general'}
@@ -163,7 +188,7 @@ export function CustomerProfileListClient() {
                         icon={<Users className="h-4 w-4" aria-hidden />}
                         label="ลูกค้าทั่วไป"
                         description="ไม่มี vip_code"
-                        count={totalGeneral}
+                        count={tab === 'general' ? tabCount : null}
                     />
                 </div>
 
@@ -182,11 +207,7 @@ export function CustomerProfileListClient() {
                         />
                     </div>
                     <p className="text-xs text-slate-500">
-                        แสดง {formatCount(visibleRows.length)} จาก{' '}
-                        {formatCount(rows.length)}
-                        {q.trim()
-                            ? ` (กรองจาก ${formatCount(tab === 'vip' ? totalVip : totalGeneral)})`
-                            : ' คน'}
+                        แสดง {formatCount(rows.length)} จาก {formatCount(total)} คน
                     </p>
                 </div>
 
@@ -213,7 +234,7 @@ export function CustomerProfileListClient() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/70">
-                            {loading && !data ? (
+                            {loading && rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-3 py-8 text-center text-slate-500">
                                         <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" aria-hidden />
@@ -228,7 +249,7 @@ export function CustomerProfileListClient() {
                                 </tr>
                             ) : (
                                 <>
-                                    {visibleRows.map((row) => (
+                                    {rows.map((row) => (
                                         <tr
                                             key={row.id}
                                             className="transition hover:bg-slate-900/60"
@@ -271,7 +292,9 @@ export function CustomerProfileListClient() {
                                         <tr ref={sentinelRef}>
                                             <td colSpan={5} className="px-3 py-4 text-center text-xs text-slate-500">
                                                 <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin align-[-2px]" aria-hidden />
-                                                กำลังโหลดเพิ่ม… ({formatCount(rows.length - visibleRows.length)} คนที่เหลือ)
+                                                {loadingMore
+                                                    ? 'กำลังโหลดเพิ่ม…'
+                                                    : `เลื่อนเพื่อโหลดเพิ่ม (${formatCount(total - rows.length)} คนที่เหลือ)`}
                                             </td>
                                         </tr>
                                     ) : null}
@@ -298,7 +321,7 @@ function TabButton({
     icon: React.ReactNode;
     label: string;
     description: string;
-    count: number;
+    count: number | null;
 }) {
     return (
         <button
@@ -324,7 +347,7 @@ function TabButton({
                             : 'bg-slate-800 text-slate-400'
                     }`}
                 >
-                    {formatCount(count)}
+                    {count == null ? '…' : formatCount(count)}
                 </span>
             </span>
             <span className="mt-1 block text-xs leading-relaxed text-slate-500">
