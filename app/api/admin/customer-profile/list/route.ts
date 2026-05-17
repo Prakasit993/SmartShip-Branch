@@ -90,13 +90,20 @@ export async function GET(req: Request) {
 
         const total = raw.length > 0 ? Number(raw[0].total_count) || 0 : 0;
 
-        return NextResponse.json({
-            rows,
-            total,
-            tab,
-            limit,
-            offset,
-        });
+        return NextResponse.json(
+            {
+                rows,
+                total,
+                tab,
+                limit,
+                offset,
+            },
+            {
+                headers: {
+                    'Cache-Control': 'private, max-age=30, stale-while-revalidate=120',
+                },
+            }
+        );
     } catch (e) {
         console.error('[api/admin/customer-profile/list][GET]', e);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
