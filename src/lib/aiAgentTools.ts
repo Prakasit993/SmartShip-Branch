@@ -160,7 +160,11 @@ export const AI_AGENT_TOOLS: readonly AiAgentToolDefinition[] = [
             'เลือก age_field ตาม intent: ' +
             '- "ค้างเกิน X วัน" / "คีย์ไปแล้วยังไม่ปิด" → age_field = booking_date (default). ' +
             '- "ไม่มี scan หลายวัน" / "เงียบ ไม่ขยับ" → age_field = latest_scan_time. ' +
-            'Response แต่ละ case มี age_days บอกอายุของเคส (สำหรับ latest_scan_time, ' +
+            '\n\n*** สำคัญเรื่อง date_from/date_to ***: ' +
+            'ปกติ **อย่าส่ง date_from/date_to** — endpoint คำนวณ cutoff_date จาก today อยู่แล้ว. ' +
+            'ส่ง date_from เฉพาะกรณี user ขอ backstop เช่น "ใน 30 วันที่ผ่านมา" → date_from=today-30. ' +
+            'date_to ถูก ignore เมื่อ age_field=booking_date (ทับซ้อน cutoff_date ทำให้ผลลัพธ์ว่าง). ' +
+            '\n\nResponse แต่ละ case มี age_days บอกอายุของเคส (สำหรับ latest_scan_time, ' +
             'null = ไม่มี scan เลย). cutoff_date = วันที่ตัด aging (today - min_age_days). ' +
             'ถ้า truncated = true ให้บอกผู้ใช้ว่า "แสดง N ตัวแรก".',
     },

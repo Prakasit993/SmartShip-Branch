@@ -20,8 +20,10 @@ import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
  *                   - booking_date: นับจากวันคีย์พัสดุ (เคสที่คีย์ไปนานแล้วแต่ยังไม่ปิดงาน)
  *                   - latest_scan_time: นับจาก scan ล่าสุด (เคสที่ค้าง ไม่มีความเคลื่อนไหว);
  *                     NULL/empty = ไม่มี scan เลย → จัดเป็น overdue สูงสุด
- *   date_from      YYYY-MM-DD (optional, ยึด booking_date)
- *   date_to        YYYY-MM-DD (optional, ยึด booking_date, inclusive)
+ *   date_from      YYYY-MM-DD (optional, lower bound บน booking_date — "ดูย้อนหลังไม่เกินวันนี้")
+ *   date_to        YYYY-MM-DD (optional, ใช้ได้เฉพาะ age_field='latest_scan_time' —
+ *                  ถูก ignore เมื่อ age_field='booking_date' เพราะ cutoff_date ทำหน้าที่ upper bound แล้ว
+ *                  ป้องกัน range ทับซ้อนจนได้ผลลัพธ์ว่าง)
  *   limit          (default 100, max 500)
  *
  * Response (200):
@@ -192,11 +194,17 @@ export async function GET(req: Request) {
         if (ageField === 'booking_date') {
             // ใช้ DB filter ตัด rows ที่ booking_date ใหม่กว่า cutoff (ลด payload)
             q = q.lt('booking_date', cutoffUpperExclusive);
+            // date_to จะซ้อนทับ cutoff_date (ทั้งคู่เป็น upper bound ของ booking_date) —
+            // ถ้า AI ส่ง date_to=today มา filter จะกลายเป็น booking_date < min(date_to, cutoff)
+            // ซึ่งบีบ range จนเกือบ empty. ตัด date_to ออก, ใช้ cutoff อย่างเดียว.
+            // date_from ยังใช้ได้ในฐานะ lower bound ("ดูย้อนหลังไม่เกิน N วัน").
+            q = applyBookingDateRangeFilters(q, dateFrom, '');
+        } else {
+            // age_field=latest_scan_time: cutoff filter อยู่บนคนละ column —
+            // date_from/date_to กรอง booking_date ได้ปกติ (ไม่ทับซ้อน)
+            // ไม่ filter scan_time ใน DB เพราะต้องรวม NULL (no-scan = overdue สูงสุด)
+            q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         }
-        // latest_scan_time: ไม่ filter ใน DB เพราะต้องการรวม NULL/empty (no-scan = overdue สูงสุด)
-        // string compare ของ Supabase ไม่ catch NULL ได้ดี — ทำใน JS แทน.
-
-        q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
 
         // Order ตาม age_field ASC = เก่าสุดก่อน (อาจตามด้วย latest_scan_time ASC ก็ได้
         // แต่ NULL จะอยู่ท้ายเสมอใน Supabase — เราอยาก NULL อยู่บนสุดถ้า age_field = scan)
