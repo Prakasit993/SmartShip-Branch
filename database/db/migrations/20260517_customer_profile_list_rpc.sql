@@ -37,6 +37,7 @@ returns table (
 language plpgsql
 stable
 as $$
+#variable_conflict use_column
 declare
     v_tab text := coalesce(lower(p_tab), 'vip');
     v_search text := nullif(trim(coalesce(p_search, '')), '');
