@@ -234,12 +234,37 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // ดึง AWB ที่ admin "รับทราบและปิดเรื่อง" (mute_aging=true) เพื่อตัดออกจากผลลัพธ์.
+        // AI ไม่ต้องรู้ว่าเคสเหล่านี้ถูก ack — ปล่อยให้ silent skip
+        const { data: mutedAcks, error: ackErr } = await supabaseAdmin
+            .from('jt_return_acknowledgements')
+            .select('awb_number')
+            .eq('status', 'active')
+            .eq('mute_aging', true);
+        if (ackErr) {
+            // ไม่ block — log แล้วทำงานต่อ (ดีกว่าโดน 500 เมื่อ ack table มีปัญหา)
+            console.warn('[jt-shipments/not-closed-overdue] muted ack fetch failed:', ackErr);
+        }
+        const mutedSet = new Set<string>(
+            ((mutedAcks ?? []) as Array<{ awb_number: string | null }>)
+                .map((r) => String(r.awb_number ?? '').trim())
+                .filter(Boolean),
+        );
+
         const cutoffStr = cutoffYmd; // ใช้เปรียบเทียบกับ ymd part ของ text field
         const rawRows = (data ?? []) as ShipmentRow[];
         const matched: Array<{ row: ShipmentRow; age: number | null }> = [];
 
+        let mutedSkipped = 0;
         for (const r of rawRows) {
             if (!isNotClosed(r.signer_name)) continue;
+
+            // skip AWB ที่ admin ปิดเรื่องแล้ว (เคลม/ส่งคืน/ไปส่ง/สูญหาย ฯลฯ)
+            const awbTrim = String(r.awb_number ?? '').trim();
+            if (awbTrim && mutedSet.has(awbTrim)) {
+                mutedSkipped++;
+                continue;
+            }
 
             const fieldVal = ageField === 'booking_date' ? r.booking_date : r.latest_scan_time;
 
@@ -267,7 +292,7 @@ export async function GET(req: Request) {
 
         const elapsed = Math.round(performance.now() - t0);
         console.log(
-            `[jt-shipments/not-closed-overdue] done in ${elapsed}ms — ${cases.length}/${matched.length} returned (age_field=${ageField}, min_age=${minAgeDays}d, dropped: from=${dateFromDropped} to=${dateToDropped})`,
+            `[jt-shipments/not-closed-overdue] done in ${elapsed}ms — ${cases.length}/${matched.length} returned (age_field=${ageField}, min_age=${minAgeDays}d, muted_skipped=${mutedSkipped}, dropped: from=${dateFromDropped} to=${dateToDropped})`,
         );
 
         const warnings: string[] = [];

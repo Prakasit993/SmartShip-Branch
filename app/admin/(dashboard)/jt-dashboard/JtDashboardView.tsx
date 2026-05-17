@@ -49,7 +49,11 @@ export type JtDashboardViewProps = {
     availableDetailFields: string[];
     onSaveCustomMetricCards: (cards: JtCustomMetricCardDefinition[]) => Promise<void>;
     onSaveDetailFields: (fields: string[]) => Promise<void>;
-    onAcknowledgeReturn: (awbNumber: string, reason: string) => Promise<void>;
+    onAcknowledgeReturn: (
+        awbNumber: string,
+        reason: string,
+        muteAging: boolean,
+    ) => Promise<void>;
     showKpiPercentDelta: boolean;
     onToggleKpiPercentDelta: () => void;
     loading: boolean;
@@ -342,6 +346,7 @@ export function JtDashboardView({
     const [awbQuickSearch, setAwbQuickSearch] = useState('');
     const [ackReturnAwb, setAckReturnAwb] = useState('');
     const [ackReason, setAckReason] = useState('');
+    const [ackMuteAging, setAckMuteAging] = useState(true);
     const [ackLoading, setAckLoading] = useState(false);
     const [ackError, setAckError] = useState<string | null>(null);
     const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
@@ -465,6 +470,7 @@ export function JtDashboardView({
     function openReturnAcknowledgement(awb: string) {
         setAckReturnAwb(awb);
         setAckReason('');
+        setAckMuteAging(true);
         setAckError(null);
     }
 
@@ -479,9 +485,10 @@ export function JtDashboardView({
         setAckLoading(true);
         setAckError(null);
         try {
-            await onAcknowledgeReturn(awb, reason);
+            await onAcknowledgeReturn(awb, reason, ackMuteAging);
             setAckReturnAwb('');
             setAckReason('');
+            setAckMuteAging(true);
         } catch (e) {
             setAckError(e instanceof Error ? e.message : 'บันทึกการรับทราบไม่สำเร็จ');
         } finally {
@@ -1376,6 +1383,21 @@ export function JtDashboardView({
                                     placeholder="เช่น ตรวจสอบแล้วเป็นรายการที่ดำเนินการเรียบร้อย"
                                     className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-emerald-500/25 placeholder:text-slate-600 focus:border-emerald-500/50 focus:ring-2"
                                 />
+                            </label>
+                            <label className="flex items-start gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                                <input
+                                    type="checkbox"
+                                    checked={ackMuteAging}
+                                    onChange={(e) => setAckMuteAging(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/40"
+                                />
+                                <span className="text-xs text-slate-300">
+                                    <span className="font-medium text-slate-200">ปิดเรื่องแล้ว — ซ่อนจากรายงาน aging</span>
+                                    <span className="mt-0.5 block text-slate-500">
+                                        ติ๊กถ้าเคสนี้ดำเนินการเสร็จ (เคลม/ส่งคืน/ไปส่ง/สูญหาย).
+                                        ถอดถ้ายังต้องตามต่อ (เช่น &quot;รอตีกลับมา&quot;) — AI ยังจะแจ้งใน Top aging
+                                    </span>
+                                </span>
                             </label>
                             {ackError ? <p className="text-sm text-rose-400">{ackError}</p> : null}
                             <div className="flex justify-end gap-2 border-t border-slate-800 pt-3">
