@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     AlertCircle,
     BadgeCheck,
@@ -30,6 +30,8 @@ type ApiResponse = {
 
 type TabKey = 'vip' | 'general';
 
+const PAGE_SIZE = 20;
+
 function formatCount(n: number): string {
     return n.toLocaleString('th-TH');
 }
@@ -48,6 +50,8 @@ export function CustomerProfileListClient() {
     const [error, setError] = useState<string | null>(null);
     const [tab, setTab] = useState<TabKey>('vip');
     const [q, setQ] = useState('');
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+    const sentinelRef = useRef<HTMLTableRowElement | null>(null);
 
     const fetchList = useCallback(async () => {
         setLoading(true);
@@ -86,6 +90,31 @@ export function CustomerProfileListClient() {
             return name.includes(needle) || phone.includes(needle) || vip.includes(needle);
         });
     }, [data, tab, q]);
+
+    // Reset visible window when filter / tab / dataset changes
+    useEffect(() => {
+        setVisibleCount(PAGE_SIZE);
+    }, [tab, q, data]);
+
+    const visibleRows = useMemo(() => rows.slice(0, visibleCount), [rows, visibleCount]);
+    const hasMore = visibleCount < rows.length;
+
+    // Auto-grow via IntersectionObserver on the sentinel row at the bottom
+    useEffect(() => {
+        if (!hasMore) return;
+        const el = sentinelRef.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setVisibleCount((n) => Math.min(n + PAGE_SIZE, rows.length));
+                }
+            },
+            { rootMargin: '200px' }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [hasMore, rows.length, visibleCount]);
 
     const totalVip = data?.total.vip ?? 0;
     const totalGeneral = data?.total.general ?? 0;
@@ -153,8 +182,11 @@ export function CustomerProfileListClient() {
                         />
                     </div>
                     <p className="text-xs text-slate-500">
-                        แสดง {formatCount(rows.length)} จาก{' '}
-                        {formatCount(tab === 'vip' ? totalVip : totalGeneral)} คน
+                        แสดง {formatCount(visibleRows.length)} จาก{' '}
+                        {formatCount(rows.length)}
+                        {q.trim()
+                            ? ` (กรองจาก ${formatCount(tab === 'vip' ? totalVip : totalGeneral)})`
+                            : ' คน'}
                     </p>
                 </div>
 
@@ -195,45 +227,55 @@ export function CustomerProfileListClient() {
                                     </td>
                                 </tr>
                             ) : (
-                                rows.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="transition hover:bg-slate-900/60"
-                                    >
-                                        <td className="px-3 py-2.5 text-slate-100">
-                                            <span className="block truncate font-medium" title={row.name ?? ''}>
-                                                {row.name || <span className="text-slate-500 italic">ไม่ระบุชื่อ</span>}
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-2.5 text-slate-300">
-                                            <span className="inline-flex items-center gap-1.5 tabular-nums">
-                                                <Phone className="h-3 w-3 text-slate-500" aria-hidden />
-                                                {maskPhone(row.phone)}
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-2.5">
-                                            {row.vip_code ? (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300 ring-1 ring-amber-500/30">
-                                                    <BadgeCheck className="h-3 w-3" aria-hidden />
-                                                    {row.vip_code}
+                                <>
+                                    {visibleRows.map((row) => (
+                                        <tr
+                                            key={row.id}
+                                            className="transition hover:bg-slate-900/60"
+                                        >
+                                            <td className="px-3 py-2.5 text-slate-100">
+                                                <span className="block truncate font-medium" title={row.name ?? ''}>
+                                                    {row.name || <span className="text-slate-500 italic">ไม่ระบุชื่อ</span>}
                                                 </span>
-                                            ) : (
-                                                <span className="text-slate-500">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">
-                                            {formatCount(row.shipment_count)}
-                                        </td>
-                                        <td className="px-3 py-2.5 text-right">
-                                            <Link
-                                                href={`/admin/customer-profile/${row.id}`}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20 hover:text-sky-200"
-                                            >
-                                                ดู →
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="px-3 py-2.5 text-slate-300">
+                                                <span className="inline-flex items-center gap-1.5 tabular-nums">
+                                                    <Phone className="h-3 w-3 text-slate-500" aria-hidden />
+                                                    {maskPhone(row.phone)}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2.5">
+                                                {row.vip_code ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300 ring-1 ring-amber-500/30">
+                                                        <BadgeCheck className="h-3 w-3" aria-hidden />
+                                                        {row.vip_code}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-500">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">
+                                                {formatCount(row.shipment_count)}
+                                            </td>
+                                            <td className="px-3 py-2.5 text-right">
+                                                <Link
+                                                    href={`/admin/customer-profile/${row.id}`}
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20 hover:text-sky-200"
+                                                >
+                                                    ดู →
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {hasMore ? (
+                                        <tr ref={sentinelRef}>
+                                            <td colSpan={5} className="px-3 py-4 text-center text-xs text-slate-500">
+                                                <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin align-[-2px]" aria-hidden />
+                                                กำลังโหลดเพิ่ม… ({formatCount(rows.length - visibleRows.length)} คนที่เหลือ)
+                                            </td>
+                                        </tr>
+                                    ) : null}
+                                </>
                             )}
                         </tbody>
                     </table>
