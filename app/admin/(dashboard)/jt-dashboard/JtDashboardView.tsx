@@ -277,6 +277,22 @@ function addLocalDays(date: Date, days: number): Date {
 
 type DateRangePreset = 'today' | 'last7' | 'last14' | 'last30' | 'thisMonth';
 
+const ACK_CUSTOM_LABEL = 'อื่นๆ (พิมพ์เอง)';
+
+/**
+ * Preset เหตุผลรับทราบพัสดุตีกลับ
+ * - mute=true: เคสปิดเรื่องแล้ว → ซ่อนจาก AI aging list
+ * - mute=false: ยังต้องตามต่อ → ยังโผล่ใน Top aging (admin ยังเห็น)
+ */
+const ACK_PRESETS: ReadonlyArray<{ label: string; mute: boolean }> = [
+    { label: 'เคลมแล้ว อนุมัติแล้ว', mute: true },
+    { label: 'ไปส่งให้ลูกค้าแล้ว', mute: true },
+    { label: 'ส่งคืนให้ลูกค้าแล้ว', mute: true },
+    { label: 'สูญหาย', mute: true },
+    { label: 'รอตีกลับมา', mute: false },
+    { label: ACK_CUSTOM_LABEL, mute: true },
+];
+
 function getPresetDateRange(preset: DateRangePreset): { from: string; to: string } {
     const today = new Date();
     if (preset === 'today') {
@@ -346,6 +362,7 @@ export function JtDashboardView({
     const [awbQuickSearch, setAwbQuickSearch] = useState('');
     const [ackReturnAwb, setAckReturnAwb] = useState('');
     const [ackReason, setAckReason] = useState('');
+    const [ackPreset, setAckPreset] = useState<string>('เคลมแล้ว อนุมัติแล้ว');
     const [ackMuteAging, setAckMuteAging] = useState(true);
     const [ackLoading, setAckLoading] = useState(false);
     const [ackError, setAckError] = useState<string | null>(null);
@@ -469,9 +486,23 @@ export function JtDashboardView({
 
     function openReturnAcknowledgement(awb: string) {
         setAckReturnAwb(awb);
+        setAckPreset(ACK_PRESETS[0].label);
         setAckReason('');
-        setAckMuteAging(true);
+        setAckMuteAging(ACK_PRESETS[0].mute);
         setAckError(null);
+    }
+
+    function handleAckPresetChange(next: string) {
+        setAckPreset(next);
+        const preset = ACK_PRESETS.find((p) => p.label === next);
+        if (!preset) return;
+        if (preset.label === ACK_CUSTOM_LABEL) {
+            // "อื่นๆ" — เริ่มจาก textarea ว่าง, คง mute ตามค่าก่อน
+            setAckReason('');
+        } else {
+            setAckReason(preset.label);
+            setAckMuteAging(preset.mute);
+        }
     }
 
     async function submitReturnAcknowledgement() {
@@ -488,6 +519,7 @@ export function JtDashboardView({
             await onAcknowledgeReturn(awb, reason, ackMuteAging);
             setAckReturnAwb('');
             setAckReason('');
+            setAckPreset(ACK_PRESETS[0].label);
             setAckMuteAging(true);
         } catch (e) {
             setAckError(e instanceof Error ? e.message : 'บันทึกการรับทราบไม่สำเร็จ');
@@ -1375,15 +1407,31 @@ export function JtDashboardView({
                             </p>
                             <label className="block">
                                 <span className="text-xs font-medium text-slate-400">เหตุผลที่รับทราบ</span>
-                                <textarea
-                                    value={ackReason}
-                                    onChange={(e) => setAckReason(e.target.value)}
-                                    rows={4}
-                                    maxLength={500}
-                                    placeholder="เช่น ตรวจสอบแล้วเป็นรายการที่ดำเนินการเรียบร้อย"
-                                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-emerald-500/25 placeholder:text-slate-600 focus:border-emerald-500/50 focus:ring-2"
-                                />
+                                <select
+                                    value={ackPreset}
+                                    onChange={(e) => handleAckPresetChange(e.target.value)}
+                                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-emerald-500/25 focus:border-emerald-500/50 focus:ring-2"
+                                >
+                                    {ACK_PRESETS.map((p) => (
+                                        <option key={p.label} value={p.label}>
+                                            {p.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
+                            {ackPreset === ACK_CUSTOM_LABEL ? (
+                                <label className="block">
+                                    <span className="text-xs font-medium text-slate-400">รายละเอียดเพิ่มเติม</span>
+                                    <textarea
+                                        value={ackReason}
+                                        onChange={(e) => setAckReason(e.target.value)}
+                                        rows={3}
+                                        maxLength={500}
+                                        placeholder="เช่น ตรวจสอบแล้วเป็นรายการที่ดำเนินการเรียบร้อย"
+                                        className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-emerald-500/25 placeholder:text-slate-600 focus:border-emerald-500/50 focus:ring-2"
+                                    />
+                                </label>
+                            ) : null}
                             <label className="flex items-start gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
                                 <input
                                     type="checkbox"
