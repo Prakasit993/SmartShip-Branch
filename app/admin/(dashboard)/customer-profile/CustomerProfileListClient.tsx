@@ -83,7 +83,6 @@ export function CustomerProfileListClient() {
                 if (opts.search) params.set('search', opts.search);
                 const res = await fetch(`/api/admin/customer-profile/list?${params.toString()}`, {
                     credentials: 'include',
-                    cache: 'no-store',
                 });
                 if (!res.ok) {
                     const body = await res.json().catch(() => ({}));
@@ -281,6 +280,13 @@ export function CustomerProfileListClient() {
                                             <td className="px-3 py-2.5 text-right">
                                                 <Link
                                                     href={`/admin/customer-profile/${row.id}`}
+                                                    prefetch
+                                                    onMouseEnter={() => {
+                                                        // warm the API cache so click is instant
+                                                        void fetch(`/api/admin/customer-profile/${row.id}`, {
+                                                            credentials: 'include',
+                                                        }).catch(() => {});
+                                                    }}
                                                     className="inline-flex items-center gap-1 rounded-lg border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20 hover:text-sky-200"
                                                 >
                                                     ดู →

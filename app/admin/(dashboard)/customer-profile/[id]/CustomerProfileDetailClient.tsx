@@ -130,7 +130,6 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
         try {
             const res = await fetch(`/api/admin/customer-profile/${id}`, {
                 credentials: 'include',
-                cache: 'no-store',
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
