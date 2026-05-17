@@ -6,83 +6,42 @@ import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
 /**
  * GET /api/admin/customer-profile/list
  *
- * รายชื่อลูกค้าทั้งหมดจาก public.customers พร้อมจำนวนพัสดุที่จับคู่ได้
- * จาก jt_shipments.sender_name (ตรงเป๊ะ trim เทียบ trim) — ใช้เป็นหน้า list
- * ของแดชบอร์ด /admin/customer-profile (แยก VIP / ทั่วไป จาก vip_code).
+ * Query: ?tab=vip|general &search=... &limit=20 &offset=0
+ *
+ * เรียก RPC `list_customer_profiles` ที่ aggregate sender_name จาก jt_shipments
+ * แยก VIP/general จาก jt_shipments.vip_code, paginate + search ใน SQL.
+ * เห็นผู้ส่งทุกคน (รวมที่ไม่ได้ register LINE — ไม่มี row ใน customers)
  *
  * Response 200:
  * {
- *   vip:     CustomerRow[],   // customers ที่มี vip_code (ไม่ว่าง)
- *   general: CustomerRow[],   // customers ที่ไม่มี vip_code
- *   total:   { vip: number; general: number; matched_senders: number }
+ *   rows: Array<{
+ *     id: string;            // encoded sender_name (URI-encoded), ใช้เปิดหน้า detail
+ *     name: string;
+ *     phone: string | null;
+ *     vip_code: string | null;
+ *     shipment_count: number;
+ *   }>,
+ *   total: number,
+ *   tab: 'vip' | 'general',
+ *   limit: number,
+ *   offset: number,
  * }
- *
- * CustomerRow = { id, name, phone, vip_code, shipment_count }
  */
 
-type CustomerRow = {
-    id: string;
-    name: string | null;
-    phone: string | null;
-    vip_code: string | null;
-    shipment_count: number;
-};
+type TabKey = 'vip' | 'general';
 
-const SENDER_PAGE_SIZE = 1000;
-const SENDER_MAX_PAGES = 20;
+const MAX_LIMIT = 100;
+const DEFAULT_LIMIT = 20;
 
-function normalizeName(input: unknown): string {
-    if (typeof input !== 'string') return '';
-    return input.trim().toLowerCase();
+function parseTab(v: string | null): TabKey {
+    return v === 'general' ? 'general' : 'vip';
 }
 
-function isVipCode(v: unknown): boolean {
-    if (typeof v !== 'string') return false;
-    const t = v.trim();
-    if (!t) return false;
-    if (t.toUpperCase() === 'NULL') return false;
-    return true;
-}
-
-/** Fetch all customers — table is expected small (<10k). */
-async function fetchAllCustomers() {
-    const { data, error } = await supabaseAdmin
-        .from('customers')
-        .select('id, name, phone, vip_code')
-        .order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data ?? []) as Array<{
-        id: string;
-        name: string | null;
-        phone: string | null;
-        vip_code: string | null;
-    }>;
-}
-
-/**
- * Aggregate sender_name → count from jt_shipments via paged projection.
- * One column only (sender_name) so payload stays light. Stops on empty page
- * or when SENDER_MAX_PAGES reached.
- */
-async function buildSenderNameCountMap(): Promise<Map<string, number>> {
-    const counts = new Map<string, number>();
-    for (let page = 0; page < SENDER_MAX_PAGES; page += 1) {
-        const from = page * SENDER_PAGE_SIZE;
-        const to = from + SENDER_PAGE_SIZE - 1;
-        const { data, error } = await supabaseAdmin
-            .from('jt_shipments')
-            .select('sender_name')
-            .range(from, to);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        for (const row of data) {
-            const key = normalizeName((row as { sender_name: string | null }).sender_name);
-            if (!key) continue;
-            counts.set(key, (counts.get(key) ?? 0) + 1);
-        }
-        if (data.length < SENDER_PAGE_SIZE) break;
-    }
-    return counts;
+function parseIntInRange(v: string | null, fallback: number, min: number, max: number): number {
+    if (v == null) return fallback;
+    const n = Number.parseInt(v, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(Math.max(n, min), max);
 }
 
 export async function GET(req: Request) {
@@ -93,34 +52,50 @@ export async function GET(req: Request) {
         const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
-        const [customers, senderCounts] = await Promise.all([
-            fetchAllCustomers(),
-            buildSenderNameCountMap(),
-        ]);
+        const url = new URL(req.url);
+        const tab = parseTab(url.searchParams.get('tab'));
+        const search = (url.searchParams.get('search') ?? '').trim();
+        const limit = parseIntInRange(url.searchParams.get('limit'), DEFAULT_LIMIT, 1, MAX_LIMIT);
+        const offset = parseIntInRange(url.searchParams.get('offset'), 0, 0, 100_000);
 
-        const rows: CustomerRow[] = customers.map((c) => ({
-            id: c.id,
-            name: c.name,
-            phone: c.phone,
-            vip_code: c.vip_code,
-            shipment_count: senderCounts.get(normalizeName(c.name)) ?? 0,
+        const { data, error } = await supabaseAdmin.rpc('list_customer_profiles', {
+            p_search: search || null,
+            p_tab: tab,
+            p_limit: limit,
+            p_offset: offset,
+        });
+
+        if (error) {
+            console.error('[customer-profile list] RPC failed:', error);
+            return NextResponse.json({ error: 'ไม่สามารถโหลดรายชื่อลูกค้า' }, { status: 500 });
+        }
+
+        const raw = (data ?? []) as Array<{
+            sender_key: string;
+            display_name: string | null;
+            sender_phone: string | null;
+            vip_code: string | null;
+            shipment_count: number | string;
+            total_count: number | string;
+        }>;
+
+        const rows = raw.map((r) => ({
+            // ใช้ display_name (ที่ยังไม่ lower-case) เพื่อให้ detail page query ตรงกับข้อมูลจริง
+            id: encodeURIComponent(r.display_name ?? r.sender_key),
+            name: r.display_name,
+            phone: r.sender_phone,
+            vip_code: r.vip_code,
+            shipment_count: Number(r.shipment_count) || 0,
         }));
 
-        const vip = rows
-            .filter((r) => isVipCode(r.vip_code))
-            .sort((a, b) => b.shipment_count - a.shipment_count);
-        const general = rows
-            .filter((r) => !isVipCode(r.vip_code))
-            .sort((a, b) => b.shipment_count - a.shipment_count);
+        const total = raw.length > 0 ? Number(raw[0].total_count) || 0 : 0;
 
         return NextResponse.json({
-            vip,
-            general,
-            total: {
-                vip: vip.length,
-                general: general.length,
-                matched_senders: senderCounts.size,
-            },
+            rows,
+            total,
+            tab,
+            limit,
+            offset,
         });
     } catch (e) {
         console.error('[api/admin/customer-profile/list][GET]', e);

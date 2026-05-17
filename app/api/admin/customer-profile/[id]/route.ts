@@ -45,6 +45,7 @@ type ShipmentRow = {
     cod_payment_time: string | null;
     total_shipping_fee: string | null;
     shipping_fee: string | null;
+    vip_code: string | null;
 };
 
 function isNonEmpty(v: unknown): boolean {
@@ -95,6 +96,7 @@ async function fetchCustomerShipments(senderName: string): Promise<ShipmentRow[]
                     'cod_payment_time',
                     'total_shipping_fee',
                     'shipping_fee',
+                    'vip_code',
                 ].join(',')
             )
             // case-insensitive exact match — sender_name อาจมีช่องว่างนำหน้า/ท้าย
@@ -309,27 +311,72 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
-        const { id } = await context.params;
-        if (!id || !UUID_RE.test(id)) {
+        const { id: rawId } = await context.params;
+        if (!rawId) {
             return NextResponse.json({ error: 'ID ไม่ถูกต้อง' }, { status: 400 });
         }
 
-        const { data: customer, error: custErr } = await supabaseAdmin
-            .from('customers')
-            .select('id, name, phone, vip_code, address, created_at')
-            .eq('id', id)
-            .maybeSingle();
+        // รองรับ 2 รูปแบบ:
+        //   1) UUID — ลูกค้าที่ register ผ่าน LINE (อยู่ใน public.customers)
+        //   2) URI-encoded sender_name — ผู้ส่งจาก jt_shipments ที่ยังไม่ register
+        let customer: {
+            id: string;
+            name: string | null;
+            phone: string | null;
+            vip_code: string | null;
+            address: string | null;
+            created_at: string | null;
+        } | null = null;
+        let senderName = '';
 
-        if (custErr) {
-            console.error('[customer-profile detail] customer fetch:', custErr);
-            return NextResponse.json({ error: 'ไม่สามารถโหลดข้อมูลลูกค้า' }, { status: 500 });
+        if (UUID_RE.test(rawId)) {
+            const { data, error: custErr } = await supabaseAdmin
+                .from('customers')
+                .select('id, name, phone, vip_code, address, created_at')
+                .eq('id', rawId)
+                .maybeSingle();
+            if (custErr) {
+                console.error('[customer-profile detail] customer fetch:', custErr);
+                return NextResponse.json({ error: 'ไม่สามารถโหลดข้อมูลลูกค้า' }, { status: 500 });
+            }
+            if (!data) {
+                return NextResponse.json({ error: 'ไม่พบลูกค้า' }, { status: 404 });
+            }
+            customer = data;
+            senderName = (data.name ?? '').trim();
+        } else {
+            let decoded: string;
+            try {
+                decoded = decodeURIComponent(rawId).trim();
+            } catch {
+                return NextResponse.json({ error: 'ID ไม่ถูกต้อง' }, { status: 400 });
+            }
+            if (!decoded) {
+                return NextResponse.json({ error: 'ID ไม่ถูกต้อง' }, { status: 400 });
+            }
+            senderName = decoded;
+            // best-effort: ดึงข้อมูล profile จาก customers (ถ้ามี registered LINE user ชื่อเดียวกัน)
+            const { data: matched } = await supabaseAdmin
+                .from('customers')
+                .select('id, name, phone, vip_code, address, created_at')
+                .ilike('name', decoded)
+                .limit(1);
+            customer = matched && matched.length > 0 ? matched[0] : {
+                id: rawId,
+                name: decoded,
+                phone: null,
+                vip_code: null,
+                address: null,
+                created_at: null,
+            };
         }
-        if (!customer) {
-            return NextResponse.json({ error: 'ไม่พบลูกค้า' }, { status: 404 });
-        }
-
-        const senderName = (customer.name ?? '').trim();
         const shipments = senderName ? await fetchCustomerShipments(senderName) : [];
+
+        // ถ้าเป็น sender-only flow และไม่มี vip_code จาก customers — ดึงล่าสุดจาก shipments
+        if (customer && !isNonEmpty(customer.vip_code)) {
+            const latestVip = shipments.find((s) => isNonEmpty(s.vip_code))?.vip_code ?? null;
+            if (latestVip) customer = { ...customer, vip_code: latestVip };
+        }
 
         const kpi = computeKpi(shipments);
         const weight = computeWeightSummary(shipments);
