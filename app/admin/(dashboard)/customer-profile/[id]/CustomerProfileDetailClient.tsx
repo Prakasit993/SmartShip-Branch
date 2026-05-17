@@ -208,7 +208,7 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
                     isVip ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
                             <Crown className="h-3 w-3" aria-hidden />
-                            VIP {customer.vip_code}
+                            {customer.vip_code}
                         </span>
                     ) : (
                         <span className="rounded-full bg-slate-700/40 px-2.5 py-0.5 text-xs font-semibold text-slate-300 ring-1 ring-slate-600/40">
