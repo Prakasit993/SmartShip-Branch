@@ -120,13 +120,58 @@ export const AI_AGENT_TOOLS: readonly AiAgentToolDefinition[] = [
             'ให้ AI บอกผู้ใช้ว่า "แสดง 100 ตัวแรก จากทั้งหมดอาจมีมากกว่านี้".',
     },
     {
+        name: 'get_not_closed_overdue_cases',
+        description:
+            'รายการพัสดุที่ "ยังไม่ปิดงาน" และ "ค้างสถานะเกิน N วัน" — ใช้สำหรับเคส aging/' +
+            'เร่งด่วนที่ admin ต้องไล่ปิด (เลข AWB + ผู้รับ + scan ล่าสุด + age_days). ' +
+            'เลือกฐานเวลาได้ 2 แบบ: booking_date (นับจากวันคีย์) หรือ latest_scan_time ' +
+            '(นับจาก scan ล่าสุด — null/empty = ไม่มี scan = ค้างสูงสุด). ' +
+            'ใช้เมื่อผู้ใช้พูดถึง "ค้างเกิน N วัน" / "ยังไม่ปิดงานเกิน 7 วัน" / ' +
+            '"พัสดุ aging" / "เคสเร่งด่วนย้อนหลัง". ' +
+            'ห้ามเรียก tool นี้ถ้าผู้ใช้ไม่ระบุเงื่อนไขเวลา — ใช้ get_top_not_closed_cases แทน.',
+        endpoint: { method: 'GET', path: '/api/admin/jt-shipments/not-closed-overdue' },
+        parameters: {
+            type: 'object',
+            properties: {
+                ...DATE_RANGE_PROPS,
+                min_age_days: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 365,
+                    description: 'จำนวนวัน aging ขั้นต่ำ (default 7, max 365)',
+                },
+                age_field: {
+                    type: 'string',
+                    enum: ['booking_date', 'latest_scan_time'],
+                    description:
+                        'ฐานเวลานับ aging — booking_date (default, ตรงกับความเข้าใจ user "คีย์ไปนานแล้วไม่ปิดงาน") ' +
+                        'หรือ latest_scan_time ("ไม่มีความเคลื่อนไหวหลายวัน")',
+                },
+                limit: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 500,
+                    description: 'จำนวน case คืนสูงสุด (default 100, max 500)',
+                },
+            },
+            additionalProperties: false,
+        },
+        usageNotes:
+            'เลือก age_field ตาม intent: ' +
+            '- "ค้างเกิน X วัน" / "คีย์ไปแล้วยังไม่ปิด" → age_field = booking_date (default). ' +
+            '- "ไม่มี scan หลายวัน" / "เงียบ ไม่ขยับ" → age_field = latest_scan_time. ' +
+            'Response แต่ละ case มี age_days บอกอายุของเคส (สำหรับ latest_scan_time, ' +
+            'null = ไม่มี scan เลย). cutoff_date = วันที่ตัด aging (today - min_age_days). ' +
+            'ถ้า truncated = true ให้บอกผู้ใช้ว่า "แสดง N ตัวแรก".',
+    },
+    {
         name: 'query_sql',
         description:
             'รัน SELECT query บน jt_shipments / shipping_cost_master เมื่อ predefined ' +
             'tools ตอบไม่ได้ (เช่น filter เจาะ sender/staff/branch, custom aggregate, ' +
             'join cost master). อย่าเรียก tool นี้ถ้า predefined tools (get_dashboard_kpi, ' +
-            'get_cod_summary, get_top_not_closed_cases) ตอบได้ — predefined เร็วกว่าและ ' +
-            'safer.\n\n' +
+            'get_cod_summary, get_top_not_closed_cases, get_not_closed_overdue_cases) ตอบได้ ' +
+            '— predefined เร็วกว่าและ safer.\n\n' +
             'ข้อจำกัด:\n' +
             '- SELECT only (INSERT/UPDATE/DELETE/DDL ถูก reject)\n' +
             '- Tables: jt_shipments, shipping_cost_master เท่านั้น (cross-DB, non-public schema ถูก block)\n' +
