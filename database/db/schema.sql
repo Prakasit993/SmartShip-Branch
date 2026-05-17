@@ -87,6 +87,7 @@ create table public.customers (
   name text,
   phone text,
   address text,
+  vip_code text, -- J&T VIP code (see migrations/20260517_customers_vip_code.sql)
   created_at timestamptz default now()
 );
 
