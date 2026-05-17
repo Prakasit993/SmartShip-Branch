@@ -189,16 +189,29 @@ export async function GET(req: Request) {
         // candidate ไม่พอ. capped ที่ MAX_LIMIT * 2 เพื่อป้องกัน payload ใหญ่.
         const overFetch = Math.min(limit * 4, MAX_LIMIT * 2);
 
+        const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+        // Defensive: AI มักจะ resolve "ค้างเกิน N วัน" เป็นช่วงเวลา today-N → today
+        // และส่ง date_from = cutoff_date มา filter ซ้อนทำให้ range ว่าง. ตัดออกถ้า
+        // ไม่ make sense กับ cutoff (date_from/date_to ต้อง "เก่ากว่า" cutoff_date
+        // อย่างเคร่งครัด ถึงจะมีความหมายเป็น tighter bound)
+        const effectiveDateFrom =
+            ageField === 'booking_date' && dateFrom && YMD_RE.test(dateFrom) && dateFrom >= cutoffYmd
+                ? ''
+                : dateFrom;
+        const effectiveDateTo =
+            ageField === 'booking_date' && dateTo && YMD_RE.test(dateTo) && dateTo >= cutoffYmd
+                ? ''
+                : dateTo;
+        const dateFromDropped = effectiveDateFrom === '' && dateFrom !== '';
+        const dateToDropped = effectiveDateTo === '' && dateTo !== '';
+
         let q = supabaseAdmin.from('jt_shipments').select(SELECT_COLUMNS);
 
         if (ageField === 'booking_date') {
             // ใช้ DB filter ตัด rows ที่ booking_date ใหม่กว่า cutoff (ลด payload)
             q = q.lt('booking_date', cutoffUpperExclusive);
-            // date_to จะซ้อนทับ cutoff_date (ทั้งคู่เป็น upper bound ของ booking_date) —
-            // ถ้า AI ส่ง date_to=today มา filter จะกลายเป็น booking_date < min(date_to, cutoff)
-            // ซึ่งบีบ range จนเกือบ empty. ตัด date_to ออก, ใช้ cutoff อย่างเดียว.
-            // date_from ยังใช้ได้ในฐานะ lower bound ("ดูย้อนหลังไม่เกิน N วัน").
-            q = applyBookingDateRangeFilters(q, dateFrom, '');
+            // date_from/date_to ใช้ได้เฉพาะตอนเก่ากว่า cutoff (ดูใน effective* ด้านบน)
+            q = applyBookingDateRangeFilters(q, effectiveDateFrom, effectiveDateTo);
         } else {
             // age_field=latest_scan_time: cutoff filter อยู่บนคนละ column —
             // date_from/date_to กรอง booking_date ได้ปกติ (ไม่ทับซ้อน)
@@ -254,8 +267,20 @@ export async function GET(req: Request) {
 
         const elapsed = Math.round(performance.now() - t0);
         console.log(
-            `[jt-shipments/not-closed-overdue] done in ${elapsed}ms — ${cases.length}/${matched.length} returned (age_field=${ageField}, min_age=${minAgeDays}d)`,
+            `[jt-shipments/not-closed-overdue] done in ${elapsed}ms — ${cases.length}/${matched.length} returned (age_field=${ageField}, min_age=${minAgeDays}d, dropped: from=${dateFromDropped} to=${dateToDropped})`,
         );
+
+        const warnings: string[] = [];
+        if (dateFromDropped) {
+            warnings.push(
+                `date_from='${dateFrom}' ถูก ignore เพราะไม่เก่ากว่า cutoff_date='${cutoffYmd}' — ใช้ cutoff เป็น upper bound แทน`,
+            );
+        }
+        if (dateToDropped) {
+            warnings.push(
+                `date_to='${dateTo}' ถูก ignore เพราะไม่เก่ากว่า cutoff_date='${cutoffYmd}' — redundant กับ cutoff`,
+            );
+        }
 
         return NextResponse.json({
             total: matched.length,
@@ -267,6 +292,7 @@ export async function GET(req: Request) {
             today,
             date_from: dateFrom || null,
             date_to: dateTo || null,
+            warnings: warnings.length ? warnings : undefined,
             cases,
             _elapsed_ms: elapsed,
         });
