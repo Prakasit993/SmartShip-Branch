@@ -30,8 +30,8 @@ type Customer = {
 type Kpi = {
     total: number;
     closed: number;
-    closedWithin3Days: number;
-    closedWithin7Days: number;
+    pendingWithin3Days: number;
+    pendingWithin7Days: number;
     withIssue: number;
 };
 
@@ -252,16 +252,16 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
                 <KpiCard
                     icon={<Clock3 className="h-4 w-4" aria-hidden />}
                     accent="from-cyan-500/40 to-sky-500/10"
-                    label="ปิดงาน ≤ 3 วัน"
-                    value={fmtCount(kpi.closedWithin3Days)}
-                    hint={`${fmtPct(kpi.closedWithin3Days, kpi.closed)} ของสำเร็จ`}
+                    label="ค้าง ≤ 3 วัน"
+                    value={fmtCount(kpi.pendingWithin3Days)}
+                    hint={`${fmtPct(kpi.pendingWithin3Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่สำเร็จ`}
                 />
                 <KpiCard
                     icon={<Clock3 className="h-4 w-4" aria-hidden />}
                     accent="from-indigo-500/40 to-purple-500/10"
-                    label="ปิดงาน ≤ 7 วัน"
-                    value={fmtCount(kpi.closedWithin7Days)}
-                    hint={`${fmtPct(kpi.closedWithin7Days, kpi.closed)} ของสำเร็จ`}
+                    label="ค้าง ≤ 7 วัน"
+                    value={fmtCount(kpi.pendingWithin7Days)}
+                    hint={`${fmtPct(kpi.pendingWithin7Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่สำเร็จ`}
                 />
                 <KpiCard
                     icon={<AlertTriangle className="h-4 w-4" aria-hidden />}

@@ -112,41 +112,43 @@ async function fetchCustomerShipments(senderName: string): Promise<ShipmentRow[]
 type Kpi = {
     total: number;
     closed: number;
-    closedWithin3Days: number;
-    closedWithin7Days: number;
+    pendingWithin3Days: number;
+    pendingWithin7Days: number;
     withIssue: number;
 };
 
+function todayUtcMs(): number {
+    const ymd = new Date().toISOString().slice(0, 10);
+    return parseYmd(ymd) ?? 0;
+}
+
 function computeKpi(rows: ShipmentRow[]): Kpi {
+    const nowMs = todayUtcMs();
     let closed = 0;
-    let closedWithin3 = 0;
-    let closedWithin7 = 0;
+    let pendingWithin3 = 0;
+    let pendingWithin7 = 0;
     let withIssue = 0;
     for (const r of rows) {
-        const isClosed = isNonEmpty(r.signer_name);
+        const isClosed = isNonEmpty(r.signed_time);
         if (isClosed) {
             closed += 1;
+        } else {
             const bookMs = parseYmd(r.booking_date);
-            const signMs = parseYmd(r.signed_time);
-            if (bookMs != null && signMs != null) {
-                const d = diffDaysUtc(bookMs, signMs);
-                if (d >= 0 && d <= 3) closedWithin3 += 1;
-                if (d >= 0 && d <= 7) closedWithin7 += 1;
+            if (bookMs != null) {
+                const d = diffDaysUtc(bookMs, nowMs);
+                if (d >= 0 && d <= 3) pendingWithin3 += 1;
+                if (d >= 0 && d <= 7) pendingWithin7 += 1;
             }
         }
-        if (
-            isNonEmpty(r.issue_status) ||
-            isNonEmpty(r.return_type) ||
-            isNonEmpty(r.exception_reason)
-        ) {
+        if (isNonEmpty(r.issue_status)) {
             withIssue += 1;
         }
     }
     return {
         total: rows.length,
         closed,
-        closedWithin3Days: closedWithin3,
-        closedWithin7Days: closedWithin7,
+        pendingWithin3Days: pendingWithin3,
+        pendingWithin7Days: pendingWithin7,
         withIssue,
     };
 }
