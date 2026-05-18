@@ -305,7 +305,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 
     if (!data) return null;
 
-    const { customer, history, kpi, weight, cod, financial, financial_refreshed_at, date_range } = data;
+    const { customer, history, kpi, weight, cod, financial, date_range } = data;
     const isVip = !!(customer.vip_code && customer.vip_code.trim());
     const effectiveName = customer.override_name?.trim() || customer.name?.trim() || 'ลูกค้าไม่ระบุชื่อ';
     const effectivePhone = customer.override_phone?.trim() || customer.phone || null;
@@ -561,7 +561,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                 />
             ) : null}
 
-            {/* COD (collapsible — starts open) */}
+            {/* COD (collapsible — starts closed) */}
             <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
                 <button
                     type="button"
@@ -1184,9 +1184,13 @@ function OverduePanel({
     const meta = OVERDUE_META[type];
 
     useEffect(() => {
+        const controller = new AbortController();
         setPanelLoading(true);
         setPanelError(null);
-        fetch(`/api/admin/customer-profile/${id}/overdue?type=${type}`, { credentials: 'include' })
+        fetch(`/api/admin/customer-profile/${id}/overdue?type=${type}`, {
+            credentials: 'include',
+            signal: controller.signal,
+        })
             .then(async (r) => {
                 if (!r.ok) {
                     const b = await r.json().catch(() => ({}));
@@ -1195,8 +1199,12 @@ function OverduePanel({
                 return r.json() as Promise<{ shipments: OverdueShipment[] }>;
             })
             .then((d) => setShipments(d.shipments ?? []))
-            .catch((e) => setPanelError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ'))
+            .catch((e) => {
+                if (e instanceof Error && e.name === 'AbortError') return;
+                setPanelError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ');
+            })
             .finally(() => setPanelLoading(false));
+        return () => controller.abort();
     }, [id, type]);
 
     return (
