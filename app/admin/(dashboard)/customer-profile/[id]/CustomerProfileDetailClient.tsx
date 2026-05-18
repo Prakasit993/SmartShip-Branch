@@ -205,7 +205,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const [weightOpen, setWeightOpen] = useState(false);
     const [codOpen, setCodOpen] = useState(false);
     const [activeKpiPanel, setActiveKpiPanel] = useState<'overdue3' | 'overdue7' | 'issue' | null>(null);
-    const [showContactFull, setShowContactFull] = useState(false);
+    const [showContactFull, setShowContactFull] = useState(true);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
     const copyToClipboard = useCallback(async (text: string, token: string) => {

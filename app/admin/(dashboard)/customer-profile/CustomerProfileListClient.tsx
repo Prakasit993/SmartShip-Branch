@@ -384,7 +384,7 @@ function CustomerListCard({ row, animationIndex }: { row: CustomerRow; animation
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
-    const [showPhone, setShowPhone] = useState(false);
+    const [showPhone, setShowPhone] = useState(true);
 
     return (
         <div
@@ -447,7 +447,7 @@ function CustomerListRow({ row, animationIndex }: { row: CustomerRow; animationI
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
-    const [showPhone, setShowPhone] = useState(false);
+    const [showPhone, setShowPhone] = useState(true);
 
     return (
         <tr
