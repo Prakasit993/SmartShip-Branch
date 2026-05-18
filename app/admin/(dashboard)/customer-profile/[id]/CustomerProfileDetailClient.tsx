@@ -422,6 +422,27 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                                     </>
                                 ) : null}
                             </div>
+                            {financial ? (
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                                    <span className="inline-flex items-center gap-1 text-slate-300">
+                                        <Wallet className="h-3 w-3 text-slate-500" aria-hidden />
+                                        <span className="text-slate-500">รายได้</span>
+                                        <span className="tabular-nums font-bold text-sky-300">{fmtThb(financial.total_revenue)}</span>
+                                    </span>
+                                    <span className="text-slate-700" aria-hidden>·</span>
+                                    <span className="inline-flex items-center gap-1">
+                                        <span className="text-slate-500">ต้นทุน</span>
+                                        <span className="tabular-nums font-bold text-slate-300">{fmtThb(financial.total_cost)}</span>
+                                    </span>
+                                    <span className="text-slate-700" aria-hidden>·</span>
+                                    <span className="inline-flex items-center gap-1">
+                                        <span className="text-slate-500">กำไร</span>
+                                        <span className={`tabular-nums font-bold ${financial.total_profit >= 0 ? 'text-emerald-300' : 'text-rose-400'}`}>
+                                            {fmtThb(financial.total_profit)}
+                                        </span>
+                                    </span>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
