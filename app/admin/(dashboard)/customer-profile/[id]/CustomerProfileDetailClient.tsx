@@ -21,7 +21,6 @@ import {
     Wallet,
     X,
 } from 'lucide-react';
-import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 
 type Customer = {
     id: string;
@@ -108,6 +107,32 @@ type ApiResponse = {
     shipments_total: number;
     shipments_truncated: boolean;
 };
+
+const AVATAR_GRADIENTS = [
+    'from-sky-500/85 to-indigo-500/85',
+    'from-emerald-500/85 to-teal-500/85',
+    'from-fuchsia-500/85 to-pink-500/85',
+    'from-amber-500/85 to-orange-500/85',
+    'from-violet-500/85 to-purple-500/85',
+    'from-rose-500/85 to-red-500/85',
+    'from-cyan-500/85 to-blue-500/85',
+    'from-lime-500/85 to-green-500/85',
+];
+
+function pickGradient(seed: string | null): string {
+    if (!seed) return AVATAR_GRADIENTS[0];
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+    return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
+}
+
+function initialOf(name: string | null): string {
+    if (!name) return '?';
+    const t = name.trim();
+    if (!t) return '?';
+    const code = t.codePointAt(0);
+    return code ? String.fromCodePoint(code).toUpperCase() : '?';
+}
 
 function fmtCount(n: number): string {
     return n.toLocaleString('th-TH');
@@ -238,12 +263,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     );
 
     if (loading && !data) {
-        return (
-            <div className="flex items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/40 p-12">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin text-slate-400" aria-hidden />
-                <span className="text-sm text-slate-400">กำลังโหลดข้อมูลลูกค้า…</span>
-            </div>
-        );
+        return <DetailSkeleton />;
     }
 
     if (error) {
@@ -251,21 +271,21 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             <div className="space-y-3">
                 <Link
                     href="/admin/customer-profile"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 transition hover:text-sky-300"
                 >
                     <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
                     กลับไปรายชื่อลูกค้า
                 </Link>
-                <div className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-200">
+                <div className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-200 shadow-lg shadow-rose-950/20">
                     <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
                     <span>{error}</span>
                 </div>
                 <button
                     type="button"
                     onClick={fetchDetail}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white"
+                    className="group inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition-all hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-slate-900 hover:text-white hover:shadow-lg hover:shadow-sky-950/30"
                 >
-                    <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                    <RefreshCw className="h-3.5 w-3.5 transition-transform group-hover:rotate-180" aria-hidden />
                     ลองอีกครั้ง
                 </button>
             </div>
@@ -280,55 +300,94 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const effectiveName = customer.override_name?.trim() || customer.name?.trim() || 'ลูกค้าไม่ระบุชื่อ';
     const effectivePhone = customer.override_phone?.trim() || customer.phone || null;
     const hasOverride = !!(customer.override_phone?.trim() || customer.override_name?.trim() || customer.admin_notes?.trim());
+    const avatarGradient = pickGradient(customer.sender_key || customer.name);
+    const avatarInitial = initialOf(effectiveName);
 
     return (
         <div className="space-y-6 pb-20">
             <Link
                 href="/admin/customer-profile"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200"
+                className="group inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 transition hover:text-sky-300"
             >
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
                 กลับไปรายชื่อลูกค้า
             </Link>
 
-            <AdminPageHeader
-                title={effectiveName}
-                description={`เบอร์โทร ${maskPhone(effectivePhone)} · ${
-                    date_range ? `ช่วงข้อมูล ${date_range.from} → ${date_range.to}` : 'ยังไม่มีพัสดุในระบบ'
-                }`}
-                tone="dark"
-                meta={
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        {isVip ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
-                                <Crown className="h-3 w-3" aria-hidden />
-                                {customer.vip_code}
-                            </span>
-                        ) : (
-                            <span className="rounded-full bg-slate-700/40 px-2.5 py-0.5 text-xs font-semibold text-slate-300 ring-1 ring-slate-600/40">
-                                ลูกค้าทั่วไป
-                            </span>
-                        )}
-                        {hasOverride ? (
-                            <span
-                                className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/30"
-                                title={customer.updated_by ? `แก้โดย ${customer.updated_by} · ${formatDateTime(customer.updated_at)}` : 'มี override'}
-                            >
-                                <ClipboardEdit className="h-3 w-3" aria-hidden />
-                                แอดมินแก้ข้อมูล
-                            </span>
-                        ) : null}
+            <section className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-br from-slate-900/60 via-slate-950/70 to-slate-950/90 p-4 shadow-xl shadow-black/30 ring-1 ring-white/[0.04] sm:p-5 animate-home-fade-up">
+                {/* decorative orbs */}
+                <div
+                    className={`pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-gradient-to-br ${
+                        isVip ? 'from-amber-500/25 to-orange-500/5' : 'from-sky-500/20 to-indigo-500/5'
+                    } blur-3xl animate-hero-blob`}
+                    aria-hidden
+                />
+                <div
+                    className="pointer-events-none absolute -right-12 -bottom-12 h-48 w-48 rounded-full bg-gradient-to-br from-violet-500/15 to-pink-500/5 blur-3xl animate-hero-blob-alt"
+                    aria-hidden
+                />
+
+                <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex min-w-0 flex-1 items-start gap-4">
+                        <span
+                            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarGradient} text-2xl font-black text-white shadow-lg shadow-black/40 ring-2 ring-white/15 sm:h-16 sm:w-16 sm:text-3xl`}
+                            aria-hidden
+                        >
+                            {avatarInitial}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                                    {effectiveName}
+                                </h1>
+                                {isVip ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/25 to-orange-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-200 ring-1 ring-amber-500/40 shadow-sm shadow-amber-950/20">
+                                        <Crown className="h-3 w-3" aria-hidden />
+                                        {customer.vip_code}
+                                    </span>
+                                ) : (
+                                    <span className="rounded-full bg-slate-700/40 px-2.5 py-0.5 text-xs font-semibold text-slate-300 ring-1 ring-slate-600/40">
+                                        ลูกค้าทั่วไป
+                                    </span>
+                                )}
+                                {hasOverride ? (
+                                    <span
+                                        className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/30"
+                                        title={customer.updated_by ? `แก้โดย ${customer.updated_by} · ${formatDateTime(customer.updated_at)}` : 'มี override'}
+                                    >
+                                        <ClipboardEdit className="h-3 w-3" aria-hidden />
+                                        แอดมินแก้ข้อมูล
+                                    </span>
+                                ) : null}
+                            </div>
+                            <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Package className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+                                    เบอร์โทร <span className="font-mono text-slate-200">{maskPhone(effectivePhone)}</span>
+                                </span>
+                                <span className="mx-2 text-slate-700">·</span>
+                                <span className="text-slate-400">
+                                    {date_range ? (
+                                        <>
+                                            ช่วงข้อมูล{' '}
+                                            <span className="tabular-nums text-slate-200">{date_range.from}</span>{' '}
+                                            <span className="text-slate-600">→</span>{' '}
+                                            <span className="tabular-nums text-slate-200">{date_range.to}</span>
+                                        </>
+                                    ) : (
+                                        'ยังไม่มีพัสดุในระบบ'
+                                    )}
+                                </span>
+                            </p>
+                        </div>
                     </div>
-                }
-                actions={
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                         {isAdmin ? (
                             <button
                                 type="button"
                                 onClick={() => setEditOpen(true)}
-                                className="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400 hover:bg-sky-500/20"
+                                className="group inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition-all hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-500/20 hover:shadow-lg hover:shadow-sky-950/40"
                             >
-                                <Pencil className="h-3.5 w-3.5" aria-hidden />
+                                <Pencil className="h-3.5 w-3.5 transition-transform group-hover:rotate-12" aria-hidden />
                                 แก้ไขข้อมูลติดต่อ
                             </button>
                         ) : null}
@@ -336,26 +395,28 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                             type="button"
                             onClick={fetchDetail}
                             disabled={loading}
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                            className="group inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition-all hover:-translate-y-0.5 hover:border-slate-600 hover:bg-slate-900 hover:text-white hover:shadow-lg hover:shadow-black/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                         >
                             {loading ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                             ) : (
-                                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                                <RefreshCw className="h-3.5 w-3.5 transition-transform group-hover:rotate-180" aria-hidden />
                             )}
                             รีเฟรช
                         </button>
                     </div>
-                }
-            />
+                </div>
+            </section>
 
             {customer.admin_notes ? (
-                <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 ring-1 ring-amber-500/15">
+                <section className="animate-home-fade-up home-delay-1 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/8 via-amber-500/5 to-orange-500/5 p-3 shadow-lg shadow-amber-950/15 ring-1 ring-amber-500/15">
                     <div className="flex items-start gap-2">
-                        <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 ring-1 ring-amber-500/30">
+                            <StickyNote className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                        </span>
                         <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/80">หมายเหตุภายใน</p>
-                            <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-amber-100">
+                            <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-amber-100">
                                 {customer.admin_notes}
                             </p>
                         </div>
@@ -368,46 +429,56 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                 <KpiCard
                     icon={<Package className="h-4 w-4" aria-hidden />}
                     accent="from-sky-500/40 to-blue-500/10"
+                    iconTone="bg-sky-500/15 text-sky-300 ring-sky-500/25"
                     label="พัสดุรวม"
                     value={fmtCount(kpi.total)}
                     hint="ทุกชิ้นที่ sender_name ตรง"
+                    delay={0.05}
                 />
                 <KpiCard
                     icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
                     accent="from-emerald-500/40 to-teal-500/10"
+                    iconTone="bg-emerald-500/15 text-emerald-300 ring-emerald-500/25"
                     label="สำเร็จ"
                     value={fmtCount(kpi.closed)}
                     hint={`${fmtPct(kpi.closed, kpi.total)} ของพัสดุรวม`}
+                    delay={0.1}
                 />
                 <KpiCard
                     icon={<Clock3 className="h-4 w-4" aria-hidden />}
                     accent="from-cyan-500/40 to-sky-500/10"
+                    iconTone="bg-cyan-500/15 text-cyan-300 ring-cyan-500/25"
                     label="ค้าง ≤ 3 วัน"
                     value={fmtCount(kpi.pendingWithin3Days)}
                     hint={`${fmtPct(kpi.pendingWithin3Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่สำเร็จ`}
+                    delay={0.15}
                 />
                 <KpiCard
                     icon={<Clock3 className="h-4 w-4" aria-hidden />}
                     accent="from-indigo-500/40 to-purple-500/10"
+                    iconTone="bg-indigo-500/15 text-indigo-300 ring-indigo-500/25"
                     label="ค้าง ≤ 7 วัน"
                     value={fmtCount(kpi.pendingWithin7Days)}
                     hint={`${fmtPct(kpi.pendingWithin7Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่สำเร็จ`}
+                    delay={0.2}
                 />
                 <KpiCard
                     icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
                     accent="from-rose-500/40 to-amber-500/10"
+                    iconTone="bg-rose-500/15 text-rose-300 ring-rose-500/25"
                     label="มีปัญหา"
                     value={fmtCount(kpi.withIssue)}
                     hint={`${fmtPct(kpi.withIssue, kpi.total)} ของพัสดุรวม`}
+                    delay={0.26}
                 />
             </section>
 
             {/* Weight + COD */}
             <div className="grid gap-3 lg:grid-cols-2">
-                <section className="rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
+                <section className="animate-home-fade-up home-delay-2 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-violet-950/20">
                     <header className="mb-3 flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25">
-                            <Scale className="h-3.5 w-3.5" aria-hidden />
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
+                            <Scale className="h-4 w-4" aria-hidden />
                         </span>
                         <div>
                             <h2 className="text-sm font-bold text-white">น้ำหนักถูกปรับ</h2>
@@ -416,12 +487,13 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                             </p>
                         </div>
                         {weight.adjustedCount > 0 ? (
-                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300 ring-1 ring-amber-500/30">
+                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
                                 <AlertTriangle className="h-3 w-3" aria-hidden />
                                 ถูกปรับ {fmtCount(weight.adjustedCount)} ชิ้น
                             </span>
                         ) : (
-                            <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
+                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
+                                <CheckCircle2 className="h-3 w-3" aria-hidden />
                                 ไม่มีการปรับ
                             </span>
                         )}
@@ -467,10 +539,10 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     </div>
                 </section>
 
-                <section className="rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
+                <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-emerald-950/20">
                     <header className="mb-3 flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25">
-                            <Wallet className="h-3.5 w-3.5" aria-hidden />
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
+                            <Wallet className="h-4 w-4" aria-hidden />
                         </span>
                         <div>
                             <h2 className="text-sm font-bold text-white">COD</h2>
@@ -511,20 +583,30 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 
             {/* Financial RPC */}
             {financial ? (
-                <section className="rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-4 ring-1 ring-white/[0.03]">
-                    <header className="mb-3 flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25">
-                            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                <section className="animate-home-fade-up home-delay-4 relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-sky-950/25">
+                    <div
+                        className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-sky-500/15 to-emerald-500/5 blur-3xl"
+                        aria-hidden
+                    />
+                    <header className="relative mb-3 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
+                            <BadgeCheck className="h-4 w-4" aria-hidden />
                         </span>
                         <div>
                             <h2 className="text-sm font-bold text-white">สรุปกำไร (จาก snapshot)</h2>
                             <p className="text-[11px] text-slate-500">
-                                {date_range?.from} → {date_range?.to}
-                                {financialSnapshotAge ? ` · ${financialSnapshotAge}` : ''}
+                                <span className="tabular-nums">{date_range?.from}</span>{' '}
+                                <span className="text-slate-600">→</span>{' '}
+                                <span className="tabular-nums">{date_range?.to}</span>
+                                {financialSnapshotAge ? (
+                                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-800/60 px-1.5 py-0.5 text-[10px] text-slate-400 ring-1 ring-slate-700/50">
+                                        {financialSnapshotAge}
+                                    </span>
+                                ) : ''}
                             </p>
                         </div>
                     </header>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="relative grid grid-cols-2 gap-2 sm:grid-cols-4">
                         <CodTile
                             label="พัสดุที่คำนวณ"
                             value={fmtCount(financial.shipment_count)}
@@ -554,64 +636,85 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             ) : null}
 
             {/* Shipments table */}
-            <section className="rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
+            <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03]">
                 <header className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/25">
-                        <Package className="h-3.5 w-3.5" aria-hidden />
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
+                        <Package className="h-4 w-4" aria-hidden />
                     </span>
                     <div>
                         <h2 className="text-sm font-bold text-white">รายการพัสดุ</h2>
                         <p className="text-[11px] text-slate-500">
-                            แสดง {fmtCount(shipments.length)} จาก {fmtCount(data.shipments_total)} ชิ้น
-                            {data.shipments_truncated ? ' (แสดง 200 ชิ้นล่าสุด)' : ''}
+                            แสดง <span className="font-semibold text-slate-300">{fmtCount(shipments.length)}</span> จาก{' '}
+                            <span className="font-semibold text-slate-300">{fmtCount(data.shipments_total)}</span> ชิ้น
+                            {data.shipments_truncated ? (
+                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25">
+                                    แสดง 200 ชิ้นล่าสุด
+                                </span>
+                            ) : null}
                         </p>
                     </div>
                 </header>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-800/70">
+                <div className="overflow-x-auto rounded-xl border border-slate-800/70 shadow-inner shadow-black/20">
                     <table className="w-full min-w-[720px] text-left text-xs">
-                        <thead className="bg-slate-900/70 text-[10px] uppercase tracking-wider text-slate-400">
+                        <thead className="bg-gradient-to-b from-slate-900/80 to-slate-900/50 text-[10px] uppercase tracking-wider text-slate-400">
                             <tr>
-                                <th className="px-3 py-2 font-semibold">AWB</th>
-                                <th className="px-3 py-2 font-semibold">วันที่จอง</th>
-                                <th className="px-3 py-2 font-semibold">สถานะปัญหา</th>
-                                <th className="px-3 py-2 font-semibold">Scan ล่าสุด</th>
+                                <th className="px-3 py-2.5 font-semibold">AWB</th>
+                                <th className="px-3 py-2.5 font-semibold">วันที่จอง</th>
+                                <th className="px-3 py-2.5 font-semibold">สถานะปัญหา</th>
+                                <th className="px-3 py-2.5 font-semibold">Scan ล่าสุด</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800/70">
+                        <tbody className="divide-y divide-slate-800/60">
                             {shipments.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
-                                        ลูกค้านี้ยังไม่มีพัสดุในระบบ
+                                    <td colSpan={4} className="px-3 py-8 text-center">
+                                        <div className="mx-auto flex max-w-xs flex-col items-center gap-2 text-slate-500">
+                                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-800/60 ring-1 ring-slate-700/50">
+                                                <Package className="h-4 w-4 text-slate-500" aria-hidden />
+                                            </span>
+                                            <p className="text-sm">ลูกค้านี้ยังไม่มีพัสดุในระบบ</p>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
-                                shipments.map((s) => (
+                                shipments.map((s, idx) => (
                                     <tr
-                                        key={s.awb_number ?? Math.random()}
-                                        className="transition hover:bg-slate-900/60"
+                                        key={s.awb_number ?? `row-${idx}`}
+                                        className="group/row transition-colors hover:bg-gradient-to-r hover:from-slate-900/80 hover:to-slate-900/30"
                                     >
                                         <td className="px-3 py-2 font-mono text-[11px] text-slate-100">
-                                            {s.awb_number || '—'}
+                                            {s.awb_number ? (
+                                                <span className="rounded-md bg-slate-800/50 px-1.5 py-0.5 ring-1 ring-slate-700/40 group-hover/row:bg-slate-800 group-hover/row:ring-slate-600/50">
+                                                    {s.awb_number}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-600">—</span>
+                                            )}
                                         </td>
                                         <td className="px-3 py-2 tabular-nums text-slate-300">
                                             {shortDate(s.booking_date)}
                                         </td>
                                         <td className="px-3 py-2">
                                             {s.issue_status ? (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/30">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
+                                                    <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
                                                     {s.issue_status}
                                                 </span>
                                             ) : s.signer_name ? (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
+                                                    <CheckCircle2 className="h-2.5 w-2.5" aria-hidden />
                                                     ปิดงาน
                                                 </span>
                                             ) : (
-                                                <span className="text-slate-500">—</span>
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/30 px-2 py-0.5 text-[10px] font-semibold text-slate-400 ring-1 ring-slate-600/30">
+                                                    <Clock3 className="h-2.5 w-2.5" aria-hidden />
+                                                    ดำเนินการ
+                                                </span>
                                             )}
                                         </td>
                                         <td className="px-3 py-2 text-slate-300">
-                                            {s.latest_scan_type || '—'}
+                                            {s.latest_scan_type || <span className="text-slate-600">—</span>}
                                         </td>
                                     </tr>
                                 ))
@@ -622,56 +725,68 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             </section>
 
             {history.length > 0 ? (
-                <section className="rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
+                <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03]">
                     <button
                         type="button"
                         onClick={() => setHistoryOpen((v) => !v)}
-                        className="flex w-full items-center justify-between gap-2"
+                        className="group flex w-full items-center justify-between gap-2"
+                        aria-expanded={historyOpen}
                     >
                         <span className="flex items-center gap-2">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25">
-                                <History className="h-3.5 w-3.5" aria-hidden />
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
+                                <History className="h-4 w-4" aria-hidden />
                             </span>
                             <span className="text-left">
                                 <h2 className="text-sm font-bold text-white">ประวัติการแก้ไขข้อมูลติดต่อ</h2>
                                 <p className="text-[11px] text-slate-500">{history.length} รายการล่าสุด</p>
                             </span>
                         </span>
-                        <span className="text-[11px] font-semibold text-slate-400">
+                        <span className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-violet-500/40 group-hover:text-violet-200">
                             {historyOpen ? 'ซ่อน' : 'ดู'}
+                            <span className={`transition-transform ${historyOpen ? 'rotate-180' : ''}`}>▾</span>
                         </span>
                     </button>
                     {historyOpen ? (
-                        <ul className="mt-3 space-y-2">
-                            {history.map((h) => (
+                        <ol className="relative mt-4 space-y-3 border-l border-violet-500/20 pl-5">
+                            {history.map((h, idx) => (
                                 <li
                                     key={h.id}
-                                    className="rounded-xl border border-slate-800/70 bg-slate-900/40 p-3 text-xs text-slate-200"
+                                    className="relative animate-home-fade-up"
+                                    style={{ animationDelay: `${Math.min(idx, 5) * 0.04}s` }}
                                 >
-                                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                                        <span className="rounded-full bg-violet-500/15 px-2 py-0.5 font-semibold text-violet-300 ring-1 ring-violet-500/25">
-                                            {fieldLabel(h.changed_field)}
-                                        </span>
-                                        <span className="tabular-nums">{formatDateTime(h.changed_at)}</span>
-                                        <span>· {h.changed_by}</span>
-                                    </div>
-                                    <div className="mt-1 grid gap-1 sm:grid-cols-2">
-                                        <div>
-                                            <span className="text-[10px] uppercase tracking-wider text-slate-500">เดิม</span>
-                                            <p className="break-words text-slate-400 line-through">
-                                                {h.old_value || <span className="italic">(ว่าง)</span>}
-                                            </p>
+                                    <span
+                                        className="absolute -left-[1.4rem] top-3 flex h-3 w-3 items-center justify-center rounded-full bg-violet-500/30 ring-2 ring-slate-950"
+                                        aria-hidden
+                                    >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-violet-300" />
+                                    </span>
+                                    <div className="rounded-xl border border-slate-800/70 bg-slate-900/45 p-3 text-xs text-slate-200 transition-colors hover:border-violet-500/30 hover:bg-slate-900/70">
+                                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                                            <span className="rounded-full bg-gradient-to-r from-violet-500/20 to-violet-500/10 px-2 py-0.5 font-semibold text-violet-200 ring-1 ring-violet-500/30">
+                                                {fieldLabel(h.changed_field)}
+                                            </span>
+                                            <span className="tabular-nums text-slate-300">{formatDateTime(h.changed_at)}</span>
+                                            <span className="text-slate-600">·</span>
+                                            <span className="text-slate-400">{h.changed_by}</span>
                                         </div>
-                                        <div>
-                                            <span className="text-[10px] uppercase tracking-wider text-slate-500">ใหม่</span>
-                                            <p className="break-words text-slate-100">
-                                                {h.new_value || <span className="italic">(ว่าง)</span>}
-                                            </p>
+                                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                            <div className="rounded-lg bg-slate-950/60 p-2 ring-1 ring-slate-800/60">
+                                                <span className="text-[10px] uppercase tracking-wider text-slate-500">เดิม</span>
+                                                <p className="mt-0.5 break-words text-slate-400 line-through">
+                                                    {h.old_value || <span className="italic">(ว่าง)</span>}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-lg bg-emerald-500/5 p-2 ring-1 ring-emerald-500/15">
+                                                <span className="text-[10px] uppercase tracking-wider text-emerald-300/80">ใหม่</span>
+                                                <p className="mt-0.5 break-words text-slate-100">
+                                                    {h.new_value || <span className="italic">(ว่าง)</span>}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 </li>
                             ))}
-                        </ul>
+                        </ol>
                     ) : null}
                 </section>
             ) : null}
@@ -690,34 +805,41 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 function KpiCard({
     icon,
     accent,
+    iconTone,
     label,
     value,
     hint,
+    delay = 0,
 }: {
     icon: React.ReactNode;
     accent: string;
+    iconTone: string;
     label: string;
     value: string;
     hint: string;
+    delay?: number;
 }) {
     return (
-        <div className="relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-4 shadow-inner">
+        <div
+            className="group relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/80 to-zinc-950/70 p-4 shadow-lg shadow-black/30 ring-1 ring-white/[0.03] transition-all hover:-translate-y-0.5 hover:border-zinc-700/90 hover:shadow-xl hover:shadow-black/40 animate-home-fade-up"
+            style={{ animationDelay: `${delay}s` }}
+        >
             <div
-                className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${accent} opacity-25 blur-2xl`}
+                className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${accent} opacity-25 blur-2xl transition-opacity duration-300 group-hover:opacity-50`}
                 aria-hidden
             />
-            <div className="flex items-start justify-between gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800/80 text-slate-200">
+            <div className="relative flex items-start justify-between gap-2">
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 ${iconTone}`}>
                     {icon}
                 </span>
             </div>
-            <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            <p className="relative mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                 {label}
             </p>
-            <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-white">
+            <p className="relative mt-1 text-2xl font-black tabular-nums tracking-tight text-white sm:text-[1.75rem]">
                 {value}
             </p>
-            <p className="mt-1 text-[10px] leading-snug text-zinc-600">{hint}</p>
+            <p className="relative mt-1 text-[10px] leading-snug text-zinc-500">{hint}</p>
         </div>
     );
 }
@@ -762,10 +884,44 @@ function CodTile({
     tone: string;
 }) {
     return (
-        <div className="rounded-xl border border-slate-800/80 bg-slate-900/45 p-3">
+        <div className="group rounded-xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-900/30 p-3 transition-colors hover:border-slate-700/80 hover:from-slate-900/80 hover:to-slate-900/50">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-            <p className={`mt-1 text-base font-bold tabular-nums ${tone}`}>{value}</p>
+            <p className={`mt-1 text-base font-bold tabular-nums tracking-tight ${tone} sm:text-lg`}>{value}</p>
             <p className="mt-0.5 text-[10px] text-slate-500">{sub}</p>
+        </div>
+    );
+}
+
+function DetailSkeleton() {
+    return (
+        <div className="space-y-6 pb-20">
+            <div className="h-4 w-32 animate-pulse rounded bg-slate-800/60" />
+            <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/60 p-5 ring-1 ring-white/[0.04]">
+                <div
+                    className="pointer-events-none absolute -left-12 -top-12 h-44 w-44 rounded-full bg-sky-500/10 blur-3xl animate-hero-blob"
+                    aria-hidden
+                />
+                <div className="relative flex items-center gap-4">
+                    <div className="h-14 w-14 animate-pulse rounded-2xl bg-slate-800/70 sm:h-16 sm:w-16" />
+                    <div className="flex-1 space-y-2">
+                        <div className="h-7 w-48 animate-pulse rounded bg-slate-800/70" />
+                        <div className="h-3 w-72 animate-pulse rounded bg-slate-800/60" />
+                    </div>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                        key={i}
+                        className="h-28 animate-pulse rounded-2xl border border-zinc-800/70 bg-zinc-950/50"
+                    />
+                ))}
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+                <div className="h-44 animate-pulse rounded-2xl border border-slate-800/70 bg-slate-950/45" />
+                <div className="h-44 animate-pulse rounded-2xl border border-slate-800/70 bg-slate-950/45" />
+            </div>
+            <div className="h-64 animate-pulse rounded-2xl border border-slate-800/70 bg-slate-950/45" />
         </div>
     );
 }
@@ -833,31 +989,43 @@ function EditOverrideModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-home-fade-up"
             role="dialog"
             aria-modal="true"
             onClick={(e) => {
                 if (e.target === e.currentTarget && !saving) onClose();
             }}
         >
-            <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl ring-1 ring-white/5">
-                <header className="flex items-center justify-between gap-2">
-                    <h3 className="text-base font-bold text-white">แก้ไขข้อมูลติดต่อ</h3>
+            <div
+                className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-5 shadow-2xl ring-1 ring-white/10 animate-home-fade-up"
+                style={{ animationDelay: '0.05s' }}
+            >
+                <div
+                    className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-gradient-to-br from-sky-500/20 to-indigo-500/5 blur-3xl"
+                    aria-hidden
+                />
+                <header className="relative flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30">
+                            <Pencil className="h-4 w-4" aria-hidden />
+                        </span>
+                        <h3 className="text-base font-bold text-white">แก้ไขข้อมูลติดต่อ</h3>
+                    </div>
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:opacity-50"
                         aria-label="ปิด"
                     >
                         <X className="h-4 w-4" aria-hidden />
                     </button>
                 </header>
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="relative mt-1 text-[11px] leading-relaxed text-slate-500">
                     ค่า override จะแสดงแทนข้อมูลจาก J&amp;T — ปล่อยว่างเพื่อกลับไปใช้ข้อมูลต้นทาง
                 </p>
 
-                <div className="mt-4 space-y-3">
+                <div className="relative mt-4 space-y-3">
                     <label className="block">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">เบอร์โทรศัพท์</span>
                         <input
@@ -866,7 +1034,7 @@ function EditOverrideModal({
                             onChange={(e) => setPhone(e.target.value)}
                             placeholder={customer.phone ?? 'ไม่มีในระบบ'}
                             maxLength={50}
-                            className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                            className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/30 transition placeholder:text-slate-600 focus:border-sky-500/60 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
                         />
                     </label>
                     <label className="block">
@@ -877,35 +1045,40 @@ function EditOverrideModal({
                             onChange={(e) => setName(e.target.value)}
                             placeholder={customer.name ?? ''}
                             maxLength={200}
-                            className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                            className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/30 transition placeholder:text-slate-600 focus:border-sky-500/60 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
                         />
                     </label>
                     <label className="block">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">หมายเหตุภายใน</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">หมายเหตุภายใน</span>
+                            <span className="text-[10px] tabular-nums text-slate-500">
+                                {notes.length}/2000
+                            </span>
+                        </div>
                         <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             rows={3}
                             maxLength={2000}
                             placeholder="เช่น ขอให้ติดต่อตอน 9-17 น."
-                            className="mt-1 w-full resize-y rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                            className="mt-1 w-full resize-y rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/30 transition placeholder:text-slate-600 focus:border-sky-500/60 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
                         />
                     </label>
                 </div>
 
                 {err ? (
-                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                    <div className="relative mt-3 flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 shadow-lg shadow-rose-950/20">
                         <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
                         <span>{err}</span>
                     </div>
                 ) : null}
 
-                <div className="mt-5 flex items-center justify-end gap-2">
+                <div className="relative mt-5 flex items-center justify-end gap-2">
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                        className="rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50"
                     >
                         ยกเลิก
                     </button>
@@ -913,12 +1086,12 @@ function EditOverrideModal({
                         type="button"
                         onClick={handleSubmit}
                         disabled={saving}
-                        className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-sky-950/40 transition-all hover:-translate-y-0.5 hover:from-sky-400 hover:to-indigo-400 hover:shadow-xl hover:shadow-sky-950/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
                     >
                         {saving ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                         ) : (
-                            <Pencil className="h-3.5 w-3.5" aria-hidden />
+                            <Pencil className="h-3.5 w-3.5 transition-transform group-hover:rotate-12" aria-hidden />
                         )}
                         บันทึก
                     </button>
