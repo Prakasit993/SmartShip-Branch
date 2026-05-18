@@ -6,7 +6,6 @@ import {
     AlertCircle,
     AlertTriangle,
     ArrowLeft,
-    BadgeCheck,
     Check,
     CheckCircle2,
     Clock3,
@@ -308,7 +307,6 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 
     const { customer, history, kpi, weight, cod, financial, financial_refreshed_at, date_range } = data;
     const isVip = !!(customer.vip_code && customer.vip_code.trim());
-    const financialSnapshotAge = formatSnapshotAge(financial_refreshed_at);
     const effectiveName = customer.override_name?.trim() || customer.name?.trim() || 'ลูกค้าไม่ระบุชื่อ';
     const effectivePhone = customer.override_phone?.trim() || customer.phone || null;
     const hasOverride = !!(customer.override_phone?.trim() || customer.override_name?.trim() || customer.admin_notes?.trim());
@@ -561,68 +559,6 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     copiedToken={copiedToken}
                     onCopyAwb={copyToClipboard}
                 />
-            ) : null}
-
-            {/* Financial RPC — ขึ้นมาก่อน เพราะเป็น metric ธุรกิจหลัก */}
-            {financial ? (
-                <section className="animate-home-fade-up home-delay-2 relative rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-sky-950/25 sm:p-3.5">
-                    {/* orb wrapper has its own overflow-hidden so tooltips on tiles can escape */}
-                    <div
-                        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-                        aria-hidden
-                    >
-                        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-sky-500/15 to-emerald-500/5 blur-3xl" />
-                    </div>
-                    <header className="relative mb-2.5 flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
-                            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                            <h2 className="text-[13px] font-bold leading-tight text-white">สรุปกำไร (snapshot)</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">
-                                <span className="tabular-nums">{date_range?.from}</span>{' '}
-                                <span className="text-slate-600">→</span>{' '}
-                                <span className="tabular-nums">{date_range?.to}</span>
-                                {financialSnapshotAge ? (
-                                    <span className="ml-1.5 inline-flex items-center rounded-full bg-slate-800/60 px-1.5 py-0 text-[10px] text-slate-400 ring-1 ring-slate-700/50">
-                                        {financialSnapshotAge}
-                                    </span>
-                                ) : ''}
-                            </p>
-                        </div>
-                    </header>
-                    <div className="relative grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                        <CodTile
-                            label="พัสดุที่คำนวณ"
-                            value={fmtCount(financial.shipment_count)}
-                            sub="ที่มี booking_date"
-                            tone="text-slate-200"
-                            info="นับเฉพาะพัสดุที่มี booking_date ภายในช่วงข้อมูลของลูกค้า — ใช้เป็นฐานคำนวณรายได้และต้นทุน"
-                        />
-                        <CodTile
-                            label="รายได้"
-                            value={fmtThb(financial.total_revenue)}
-                            sub="total_shipping_fee"
-                            tone="text-emerald-300"
-                            info="รวมรายได้จริงจาก total_shipping_fee และ fallback เป็น shipping_fee ถ้าไม่มีค่า"
-                        />
-                        <CodTile
-                            label="ต้นทุน"
-                            value={fmtThb(financial.total_cost)}
-                            sub="zone × billable_weight"
-                            tone="text-amber-300"
-                            info="ต้นทุนการขนส่ง = อัตราตามโซนปลายทาง × น้ำหนักที่เรียกเก็บ (billable_weight)"
-                        />
-                        <CodTile
-                            label="กำไร"
-                            value={fmtThb(financial.total_profit)}
-                            sub={`เฉลี่ย ${fmtThb(financial.avg_profit_per_shipment)}/ชิ้น`}
-                            tone={financial.total_profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}
-                            highlight={financial.total_profit >= 0 ? 'positive' : 'negative'}
-                            info="กำไรสุทธิ = รายได้รวม − ต้นทุนรวม และคำนวณค่าเฉลี่ยต่อพัสดุจากจำนวนพัสดุที่คำนวณ"
-                        />
-                    </div>
-                </section>
             ) : null}
 
             {/* COD (collapsible — starts open) */}
