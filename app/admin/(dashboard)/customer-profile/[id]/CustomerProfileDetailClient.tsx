@@ -590,9 +590,9 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
                             <Wallet className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <span className="text-left">
+                        <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">cod_amount · cod_status · cod_payment_time</p>
+                            <InfoTip text="cod_amount · cod_status · cod_payment_time" ariaLabel="ฟิลล์ที่ใช้คำนวณ COD" />
                         </span>
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-emerald-500/40 group-hover:text-emerald-200">
@@ -638,9 +638,9 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
                             <Scale className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <span className="min-w-0 text-left">
+                        <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">เทียบ billed · order · gateway</p>
+                            <InfoTip text="เทียบ billed · order · gateway" ariaLabel="ฟิลล์น้ำหนักที่เปรียบเทียบ" />
                         </span>
                         {weight.adjustedCount > 0 ? (
                             <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
