@@ -316,16 +316,16 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const avatarInitial = initialOf(effectiveName);
 
     return (
-        <div className="space-y-6 pb-20">
+        <div className="space-y-4 pb-12 sm:space-y-5">
             <Link
                 href="/admin/customer-profile"
-                className="group inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 transition hover:text-sky-300"
+                className="group inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 transition hover:text-sky-300"
             >
-                <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
+                <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" aria-hidden />
                 กลับไปรายชื่อลูกค้า
             </Link>
 
-            <section className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-br from-slate-900/60 via-slate-950/70 to-slate-950/90 p-4 shadow-xl shadow-black/30 ring-1 ring-white/[0.04] sm:p-5 animate-home-fade-up">
+            <section className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-br from-slate-900/60 via-slate-950/70 to-slate-950/90 p-3 shadow-xl shadow-black/30 ring-1 ring-white/[0.04] animate-home-fade-up sm:p-4">
                 {/* decorative orbs */}
                 <div
                     className={`pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-gradient-to-br ${
@@ -338,51 +338,49 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     aria-hidden
                 />
 
-                <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex min-w-0 flex-1 items-start gap-4">
+                <div className="relative flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
                         <span
-                            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarGradient} text-2xl font-black text-white shadow-lg shadow-black/40 ring-2 ring-white/15 sm:h-16 sm:w-16 sm:text-3xl`}
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarGradient} text-xl font-black text-white shadow-md shadow-black/40 ring-2 ring-white/15 sm:h-14 sm:w-14 sm:text-2xl`}
                             aria-hidden
                         >
                             {avatarInitial}
                         </span>
                         <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <h1 className="text-xl font-black tracking-tight text-white sm:text-2xl">
                                     {effectiveName}
                                 </h1>
                                 {isVip ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/25 to-orange-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-200 ring-1 ring-amber-500/40 shadow-sm shadow-amber-950/20">
-                                        <Crown className="h-3 w-3" aria-hidden />
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/25 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/40 shadow-sm shadow-amber-950/20">
+                                        <Crown className="h-2.5 w-2.5" aria-hidden />
                                         {customer.vip_code}
                                     </span>
                                 ) : (
-                                    <span className="rounded-full bg-slate-700/40 px-2.5 py-0.5 text-xs font-semibold text-slate-300 ring-1 ring-slate-600/40">
+                                    <span className="rounded-full bg-slate-700/40 px-2 py-0.5 text-[11px] font-semibold text-slate-300 ring-1 ring-slate-600/40">
                                         ลูกค้าทั่วไป
                                     </span>
                                 )}
                                 {hasOverride ? (
                                     <span
-                                        className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/30"
+                                        className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/30"
                                         title={customer.updated_by ? `แก้โดย ${customer.updated_by} · ${formatDateTime(customer.updated_at)}` : 'มี override'}
                                     >
-                                        <ClipboardEdit className="h-3 w-3" aria-hidden />
-                                        แอดมินแก้ข้อมูล
+                                        <ClipboardEdit className="h-2.5 w-2.5" aria-hidden />
+                                        แอดมินแก้
                                     </span>
                                 ) : null}
                             </div>
-                            <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                                <span className="inline-flex items-center gap-1.5">
-                                    <Package className="h-3.5 w-3.5 text-slate-500" aria-hidden />
-                                    เบอร์โทร <span className="font-mono text-slate-200">{maskPhone(effectivePhone)}</span>
+                            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] leading-relaxed text-slate-300">
+                                <span className="inline-flex items-center gap-1">
+                                    <Package className="h-3 w-3 text-slate-500" aria-hidden />
+                                    <span className="font-mono text-slate-200">{maskPhone(effectivePhone)}</span>
                                 </span>
-                                <span className="mx-2 text-slate-700">·</span>
                                 <span className="text-slate-400">
                                     {date_range ? (
                                         <>
-                                            ช่วงข้อมูล{' '}
-                                            <span className="tabular-nums text-slate-200">{date_range.from}</span>{' '}
-                                            <span className="text-slate-600">→</span>{' '}
+                                            <span className="tabular-nums text-slate-200">{date_range.from}</span>
+                                            <span className="mx-1 text-slate-600">→</span>
                                             <span className="tabular-nums text-slate-200">{date_range.to}</span>
                                         </>
                                     ) : (
@@ -392,27 +390,27 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                             </p>
                         </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1.5">
                         {isAdmin ? (
                             <button
                                 type="button"
                                 onClick={() => setEditOpen(true)}
-                                className="group inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition-all hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-500/20 hover:shadow-lg hover:shadow-sky-950/40"
+                                className="group inline-flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-sky-200 transition-all hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-500/20 hover:shadow-md hover:shadow-sky-950/40"
                             >
-                                <Pencil className="h-3.5 w-3.5 transition-transform group-hover:rotate-12" aria-hidden />
-                                แก้ไขข้อมูลติดต่อ
+                                <Pencil className="h-3 w-3 transition-transform group-hover:rotate-12" aria-hidden />
+                                แก้ไข
                             </button>
                         ) : null}
                         <button
                             type="button"
                             onClick={fetchDetail}
                             disabled={loading}
-                            className="group inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition-all hover:-translate-y-0.5 hover:border-slate-600 hover:bg-slate-900 hover:text-white hover:shadow-lg hover:shadow-black/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                            className="group inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950/70 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 transition-all hover:-translate-y-0.5 hover:border-slate-600 hover:bg-slate-900 hover:text-white hover:shadow-md hover:shadow-black/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                         >
                             {loading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
                             ) : (
-                                <RefreshCw className="h-3.5 w-3.5 transition-transform group-hover:rotate-180" aria-hidden />
+                                <RefreshCw className="h-3 w-3 transition-transform group-hover:rotate-180" aria-hidden />
                             )}
                             รีเฟรช
                         </button>
@@ -437,7 +435,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             ) : null}
 
             {/* KPI */}
-            <section aria-label="KPI พัสดุ" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <section aria-label="KPI พัสดุ" className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
                 <KpiCard
                     icon={<Package className="h-4 w-4" aria-hidden />}
                     accent="from-sky-500/40 to-blue-500/10"
@@ -486,16 +484,16 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             </section>
 
             {/* Weight + COD */}
-            <div className="grid gap-3 lg:grid-cols-2">
-                <section className="animate-home-fade-up home-delay-2 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-violet-950/20">
-                    <header className="mb-3 flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
-                            <Scale className="h-4 w-4" aria-hidden />
+            <div className="grid gap-2.5 lg:grid-cols-2">
+                <section className="animate-home-fade-up home-delay-2 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-violet-950/20 sm:p-3.5">
+                    <header className="mb-2.5 flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
+                            <Scale className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <div>
-                            <h2 className="text-sm font-bold text-white">น้ำหนักถูกปรับ</h2>
-                            <p className="text-[11px] text-slate-500">
-                                เทียบ billed_weight · order_weight · gateway_weight
+                        <div className="min-w-0">
+                            <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
+                            <p className="text-[10px] leading-snug text-slate-500">
+                                เทียบ billed · order · gateway
                             </p>
                         </div>
                         {weight.adjustedCount > 0 ? (
@@ -512,35 +510,35 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     </header>
 
                     <div className="overflow-x-auto rounded-xl border border-slate-800/70">
-                        <table className="w-full min-w-[420px] text-left text-xs">
+                        <table className="w-full min-w-[360px] text-left text-xs">
                             <thead className="bg-slate-900/70 text-[10px] uppercase tracking-wider text-slate-400">
                                 <tr>
-                                    <th className="px-3 py-2 font-semibold">ฟิลด์</th>
-                                    <th className="px-3 py-2 text-right font-semibold">รวม</th>
-                                    <th className="px-3 py-2 text-right font-semibold">เฉลี่ย/ชิ้น</th>
-                                    <th className="px-3 py-2 text-right font-semibold">กลุ่มที่มีข้อมูล</th>
+                                    <th className="px-2 py-1.5 font-semibold">ฟิลด์</th>
+                                    <th className="px-2 py-1.5 text-right font-semibold">รวม</th>
+                                    <th className="px-2 py-1.5 text-right font-semibold">เฉลี่ย</th>
+                                    <th className="px-2 py-1.5 text-right font-semibold">samples</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/70">
                                 <WeightRow
-                                    name="billed_weight"
-                                    subtitle="ใช้เก็บเงินจริง"
+                                    name="billed"
+                                    subtitle="ใช้เก็บเงิน"
                                     sum={weight.sum.billed}
                                     avg={weight.avg.billed}
                                     samples={weight.samples.billed}
                                     tone="text-violet-300"
                                 />
                                 <WeightRow
-                                    name="order_weight"
-                                    subtitle="ลูกค้าแจ้งตอนคีย์"
+                                    name="order"
+                                    subtitle="ลูกค้าแจ้ง"
                                     sum={weight.sum.order}
                                     avg={weight.avg.order}
                                     samples={weight.samples.order}
                                     tone="text-sky-300"
                                 />
                                 <WeightRow
-                                    name="gateway_weight"
-                                    subtitle="ชั่งจริงที่ gateway"
+                                    name="gateway"
+                                    subtitle="ชั่งจริง"
                                     sum={weight.sum.gateway}
                                     avg={weight.avg.gateway}
                                     samples={weight.samples.gateway}
@@ -551,20 +549,20 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     </div>
                 </section>
 
-                <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-emerald-950/20">
-                    <header className="mb-3 flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
-                            <Wallet className="h-4 w-4" aria-hidden />
+                <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-emerald-950/20 sm:p-3.5">
+                    <header className="mb-2.5 flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
+                            <Wallet className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <div>
-                            <h2 className="text-sm font-bold text-white">COD</h2>
-                            <p className="text-[11px] text-slate-500">
+                        <div className="min-w-0">
+                            <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
+                            <p className="text-[10px] leading-snug text-slate-500">
                                 cod_amount · cod_status · cod_payment_time
                             </p>
                         </div>
                     </header>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-1.5">
                         <CodTile
                             label="ยอด COD รวม"
                             value={fmtThb(cod.totalAmount)}
@@ -603,7 +601,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 
             {/* Financial RPC */}
             {financial ? (
-                <section className="animate-home-fade-up home-delay-4 relative rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-sky-950/25">
+                <section className="animate-home-fade-up home-delay-4 relative rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-sky-950/25 sm:p-3.5">
                     {/* orb wrapper has its own overflow-hidden so tooltips on tiles can escape */}
                     <div
                         className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
@@ -611,25 +609,25 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     >
                         <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-sky-500/15 to-emerald-500/5 blur-3xl" />
                     </div>
-                    <header className="relative mb-3 flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
-                            <BadgeCheck className="h-4 w-4" aria-hidden />
+                    <header className="relative mb-2.5 flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
+                            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <div>
-                            <h2 className="text-sm font-bold text-white">สรุปกำไร (จาก snapshot)</h2>
-                            <p className="text-[11px] text-slate-500">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-[13px] font-bold leading-tight text-white">สรุปกำไร (snapshot)</h2>
+                            <p className="text-[10px] leading-snug text-slate-500">
                                 <span className="tabular-nums">{date_range?.from}</span>{' '}
                                 <span className="text-slate-600">→</span>{' '}
                                 <span className="tabular-nums">{date_range?.to}</span>
                                 {financialSnapshotAge ? (
-                                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-800/60 px-1.5 py-0.5 text-[10px] text-slate-400 ring-1 ring-slate-700/50">
+                                    <span className="ml-1.5 inline-flex items-center rounded-full bg-slate-800/60 px-1.5 py-0 text-[10px] text-slate-400 ring-1 ring-slate-700/50">
                                         {financialSnapshotAge}
                                     </span>
                                 ) : ''}
                             </p>
                         </div>
                     </header>
-                    <div className="relative grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="relative grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                         <CodTile
                             label="พัสดุที่คำนวณ"
                             value={fmtCount(financial.shipment_count)}
@@ -663,45 +661,53 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             ) : null}
 
             {/* Shipments table */}
-            <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03]">
-                <header className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
-                        <Package className="h-4 w-4" aria-hidden />
+            <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
+                <header className="mb-2.5 flex flex-wrap items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
+                        <Package className="h-3.5 w-3.5" aria-hidden />
                     </span>
-                    <div>
-                        <h2 className="text-sm font-bold text-white">รายการพัสดุ</h2>
-                        <p className="text-[11px] text-slate-500">
-                            แสดง <span className="font-semibold text-slate-300">{fmtCount(shipments.length)}</span> จาก{' '}
+                    <div className="min-w-0 flex-1">
+                        <h2 className="text-[13px] font-bold leading-tight text-white">รายการพัสดุ</h2>
+                        <p className="text-[10px] leading-snug text-slate-500">
+                            <span className="font-semibold text-slate-300">{fmtCount(shipments.length)}</span>
+                            <span className="mx-1">/</span>
                             <span className="font-semibold text-slate-300">{fmtCount(data.shipments_total)}</span> ชิ้น
                             {data.shipments_truncated ? (
-                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25">
-                                    แสดง 200 ชิ้นล่าสุด
+                                <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-500/15 px-1.5 py-0 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25">
+                                    200 ล่าสุด
                                 </span>
                             ) : null}
                         </p>
                     </div>
                 </header>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-800/70 shadow-inner shadow-black/20">
-                    <table className="w-full min-w-[720px] text-left text-xs">
+                {/* Mobile: card list */}
+                <div className="space-y-1.5 sm:hidden">
+                    {shipments.length === 0 ? (
+                        <div className="rounded-lg border border-slate-800/60 bg-slate-900/30 px-3 py-6 text-center">
+                            <ShipmentsEmpty />
+                        </div>
+                    ) : (
+                        shipments.map((s, idx) => <ShipmentCard key={s.awb_number ?? `row-${idx}`} s={s} />)
+                    )}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden overflow-x-auto rounded-xl border border-slate-800/70 shadow-inner shadow-black/20 sm:block">
+                    <table className="w-full min-w-[640px] text-left text-xs">
                         <thead className="bg-gradient-to-b from-slate-900/80 to-slate-900/50 text-[10px] uppercase tracking-wider text-slate-400">
                             <tr>
-                                <th className="px-3 py-2.5 font-semibold">AWB</th>
-                                <th className="px-3 py-2.5 font-semibold">วันที่จอง</th>
-                                <th className="px-3 py-2.5 font-semibold">สถานะปัญหา</th>
-                                <th className="px-3 py-2.5 font-semibold">Scan ล่าสุด</th>
+                                <th className="px-2.5 py-2 font-semibold">AWB</th>
+                                <th className="px-2.5 py-2 font-semibold">วันที่จอง</th>
+                                <th className="px-2.5 py-2 font-semibold">สถานะปัญหา</th>
+                                <th className="px-2.5 py-2 font-semibold">Scan ล่าสุด</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/60">
                             {shipments.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-3 py-8 text-center">
-                                        <div className="mx-auto flex max-w-xs flex-col items-center gap-2 text-slate-500">
-                                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-800/60 ring-1 ring-slate-700/50">
-                                                <Package className="h-4 w-4 text-slate-500" aria-hidden />
-                                            </span>
-                                            <p className="text-sm">ลูกค้านี้ยังไม่มีพัสดุในระบบ</p>
-                                        </div>
+                                    <td colSpan={4} className="px-3 py-6 text-center">
+                                        <ShipmentsEmpty />
                                     </td>
                                 </tr>
                             ) : (
@@ -710,37 +716,22 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                                         key={s.awb_number ?? `row-${idx}`}
                                         className="group/row transition-colors hover:bg-gradient-to-r hover:from-slate-900/80 hover:to-slate-900/30"
                                     >
-                                        <td className="px-3 py-2 font-mono text-[11px] text-slate-100">
+                                        <td className="px-2.5 py-1.5 font-mono text-[11px] text-slate-100">
                                             {s.awb_number ? (
-                                                <span className="rounded-md bg-slate-800/50 px-1.5 py-0.5 ring-1 ring-slate-700/40 group-hover/row:bg-slate-800 group-hover/row:ring-slate-600/50">
+                                                <span className="rounded bg-slate-800/50 px-1.5 py-0.5 ring-1 ring-slate-700/40 group-hover/row:bg-slate-800 group-hover/row:ring-slate-600/50">
                                                     {s.awb_number}
                                                 </span>
                                             ) : (
                                                 <span className="text-slate-600">—</span>
                                             )}
                                         </td>
-                                        <td className="px-3 py-2 tabular-nums text-slate-300">
+                                        <td className="px-2.5 py-1.5 tabular-nums text-slate-300">
                                             {shortDate(s.booking_date)}
                                         </td>
-                                        <td className="px-3 py-2">
-                                            {s.issue_status ? (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
-                                                    <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
-                                                    {s.issue_status}
-                                                </span>
-                                            ) : s.signer_name ? (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
-                                                    <CheckCircle2 className="h-2.5 w-2.5" aria-hidden />
-                                                    ปิดงาน
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/30 px-2 py-0.5 text-[10px] font-semibold text-slate-400 ring-1 ring-slate-600/30">
-                                                    <Clock3 className="h-2.5 w-2.5" aria-hidden />
-                                                    ดำเนินการ
-                                                </span>
-                                            )}
+                                        <td className="px-2.5 py-1.5">
+                                            <ShipmentStatusBadge issue={s.issue_status} signer={s.signer_name} />
                                         </td>
-                                        <td className="px-3 py-2 text-slate-300">
+                                        <td className="px-2.5 py-1.5 text-slate-300">
                                             {s.latest_scan_type || <span className="text-slate-600">—</span>}
                                         </td>
                                     </tr>
@@ -752,7 +743,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             </section>
 
             {history.length > 0 ? (
-                <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03]">
+                <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
                     <button
                         type="button"
                         onClick={() => setHistoryOpen((v) => !v)}
@@ -760,15 +751,15 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                         aria-expanded={historyOpen}
                     >
                         <span className="flex items-center gap-2">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
-                                <History className="h-4 w-4" aria-hidden />
+                            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
+                                <History className="h-3.5 w-3.5" aria-hidden />
                             </span>
                             <span className="text-left">
-                                <h2 className="text-sm font-bold text-white">ประวัติการแก้ไขข้อมูลติดต่อ</h2>
-                                <p className="text-[11px] text-slate-500">{history.length} รายการล่าสุด</p>
+                                <h2 className="text-[13px] font-bold leading-tight text-white">ประวัติแก้ไขข้อมูล</h2>
+                                <p className="text-[10px] leading-snug text-slate-500">{history.length} รายการล่าสุด</p>
                             </span>
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-violet-500/40 group-hover:text-violet-200">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-violet-500/40 group-hover:text-violet-200">
                             {historyOpen ? 'ซ่อน' : 'ดู'}
                             <span className={`transition-transform ${historyOpen ? 'rotate-180' : ''}`}>▾</span>
                         </span>
@@ -848,25 +839,25 @@ function KpiCard({
 }) {
     return (
         <div
-            className="group relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/80 to-zinc-950/70 p-4 shadow-lg shadow-black/30 ring-1 ring-white/[0.03] transition-all hover:-translate-y-0.5 hover:border-zinc-700/90 hover:shadow-xl hover:shadow-black/40 animate-home-fade-up"
+            className="group relative overflow-hidden rounded-xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/80 to-zinc-950/70 p-2.5 shadow-md shadow-black/30 ring-1 ring-white/[0.03] transition-all hover:-translate-y-0.5 hover:border-zinc-700/90 hover:shadow-lg hover:shadow-black/40 animate-home-fade-up sm:p-3"
             style={{ animationDelay: `${delay}s` }}
         >
             <div
-                className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${accent} opacity-25 blur-2xl transition-opacity duration-300 group-hover:opacity-50`}
+                className={`pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full bg-gradient-to-br ${accent} opacity-25 blur-2xl transition-opacity duration-300 group-hover:opacity-50`}
                 aria-hidden
             />
             <div className="relative flex items-start justify-between gap-2">
-                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 ${iconTone}`}>
+                <span className={`flex h-7 w-7 items-center justify-center rounded-md ring-1 ${iconTone}`}>
                     {icon}
                 </span>
             </div>
-            <p className="relative mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            <p className="relative mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wider text-zinc-500">
                 {label}
             </p>
-            <p className="relative mt-1 text-2xl font-black tabular-nums tracking-tight text-white sm:text-[1.75rem]">
+            <p className="relative mt-0.5 text-xl font-black tabular-nums tracking-tight text-white sm:text-2xl">
                 {value}
             </p>
-            <p className="relative mt-1 text-[10px] leading-snug text-zinc-500">{hint}</p>
+            <p className="relative mt-0.5 text-[10px] leading-snug text-zinc-500 line-clamp-2">{hint}</p>
         </div>
     );
 }
@@ -888,13 +879,13 @@ function WeightRow({
 }) {
     return (
         <tr>
-            <td className="px-3 py-2">
-                <span className={`block font-mono text-[11px] font-semibold ${tone}`}>{name}</span>
-                <span className="block text-[10px] text-slate-500">{subtitle}</span>
+            <td className="px-2 py-1.5">
+                <span className={`block font-mono text-[11px] font-semibold leading-tight ${tone}`}>{name}</span>
+                <span className="block text-[10px] leading-snug text-slate-500">{subtitle}</span>
             </td>
-            <td className="px-3 py-2 text-right tabular-nums text-slate-200">{fmtKg(sum)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-slate-200">{fmtKg(avg)}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-slate-400">{fmtCount(samples)}</td>
+            <td className="px-2 py-1.5 text-right tabular-nums text-slate-200">{fmtKg(sum)}</td>
+            <td className="px-2 py-1.5 text-right tabular-nums text-slate-200">{fmtKg(avg)}</td>
+            <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{fmtCount(samples)}</td>
         </tr>
     );
 }
@@ -908,30 +899,30 @@ function WeightAnomalySection({
 }) {
     const [open, setOpen] = useState(true);
     return (
-        <section className="animate-home-fade-up home-delay-3 relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-950/40 via-slate-950/60 to-slate-950/80 p-4 shadow-lg shadow-rose-950/30 ring-1 ring-rose-500/15">
+        <section className="animate-home-fade-up home-delay-3 relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-950/40 via-slate-950/60 to-slate-950/80 p-3 shadow-md shadow-rose-950/30 ring-1 ring-rose-500/15 sm:p-3.5">
             <div
-                className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-rose-500/25 to-orange-500/5 blur-3xl animate-hero-glow"
+                className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-rose-500/25 to-orange-500/5 blur-3xl animate-hero-glow"
                 aria-hidden
             />
             <header className="relative flex flex-wrap items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500/30 to-rose-500/15 text-rose-200 ring-1 ring-rose-500/40 shadow-sm shadow-rose-950/40">
-                    <AlertTriangle className="h-4 w-4" aria-hidden />
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-rose-500/30 to-rose-500/15 text-rose-200 ring-1 ring-rose-500/40 shadow-sm shadow-rose-950/40">
+                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
-                    <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-white">
+                    <h2 className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold leading-tight text-white">
                         เคสน้ำหนักผิดปกติ
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500/30 to-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-100 ring-1 ring-rose-500/40">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500/30 to-rose-500/15 px-1.5 py-0 text-[11px] font-bold text-rose-100 ring-1 ring-rose-500/40">
                             {fmtCount(count)} ชิ้น
                         </span>
                     </h2>
-                    <p className="text-[11px] leading-relaxed text-slate-400">
-                        gateway machine ปรับน้ำหนักหรือปริมาตรสูงเกิน admin คีย์ &gt; 2.5 เท่า (และห่างกัน &gt; 1 กก.) — อาจถูก J&amp;T คิดต้นทุนเกินจริง
+                    <p className="text-[10px] leading-snug text-slate-400">
+                        gateway ปรับน้ำหนัก/ปริมาตร &gt; 2.5× admin คีย์ (และห่าง &gt; 1 กก.) — อาจถูกคิดต้นทุนเกินจริง
                     </p>
                 </div>
                 <button
                     type="button"
                     onClick={() => setOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
+                    className="inline-flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
                     aria-expanded={open}
                 >
                     {open ? 'ซ่อน' : 'ดู'}
@@ -940,70 +931,179 @@ function WeightAnomalySection({
             </header>
 
             {open ? (
-                <div className="relative mt-3 overflow-x-auto rounded-xl border border-rose-500/20 bg-slate-950/40 shadow-inner shadow-black/30">
-                    <table className="w-full min-w-[640px] text-left text-xs">
-                        <thead className="bg-gradient-to-b from-rose-950/40 to-slate-900/50 text-[10px] uppercase tracking-wider text-rose-300/80">
-                            <tr>
-                                <th className="px-3 py-2.5 font-semibold">AWB</th>
-                                <th className="px-3 py-2.5 font-semibold">วันที่จอง</th>
-                                <th className="px-3 py-2.5 text-right font-semibold">Admin คีย์</th>
-                                <th className="px-3 py-2.5 text-right font-semibold">Gateway ชั่ง</th>
-                                <th className="px-3 py-2.5 text-right font-semibold">ส่วนต่าง</th>
-                                <th className="px-3 py-2.5 text-right font-semibold">เท่า</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-rose-500/10">
-                            {shipments.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
-                                        ไม่มีข้อมูลเคสน้ำหนักผิดปกติ
-                                    </td>
-                                </tr>
-                            ) : (
-                                shipments.map((s, idx) => (
-                                    <tr
-                                        key={s.awb_number ?? `anomaly-${idx}`}
-                                        className="group/row transition-colors hover:bg-rose-500/[0.06]"
-                                    >
-                                        <td className="px-3 py-2 font-mono text-[11px] text-rose-100">
+                <>
+                    {/* Mobile: card list */}
+                    <div className="relative mt-2.5 space-y-1.5 sm:hidden">
+                        {shipments.length === 0 ? (
+                            <p className="rounded-lg border border-rose-500/15 bg-slate-950/40 px-3 py-4 text-center text-[11px] text-slate-500">
+                                ไม่มีข้อมูลเคสน้ำหนักผิดปกติ
+                            </p>
+                        ) : (
+                            shipments.map((s, idx) => (
+                                <div
+                                    key={s.awb_number ?? `anomaly-${idx}`}
+                                    className="rounded-lg border border-rose-500/20 bg-slate-950/40 p-2 text-[11px] text-slate-200"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="truncate font-mono text-rose-100">
                                             {s.awb_number ? (
-                                                <span className="rounded-md bg-rose-500/10 px-1.5 py-0.5 ring-1 ring-rose-500/25 group-hover/row:bg-rose-500/15 group-hover/row:ring-rose-500/40">
+                                                <span className="rounded bg-rose-500/10 px-1.5 py-0.5 ring-1 ring-rose-500/25">
                                                     {s.awb_number}
                                                 </span>
-                                            ) : (
-                                                <span className="text-slate-600">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 tabular-nums text-slate-300">
-                                            {shortDate(s.booking_date)}
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-slate-200">
-                                            {fmtKg(s.admin_billable)}
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums font-semibold text-rose-200">
-                                            {fmtKg(s.gateway_billable)}
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-amber-300">
-                                            +{fmtKg(s.diff_kg)}
-                                        </td>
-                                        <td className="px-3 py-2 text-right">
-                                            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-rose-500/25 to-amber-500/20 px-2 py-0.5 text-[11px] font-bold tabular-nums text-rose-100 ring-1 ring-rose-500/40">
-                                                {s.ratio.toLocaleString('th-TH', { maximumFractionDigits: 1 })}×
-                                            </span>
+                                            ) : '—'}
+                                        </span>
+                                        <span className="inline-flex shrink-0 items-center rounded-full bg-gradient-to-r from-rose-500/25 to-amber-500/20 px-1.5 py-0 text-[11px] font-bold tabular-nums text-rose-100 ring-1 ring-rose-500/40">
+                                            {s.ratio.toLocaleString('th-TH', { maximumFractionDigits: 1 })}×
+                                        </span>
+                                    </div>
+                                    <div className="mt-1.5 grid grid-cols-3 gap-1 text-[10px] tabular-nums">
+                                        <div>
+                                            <span className="block text-slate-500">Admin</span>
+                                            <span className="block text-slate-200">{fmtKg(s.admin_billable)}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-slate-500">Gateway</span>
+                                            <span className="block font-semibold text-rose-200">{fmtKg(s.gateway_billable)}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-slate-500">+ส่วนต่าง</span>
+                                            <span className="block text-amber-300">+{fmtKg(s.diff_kg)}</span>
+                                        </div>
+                                    </div>
+                                    <p className="mt-1 text-[10px] text-slate-500 tabular-nums">{shortDate(s.booking_date)}</p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Desktop: table */}
+                    <div className="relative mt-2.5 hidden overflow-x-auto rounded-xl border border-rose-500/20 bg-slate-950/40 shadow-inner shadow-black/30 sm:block">
+                        <table className="w-full min-w-[640px] text-left text-xs">
+                            <thead className="bg-gradient-to-b from-rose-950/40 to-slate-900/50 text-[10px] uppercase tracking-wider text-rose-300/80">
+                                <tr>
+                                    <th className="px-2.5 py-2 font-semibold">AWB</th>
+                                    <th className="px-2.5 py-2 font-semibold">วันที่จอง</th>
+                                    <th className="px-2.5 py-2 text-right font-semibold">Admin</th>
+                                    <th className="px-2.5 py-2 text-right font-semibold">Gateway</th>
+                                    <th className="px-2.5 py-2 text-right font-semibold">+ส่วนต่าง</th>
+                                    <th className="px-2.5 py-2 text-right font-semibold">เท่า</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-rose-500/10">
+                                {shipments.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-3 py-5 text-center text-slate-500">
+                                            ไม่มีข้อมูลเคสน้ำหนักผิดปกติ
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                    {shipments.length >= 50 ? (
-                        <p className="border-t border-rose-500/15 px-3 py-2 text-[10px] text-rose-300/70">
-                            แสดง 50 รายการแรก (เรียงตาม ratio สูงสุด) — ถ้ามีมากกว่านี้ใช้ filter shipments table ด้านล่าง
-                        </p>
-                    ) : null}
-                </div>
+                                ) : (
+                                    shipments.map((s, idx) => (
+                                        <tr
+                                            key={s.awb_number ?? `anomaly-${idx}`}
+                                            className="group/row transition-colors hover:bg-rose-500/[0.06]"
+                                        >
+                                            <td className="px-2.5 py-1.5 font-mono text-[11px] text-rose-100">
+                                                {s.awb_number ? (
+                                                    <span className="rounded bg-rose-500/10 px-1.5 py-0.5 ring-1 ring-rose-500/25 group-hover/row:bg-rose-500/15 group-hover/row:ring-rose-500/40">
+                                                        {s.awb_number}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-600">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-2.5 py-1.5 tabular-nums text-slate-300">
+                                                {shortDate(s.booking_date)}
+                                            </td>
+                                            <td className="px-2.5 py-1.5 text-right tabular-nums text-slate-200">
+                                                {fmtKg(s.admin_billable)}
+                                            </td>
+                                            <td className="px-2.5 py-1.5 text-right tabular-nums font-semibold text-rose-200">
+                                                {fmtKg(s.gateway_billable)}
+                                            </td>
+                                            <td className="px-2.5 py-1.5 text-right tabular-nums text-amber-300">
+                                                +{fmtKg(s.diff_kg)}
+                                            </td>
+                                            <td className="px-2.5 py-1.5 text-right">
+                                                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-rose-500/25 to-amber-500/20 px-1.5 py-0 text-[11px] font-bold tabular-nums text-rose-100 ring-1 ring-rose-500/40">
+                                                    {s.ratio.toLocaleString('th-TH', { maximumFractionDigits: 1 })}×
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                        {shipments.length >= 50 ? (
+                            <p className="border-t border-rose-500/15 px-3 py-1.5 text-[10px] text-rose-300/70">
+                                แสดง 50 รายการแรก (เรียงตาม ratio สูงสุด)
+                            </p>
+                        ) : null}
+                    </div>
+                </>
             ) : null}
         </section>
+    );
+}
+
+function ShipmentsEmpty() {
+    return (
+        <div className="mx-auto flex max-w-xs flex-col items-center gap-1.5 text-slate-500">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800/60 ring-1 ring-slate-700/50">
+                <Package className="h-4 w-4 text-slate-500" aria-hidden />
+            </span>
+            <p className="text-[12px]">ลูกค้านี้ยังไม่มีพัสดุในระบบ</p>
+        </div>
+    );
+}
+
+function ShipmentStatusBadge({ issue, signer }: { issue: string | null; signer: string | null }) {
+    if (issue) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-500/10 px-1.5 py-0 text-[10px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
+                <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
+                {issue}
+            </span>
+        );
+    }
+    if (signer) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 px-1.5 py-0 text-[10px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
+                <CheckCircle2 className="h-2.5 w-2.5" aria-hidden />
+                ปิดงาน
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/30 px-1.5 py-0 text-[10px] font-semibold text-slate-400 ring-1 ring-slate-600/30">
+            <Clock3 className="h-2.5 w-2.5" aria-hidden />
+            ดำเนินการ
+        </span>
+    );
+}
+
+function ShipmentCard({ s }: { s: ShipmentLine }) {
+    return (
+        <div className="rounded-lg border border-slate-800/70 bg-slate-900/40 p-2 text-[11px] text-slate-200">
+            <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-mono text-slate-100">
+                    {s.awb_number ? (
+                        <span className="rounded bg-slate-800/50 px-1.5 py-0.5 ring-1 ring-slate-700/40">
+                            {s.awb_number}
+                        </span>
+                    ) : '—'}
+                </span>
+                <ShipmentStatusBadge issue={s.issue_status} signer={s.signer_name} />
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400">
+                <span className="tabular-nums">{shortDate(s.booking_date)}</span>
+                {s.latest_scan_type ? (
+                    <>
+                        <span className="text-slate-700">·</span>
+                        <span className="truncate">{s.latest_scan_type}</span>
+                    </>
+                ) : null}
+            </div>
+        </div>
     );
 }
 
@@ -1021,13 +1121,13 @@ function CodTile({
     info?: string;
 }) {
     return (
-        <div className="group rounded-xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-900/30 p-3 transition-colors hover:border-slate-700/80 hover:from-slate-900/80 hover:to-slate-900/50">
+        <div className="group rounded-lg border border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-900/30 p-2 transition-colors hover:border-slate-700/80 hover:from-slate-900/80 hover:to-slate-900/50 sm:p-2.5">
             <div className="flex items-center gap-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                <p className="text-[10px] font-semibold uppercase leading-tight tracking-wider text-slate-500">{label}</p>
                 {info ? <InfoTip text={info} ariaLabel={`รายละเอียด ${label}`} /> : null}
             </div>
-            <p className={`mt-1 text-base font-bold tabular-nums tracking-tight ${tone} sm:text-lg`}>{value}</p>
-            <p className="mt-0.5 text-[10px] text-slate-500">{sub}</p>
+            <p className={`mt-0.5 text-[15px] font-bold tabular-nums tracking-tight ${tone} sm:text-base`}>{value}</p>
+            <p className="mt-0 text-[10px] leading-snug text-slate-500">{sub}</p>
         </div>
     );
 }
