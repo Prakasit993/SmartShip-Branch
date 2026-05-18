@@ -166,6 +166,19 @@ export function verifyN8nJtSyncSecret(req: Request): boolean {
 }
 
 /**
+ * Shared secret for n8n → POST /api/admin/customer-profile/refresh-snapshot
+ * Separate from N8N_JT_SYNC_SECRET so the snapshot-refresh credential cannot be
+ * reused to write raw rows into jt_shipments.
+ */
+export function verifyN8nSnapshotRefreshSecret(req: Request): boolean {
+    const secret = process.env.N8N_SNAPSHOT_REFRESH_SECRET?.trim();
+    if (!secret) return false;
+    const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ?? '';
+    const header = req.headers.get('x-n8n-snapshot-refresh-secret')?.trim() ?? '';
+    return bearer === secret || header === secret;
+}
+
+/**
  * Shared secret for the n8n AI Agent → read-only dashboard / COD tools.
  * Separate from N8N_JT_SYNC_SECRET so the AI tool credential cannot be reused
  * to write to /api/admin/jt-shipments/n8n-sync.

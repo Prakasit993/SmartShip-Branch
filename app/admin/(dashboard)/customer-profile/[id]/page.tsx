@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { CustomerProfileDetailClient } from './CustomerProfileDetailClient';
 
 export const metadata: Metadata = {
@@ -14,5 +15,11 @@ export default async function CustomerProfileDetailPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
-    return <CustomerProfileDetailClient id={id} />;
+    const store = await cookies();
+    const roleCookie = store.get('admin_role')?.value;
+    const adminSession = store.get('admin_session')?.value;
+    const isAdmin =
+        roleCookie === 'admin' || adminSession === 'admin' || adminSession === 'true';
+
+    return <CustomerProfileDetailClient id={id} isAdmin={isAdmin} />;
 }
