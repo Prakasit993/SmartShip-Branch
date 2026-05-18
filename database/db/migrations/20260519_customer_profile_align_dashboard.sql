@@ -4,7 +4,8 @@
 --   1. is_closed: signed_time → signer_name (ตรงกับ dashboard logic)
 --   2. has_issue: issue_status → return_type (literal 'พัสดุมีปัญหา' etc.)
 --   3. SLA: pendingWithinNDays (overlap) → overdueOverNDays (>3, >7 — subset)
---   4. recent shipments: issue_status → return_type (ตาราง shipment badge ตรงกับ KPI "มีปัญหา")
+--   4. REMOVED: shipments[] / shipments_total / shipments_truncated
+--      (UI ไม่ใช้แล้ว — ลบเพื่อลด payload ~50 KB ต่อ request)
 --   5. NEW: weight anomaly detection — จับเคส gateway ปรับน้ำหนัก/ปริมาตรสูงเกิน admin คีย์
 --      formula: admin_billable = GREATEST(order_weight, w*l*h/6000)
 --               gateway_billable = GREATEST(gateway_weight, gw*gl*gh/6000)
@@ -15,7 +16,7 @@
 -- JSON response shape (changes):
 --   kpi.pendingWithin3Days  → kpi.overdueOver3Days
 --   kpi.pendingWithin7Days  → kpi.overdueOver7Days
---   shipments[].issue_status → shipments[].return_type   (rename)
+--   shipments / shipments_total / shipments_truncated — REMOVED
 --   weight.anomalyCount     (NEW: number)
 --   weight.anomalyShipments (NEW: array of {awb_number, booking_date, admin_billable, gateway_billable, ratio, diff_kg})
 
@@ -34,9 +35,6 @@ declare
     v_weight jsonb;
     v_cod jsonb;
     v_range jsonb;
-    v_shipments jsonb;
-    v_total bigint;
-    v_truncated boolean;
     v_financial jsonb;
     v_latest_vip text;
     v_snapshot_refreshed_at timestamptz;
@@ -54,9 +52,6 @@ begin
             ),
             'cod', jsonb_build_object('totalAmount',0,'paidCount',0,'paidAmount',0,'pendingCount',0,'pendingAmount',0,'noCollectionCount',0),
             'date_range', null,
-            'shipments', '[]'::jsonb,
-            'shipments_total', 0,
-            'shipments_truncated', false,
             'financial', null,
             'financial_refreshed_at', null,
             'latest_vip_code', null
@@ -235,22 +230,6 @@ begin
     range_agg as (
         select min(booking_d) as d_min, max(booking_d) as d_max from matched
     ),
-    recent as (
-        -- ✏ CHANGE: ใช้ return_type (literal เช่น 'พัสดุมีปัญหา') แทน issue_status
-        -- เพื่อให้ badge ในตาราง shipment ตรงกับ KPI "มีปัญหา" และ dashboard logic
-        select
-            awb_number, booking_date, return_type, latest_scan_type,
-            latest_scan_time, signer_name, billed_weight, order_weight,
-            gateway_weight, cod_amount, cod_status, cod_payment_time
-        from matched
-        order by booking_date desc nulls last, awb_number desc
-        limit 200
-    ),
-    recent_json as (
-        select coalesce(jsonb_agg(to_jsonb(r)), '[]'::jsonb) as data,
-               (select count(*) from matched) as total_cnt
-        from recent r
-    ),
     latest_vip as (
         select vip_code
         from matched
@@ -297,13 +276,10 @@ begin
             then jsonb_build_object('from', rg.d_min::text, 'to', rg.d_max::text)
             else null
         end,
-        rj.data,
-        rj.total_cnt,
-        (rj.total_cnt > 200),
         (select vip_code from latest_vip)
     into
-        v_kpi, v_weight, v_cod, v_range, v_shipments, v_total, v_truncated, v_latest_vip
-    from kpi_agg k, weight_agg w, cod_agg c, range_agg rg, recent_json rj, anomaly_json aj;
+        v_kpi, v_weight, v_cod, v_range, v_latest_vip
+    from kpi_agg k, weight_agg w, cod_agg c, range_agg rg, anomaly_json aj;
 
     -- Financial: ดึงจาก snapshot (lookup ที่ primary key — เร็ว <5ms)
     select
@@ -325,9 +301,6 @@ begin
         'weight',                 v_weight,
         'cod',                    v_cod,
         'date_range',             v_range,
-        'shipments',              v_shipments,
-        'shipments_total',        v_total,
-        'shipments_truncated',    v_truncated,
         'financial',              v_financial,
         'financial_refreshed_at', v_snapshot_refreshed_at,
         'latest_vip_code',        v_latest_vip
