@@ -4,7 +4,8 @@
 --   1. is_closed: signed_time → signer_name (ตรงกับ dashboard logic)
 --   2. has_issue: issue_status → return_type (literal 'พัสดุมีปัญหา' etc.)
 --   3. SLA: pendingWithinNDays (overlap) → overdueOverNDays (>3, >7 — subset)
---   4. NEW: weight anomaly detection — จับเคส gateway ปรับน้ำหนัก/ปริมาตรสูงเกิน admin คีย์
+--   4. recent shipments: issue_status → return_type (ตาราง shipment badge ตรงกับ KPI "มีปัญหา")
+--   5. NEW: weight anomaly detection — จับเคส gateway ปรับน้ำหนัก/ปริมาตรสูงเกิน admin คีย์
 --      formula: admin_billable = GREATEST(order_weight, w*l*h/6000)
 --               gateway_billable = GREATEST(gateway_weight, gw*gl*gh/6000)
 --               FLAG if admin > 0 AND gateway > admin*2.5 AND diff > 1 kg
@@ -14,6 +15,7 @@
 -- JSON response shape (changes):
 --   kpi.pendingWithin3Days  → kpi.overdueOver3Days
 --   kpi.pendingWithin7Days  → kpi.overdueOver7Days
+--   shipments[].issue_status → shipments[].return_type   (rename)
 --   weight.anomalyCount     (NEW: number)
 --   weight.anomalyShipments (NEW: array of {awb_number, booking_date, admin_billable, gateway_billable, ratio, diff_kg})
 
@@ -234,8 +236,10 @@ begin
         select min(booking_d) as d_min, max(booking_d) as d_max from matched
     ),
     recent as (
+        -- ✏ CHANGE: ใช้ return_type (literal เช่น 'พัสดุมีปัญหา') แทน issue_status
+        -- เพื่อให้ badge ในตาราง shipment ตรงกับ KPI "มีปัญหา" และ dashboard logic
         select
-            awb_number, booking_date, issue_status, latest_scan_type,
+            awb_number, booking_date, return_type, latest_scan_type,
             latest_scan_time, signer_name, billed_weight, order_weight,
             gateway_weight, cod_amount, cod_status, cod_payment_time
         from matched

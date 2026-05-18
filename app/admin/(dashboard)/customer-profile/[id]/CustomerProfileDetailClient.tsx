@@ -94,7 +94,7 @@ type Financial = {
 type ShipmentLine = {
     awb_number: string | null;
     booking_date: string | null;
-    issue_status: string | null;
+    return_type: string | null;
     latest_scan_type: string | null;
     latest_scan_time: string | null;
     signer_name: string | null;
@@ -729,7 +729,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                                             {shortDate(s.booking_date)}
                                         </td>
                                         <td className="px-2.5 py-1.5">
-                                            <ShipmentStatusBadge issue={s.issue_status} signer={s.signer_name} />
+                                            <ShipmentStatusBadge returnType={s.return_type} signer={s.signer_name} />
                                         </td>
                                         <td className="px-2.5 py-1.5 text-slate-300">
                                             {s.latest_scan_type || <span className="text-slate-600">—</span>}
@@ -1056,16 +1056,24 @@ function ShipmentsEmpty() {
     );
 }
 
-function ShipmentStatusBadge({ issue, signer }: { issue: string | null; signer: string | null }) {
-    if (issue) {
+/**
+ * Shipment status badge — 3 states (ตรงกับ business rule ของ dashboard):
+ *   มีปัญหา = return_type มีค่า literal (เช่น "พัสดุมีปัญหา") ไม่ใช่ EMPTY/NULL/-
+ *   ปิดงาน  = signer_name มีค่า (ไม่ใช่ '' / 'NULL')
+ *   ดำเนินการ = ทั้งคู่ว่าง
+ *
+ * Priority: มีปัญหา > ปิดงาน > ดำเนินการ (ถ้าตีกลับสำเร็จก็ยังโชว์เป็น "มีปัญหา")
+ */
+function ShipmentStatusBadge({ returnType, signer }: { returnType: string | null; signer: string | null }) {
+    if (hasMeaningfulReturnType(returnType)) {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-500/10 px-1.5 py-0 text-[10px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
                 <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
-                {issue}
+                {returnType}
             </span>
         );
     }
-    if (signer) {
+    if (isMeaningfulSigner(signer)) {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-emerald-500/10 px-1.5 py-0 text-[10px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
                 <CheckCircle2 className="h-2.5 w-2.5" aria-hidden />
@@ -1081,6 +1089,21 @@ function ShipmentStatusBadge({ issue, signer }: { issue: string | null; signer: 
     );
 }
 
+function hasMeaningfulReturnType(raw: string | null): raw is string {
+    if (!raw) return false;
+    const t = raw.trim();
+    if (!t) return false;
+    const upper = t.toUpperCase();
+    return upper !== 'EMPTY' && upper !== 'NULL' && upper !== '-';
+}
+
+function isMeaningfulSigner(raw: string | null): raw is string {
+    if (!raw) return false;
+    const t = raw.trim();
+    if (!t) return false;
+    return t.toUpperCase() !== 'NULL';
+}
+
 function ShipmentCard({ s }: { s: ShipmentLine }) {
     return (
         <div className="rounded-lg border border-slate-800/70 bg-slate-900/40 p-2 text-[11px] text-slate-200">
@@ -1092,7 +1115,7 @@ function ShipmentCard({ s }: { s: ShipmentLine }) {
                         </span>
                     ) : '—'}
                 </span>
-                <ShipmentStatusBadge issue={s.issue_status} signer={s.signer_name} />
+                <ShipmentStatusBadge returnType={s.return_type} signer={s.signer_name} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400">
                 <span className="tabular-nums">{shortDate(s.booking_date)}</span>
