@@ -592,7 +592,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                         </span>
                         <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
-                            <InfoTip text="cod_amount · cod_status · cod_payment_time" ariaLabel="ฟิลล์ที่ใช้คำนวณ COD" />
+                            <InfoTip text="cod_amount · cod_status · cod_payment_time" ariaLabel="ฟิลล์ที่ใช้คำนวณ COD" asSpan />
                         </span>
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-emerald-500/40 group-hover:text-emerald-200">
@@ -640,7 +640,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                         </span>
                         <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
-                            <InfoTip text="เทียบ billed · order · gateway" ariaLabel="ฟิลล์น้ำหนักที่เปรียบเทียบ" />
+                            <InfoTip text="เทียบ billed · order · gateway" ariaLabel="ฟิลล์น้ำหนักที่เปรียบเทียบ" asSpan />
                         </span>
                         {weight.adjustedCount > 0 ? (
                             <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
@@ -1125,16 +1125,18 @@ function CodTile({
     );
 }
 
-function InfoTip({ text, ariaLabel }: { text: string; ariaLabel?: string }) {
+function InfoTip({ text, ariaLabel, asSpan }: { text: string; ariaLabel?: string; asSpan?: boolean }) {
+    const Trigger = asSpan ? 'span' : 'button';
     return (
         <span className="group/tip relative inline-flex">
-            <button
-                type="button"
+            <Trigger
+                {...(!asSpan ? { type: 'button' as const } : {})}
                 aria-label={ariaLabel ?? 'ข้อมูลเพิ่มเติม'}
+                tabIndex={0}
                 className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-500 transition-colors hover:text-sky-300 focus:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
             >
                 <Info className="h-3 w-3" aria-hidden />
-            </button>
+            </Trigger>
             <span
                 role="tooltip"
                 className="pointer-events-none invisible absolute bottom-full left-1/2 z-50 mb-2 w-60 max-w-[min(16rem,80vw)] -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-[11px] font-normal leading-relaxed text-slate-200 opacity-0 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-sm transition-all duration-150 group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100"
