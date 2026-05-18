@@ -178,12 +178,14 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
                 {
                     customer,
                     history,
-                    kpi: { total: 0, closed: 0, pendingWithin3Days: 0, pendingWithin7Days: 0, withIssue: 0 },
+                    kpi: { total: 0, closed: 0, overdueOver3Days: 0, overdueOver7Days: 0, withIssue: 0 },
                     weight: {
                         samples: { billed: 0, order: 0, gateway: 0 },
                         sum: { billed: 0, order: 0, gateway: 0 },
                         avg: { billed: 0, order: 0, gateway: 0 },
                         adjustedCount: 0,
+                        anomalyCount: 0,
+                        anomalyShipments: [],
                     },
                     cod: { totalAmount: 0, paidCount: 0, paidAmount: 0, pendingCount: 0, pendingAmount: 0, noCollectionCount: 0 },
                     financial: null,

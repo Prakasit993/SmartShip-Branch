@@ -12,6 +12,7 @@ import {
     ClipboardEdit,
     Crown,
     History,
+    Info,
     Loader2,
     Package,
     Pencil,
@@ -49,9 +50,18 @@ type HistoryEntry = {
 type Kpi = {
     total: number;
     closed: number;
-    pendingWithin3Days: number;
-    pendingWithin7Days: number;
+    overdueOver3Days: number;
+    overdueOver7Days: number;
     withIssue: number;
+};
+
+type WeightAnomalyRow = {
+    awb_number: string | null;
+    booking_date: string | null;
+    admin_billable: number;
+    gateway_billable: number;
+    ratio: number;
+    diff_kg: number;
 };
 
 type WeightSummary = {
@@ -59,6 +69,8 @@ type WeightSummary = {
     sum: { billed: number; order: number; gateway: number };
     avg: { billed: number; order: number; gateway: number };
     adjustedCount: number;
+    anomalyCount: number;
+    anomalyShipments: WeightAnomalyRow[];
 };
 
 type CodSummary = {
@@ -446,20 +458,20 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                 />
                 <KpiCard
                     icon={<Clock3 className="h-4 w-4" aria-hidden />}
-                    accent="from-cyan-500/40 to-sky-500/10"
-                    iconTone="bg-cyan-500/15 text-cyan-300 ring-cyan-500/25"
-                    label="ค้าง ≤ 3 วัน"
-                    value={fmtCount(kpi.pendingWithin3Days)}
-                    hint={`${fmtPct(kpi.pendingWithin3Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่สำเร็จ`}
+                    accent="from-amber-500/40 to-orange-500/10"
+                    iconTone="bg-amber-500/15 text-amber-300 ring-amber-500/25"
+                    label="ค้าง > 3 วัน"
+                    value={fmtCount(kpi.overdueOver3Days)}
+                    hint={`${fmtPct(kpi.overdueOver3Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่ปิดงาน (overdue)`}
                     delay={0.15}
                 />
                 <KpiCard
-                    icon={<Clock3 className="h-4 w-4" aria-hidden />}
-                    accent="from-indigo-500/40 to-purple-500/10"
-                    iconTone="bg-indigo-500/15 text-indigo-300 ring-indigo-500/25"
-                    label="ค้าง ≤ 7 วัน"
-                    value={fmtCount(kpi.pendingWithin7Days)}
-                    hint={`${fmtPct(kpi.pendingWithin7Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่สำเร็จ`}
+                    icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
+                    accent="from-red-500/40 to-rose-500/10"
+                    iconTone="bg-red-500/15 text-red-300 ring-red-500/25"
+                    label="ค้าง > 7 วัน"
+                    value={fmtCount(kpi.overdueOver7Days)}
+                    hint={`${fmtPct(kpi.overdueOver7Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่ปิดงาน (severe)`}
                     delay={0.2}
                 />
                 <KpiCard
@@ -581,13 +593,24 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                 </section>
             </div>
 
+            {/* Weight Anomaly — เคสที่ gateway machine ปรับน้ำหนัก/ปริมาตรสูงเกิน admin */}
+            {weight.anomalyCount > 0 ? (
+                <WeightAnomalySection
+                    count={weight.anomalyCount}
+                    shipments={weight.anomalyShipments}
+                />
+            ) : null}
+
             {/* Financial RPC */}
             {financial ? (
-                <section className="animate-home-fade-up home-delay-4 relative overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-sky-950/25">
+                <section className="animate-home-fade-up home-delay-4 relative rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-4 shadow-lg shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-xl hover:shadow-sky-950/25">
+                    {/* orb wrapper has its own overflow-hidden so tooltips on tiles can escape */}
                     <div
-                        className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-sky-500/15 to-emerald-500/5 blur-3xl"
+                        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
                         aria-hidden
-                    />
+                    >
+                        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-sky-500/15 to-emerald-500/5 blur-3xl" />
+                    </div>
                     <header className="relative mb-3 flex items-center gap-2">
                         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
                             <BadgeCheck className="h-4 w-4" aria-hidden />
@@ -612,24 +635,28 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                             value={fmtCount(financial.shipment_count)}
                             sub="ที่มี booking_date"
                             tone="text-slate-200"
+                            info="นับเฉพาะพัสดุที่มี booking_date ภายในช่วงข้อมูลของลูกค้า — ใช้เป็นฐานคำนวณรายได้และต้นทุน"
                         />
                         <CodTile
                             label="รายได้"
                             value={fmtThb(financial.total_revenue)}
                             sub="total_shipping_fee"
                             tone="text-emerald-300"
+                            info="รวมรายได้จริงจาก total_shipping_fee และ fallback เป็น shipping_fee ถ้าไม่มีค่า"
                         />
                         <CodTile
                             label="ต้นทุน"
                             value={fmtThb(financial.total_cost)}
                             sub="zone × billable_weight"
                             tone="text-amber-300"
+                            info="ต้นทุนการขนส่ง = อัตราตามโซนปลายทาง × น้ำหนักที่เรียกเก็บ (billable_weight)"
                         />
                         <CodTile
                             label="กำไร"
                             value={fmtThb(financial.total_profit)}
                             sub={`เฉลี่ย ${fmtThb(financial.avg_profit_per_shipment)}/ชิ้น`}
                             tone={financial.total_profit >= 0 ? 'text-sky-300' : 'text-rose-300'}
+                            info="กำไรสุทธิ = รายได้รวม − ต้นทุนรวม และคำนวณค่าเฉลี่ยต่อพัสดุจากจำนวนพัสดุที่คำนวณ"
                         />
                     </div>
                 </section>
@@ -872,23 +899,160 @@ function WeightRow({
     );
 }
 
+function WeightAnomalySection({
+    count,
+    shipments,
+}: {
+    count: number;
+    shipments: WeightAnomalyRow[];
+}) {
+    const [open, setOpen] = useState(true);
+    return (
+        <section className="animate-home-fade-up home-delay-3 relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-950/40 via-slate-950/60 to-slate-950/80 p-4 shadow-lg shadow-rose-950/30 ring-1 ring-rose-500/15">
+            <div
+                className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-rose-500/25 to-orange-500/5 blur-3xl animate-hero-glow"
+                aria-hidden
+            />
+            <header className="relative flex flex-wrap items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500/30 to-rose-500/15 text-rose-200 ring-1 ring-rose-500/40 shadow-sm shadow-rose-950/40">
+                    <AlertTriangle className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-white">
+                        เคสน้ำหนักผิดปกติ
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500/30 to-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-100 ring-1 ring-rose-500/40">
+                            {fmtCount(count)} ชิ้น
+                        </span>
+                    </h2>
+                    <p className="text-[11px] leading-relaxed text-slate-400">
+                        gateway machine ปรับน้ำหนักหรือปริมาตรสูงเกิน admin คีย์ &gt; 2.5 เท่า (และห่างกัน &gt; 1 กก.) — อาจถูก J&amp;T คิดต้นทุนเกินจริง
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setOpen((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
+                    aria-expanded={open}
+                >
+                    {open ? 'ซ่อน' : 'ดู'}
+                    <span className={`transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+            </header>
+
+            {open ? (
+                <div className="relative mt-3 overflow-x-auto rounded-xl border border-rose-500/20 bg-slate-950/40 shadow-inner shadow-black/30">
+                    <table className="w-full min-w-[640px] text-left text-xs">
+                        <thead className="bg-gradient-to-b from-rose-950/40 to-slate-900/50 text-[10px] uppercase tracking-wider text-rose-300/80">
+                            <tr>
+                                <th className="px-3 py-2.5 font-semibold">AWB</th>
+                                <th className="px-3 py-2.5 font-semibold">วันที่จอง</th>
+                                <th className="px-3 py-2.5 text-right font-semibold">Admin คีย์</th>
+                                <th className="px-3 py-2.5 text-right font-semibold">Gateway ชั่ง</th>
+                                <th className="px-3 py-2.5 text-right font-semibold">ส่วนต่าง</th>
+                                <th className="px-3 py-2.5 text-right font-semibold">เท่า</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-rose-500/10">
+                            {shipments.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
+                                        ไม่มีข้อมูลเคสน้ำหนักผิดปกติ
+                                    </td>
+                                </tr>
+                            ) : (
+                                shipments.map((s, idx) => (
+                                    <tr
+                                        key={s.awb_number ?? `anomaly-${idx}`}
+                                        className="group/row transition-colors hover:bg-rose-500/[0.06]"
+                                    >
+                                        <td className="px-3 py-2 font-mono text-[11px] text-rose-100">
+                                            {s.awb_number ? (
+                                                <span className="rounded-md bg-rose-500/10 px-1.5 py-0.5 ring-1 ring-rose-500/25 group-hover/row:bg-rose-500/15 group-hover/row:ring-rose-500/40">
+                                                    {s.awb_number}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-600">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2 tabular-nums text-slate-300">
+                                            {shortDate(s.booking_date)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-slate-200">
+                                            {fmtKg(s.admin_billable)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums font-semibold text-rose-200">
+                                            {fmtKg(s.gateway_billable)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-amber-300">
+                                            +{fmtKg(s.diff_kg)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-rose-500/25 to-amber-500/20 px-2 py-0.5 text-[11px] font-bold tabular-nums text-rose-100 ring-1 ring-rose-500/40">
+                                                {s.ratio.toLocaleString('th-TH', { maximumFractionDigits: 1 })}×
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                    {shipments.length >= 50 ? (
+                        <p className="border-t border-rose-500/15 px-3 py-2 text-[10px] text-rose-300/70">
+                            แสดง 50 รายการแรก (เรียงตาม ratio สูงสุด) — ถ้ามีมากกว่านี้ใช้ filter shipments table ด้านล่าง
+                        </p>
+                    ) : null}
+                </div>
+            ) : null}
+        </section>
+    );
+}
+
 function CodTile({
     label,
     value,
     sub,
     tone,
+    info,
 }: {
     label: string;
     value: string;
     sub: string;
     tone: string;
+    info?: string;
 }) {
     return (
         <div className="group rounded-xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-900/30 p-3 transition-colors hover:border-slate-700/80 hover:from-slate-900/80 hover:to-slate-900/50">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+            <div className="flex items-center gap-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                {info ? <InfoTip text={info} ariaLabel={`รายละเอียด ${label}`} /> : null}
+            </div>
             <p className={`mt-1 text-base font-bold tabular-nums tracking-tight ${tone} sm:text-lg`}>{value}</p>
             <p className="mt-0.5 text-[10px] text-slate-500">{sub}</p>
         </div>
+    );
+}
+
+function InfoTip({ text, ariaLabel }: { text: string; ariaLabel?: string }) {
+    return (
+        <span className="group/tip relative inline-flex">
+            <button
+                type="button"
+                aria-label={ariaLabel ?? 'ข้อมูลเพิ่มเติม'}
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-500 transition-colors hover:text-sky-300 focus:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+            >
+                <Info className="h-3 w-3" aria-hidden />
+            </button>
+            <span
+                role="tooltip"
+                className="pointer-events-none invisible absolute bottom-full left-1/2 z-50 mb-2 w-60 max-w-[min(16rem,80vw)] -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-[11px] font-normal leading-relaxed text-slate-200 opacity-0 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-sm transition-all duration-150 group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100"
+            >
+                {text}
+                <span
+                    aria-hidden
+                    className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-slate-700 bg-slate-950/95"
+                />
+            </span>
+        </span>
     );
 }
 
