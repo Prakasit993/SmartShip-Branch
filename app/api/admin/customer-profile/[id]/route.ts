@@ -7,7 +7,7 @@ import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
  * GET /api/admin/customer-profile/[id]
  *
  * รายละเอียดลูกค้า 1 คน — เรียก RPC `get_customer_profile_summary` ตัวเดียว
- * ที่ aggregate KPI / weight / COD / financial / shipments(200) ใน SQL
+ * ที่ aggregate KPI / weight / COD / financial ใน SQL
  *
  * รับ id 2 รูปแบบ:
  *   1) UUID — registered LINE user ใน public.customers
@@ -191,9 +191,6 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
                     financial: null,
                     financial_refreshed_at: null,
                     date_range: null,
-                    shipments: [],
-                    shipments_total: 0,
-                    shipments_truncated: false,
                 },
                 { headers: CACHE_HEADERS }
             );
@@ -216,9 +213,6 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
             financial: unknown;
             financial_refreshed_at: string | null;
             date_range: unknown;
-            shipments: unknown[];
-            shipments_total: number;
-            shipments_truncated: boolean;
             latest_vip_code: string | null;
         };
 
@@ -237,9 +231,6 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
                 financial: payload.financial,
                 financial_refreshed_at: payload.financial_refreshed_at,
                 date_range: payload.date_range,
-                shipments: payload.shipments,
-                shipments_total: payload.shipments_total,
-                shipments_truncated: payload.shipments_truncated,
             },
             { headers: CACHE_HEADERS }
         );
