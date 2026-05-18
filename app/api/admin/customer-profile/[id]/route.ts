@@ -149,6 +149,10 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         const denied = await requireAdminApiAuth('admin-or-staff', req);
         if (denied) return denied;
 
+        // ดึง role เพื่อ redact admin_notes/admin_notes-history สำหรับ staff
+        const access = await getAdminApiAccess(req);
+        const isAdmin = access.role === 'admin';
+
         const { id: rawId } = await context.params;
         if (!rawId) {
             return NextResponse.json({ error: 'ID ไม่ถูกต้อง' }, { status: 400 });
@@ -158,9 +162,16 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         if ('error' in resolved) {
             return NextResponse.json({ error: resolved.error }, { status: resolved.status });
         }
-        const { customer, senderName, fromDb } = resolved;
+        let { customer } = resolved;
+        const { senderName, fromDb } = resolved;
 
-        const history = fromDb ? await fetchHistory(customer.id) : [];
+        let history = fromDb ? await fetchHistory(customer.id) : [];
+
+        if (!isAdmin) {
+            // staff ไม่เห็น admin_notes + history ของ admin_notes change
+            customer = { ...customer, admin_notes: null };
+            history = history.filter((h) => h.changed_field !== 'admin_notes');
+        }
 
         if (!senderName) {
             return NextResponse.json(
