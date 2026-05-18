@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertCircle,
     AlertTriangle,
@@ -9,12 +9,17 @@ import {
     BadgeCheck,
     CheckCircle2,
     Clock3,
+    ClipboardEdit,
     Crown,
+    History,
     Loader2,
     Package,
+    Pencil,
     RefreshCw,
     Scale,
+    StickyNote,
     Wallet,
+    X,
 } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 
@@ -25,6 +30,21 @@ type Customer = {
     vip_code: string | null;
     address: string | null;
     created_at: string | null;
+    sender_key: string | null;
+    override_phone: string | null;
+    override_name: string | null;
+    admin_notes: string | null;
+    updated_by: string | null;
+    updated_at: string | null;
+};
+
+type HistoryEntry = {
+    id: number;
+    changed_field: 'override_phone' | 'override_name' | 'admin_notes';
+    old_value: string | null;
+    new_value: string | null;
+    changed_by: string;
+    changed_at: string;
 };
 
 type Kpi = {
@@ -77,6 +97,7 @@ type ShipmentLine = {
 
 type ApiResponse = {
     customer: Customer;
+    history: HistoryEntry[];
     kpi: Kpi;
     weight: WeightSummary;
     cod: CodSummary;
@@ -133,10 +154,32 @@ function formatSnapshotAge(iso: string | null): string | null {
     return `cache ${diffD} วันที่แล้ว`;
 }
 
-export function CustomerProfileDetailClient({ id }: { id: string }) {
+function formatDateTime(iso: string | null): string {
+    if (!iso) return '—';
+    const t = Date.parse(iso);
+    if (Number.isNaN(t)) return iso;
+    const d = new Date(t);
+    return d.toLocaleString('th-TH', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+function fieldLabel(f: HistoryEntry['changed_field']): string {
+    if (f === 'override_phone') return 'เบอร์โทร';
+    if (f === 'override_name') return 'ชื่อ';
+    return 'หมายเหตุ';
+}
+
+export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: string; isAdmin?: boolean }) {
     const [data, setData] = useState<ApiResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [editOpen, setEditOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
 
     const fetchDetail = useCallback(async () => {
         setLoading(true);
@@ -160,6 +203,39 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
     useEffect(() => {
         fetchDetail();
     }, [fetchDetail]);
+
+    const handleSaveOverride = useCallback(
+        async (patch: {
+            override_phone?: string | null;
+            override_name?: string | null;
+            admin_notes?: string | null;
+            clear_phone?: boolean;
+            clear_name?: boolean;
+            clear_notes?: boolean;
+        }) => {
+            const res = await fetch(`/api/admin/customer-profile/${id}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(patch),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `HTTP ${res.status}`);
+            }
+            const updated = (await res.json()) as { customer: Customer; history: HistoryEntry[] };
+            setData((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          customer: updated.customer ?? prev.customer,
+                          history: updated.history ?? prev.history,
+                      }
+                    : prev
+            );
+        },
+        [id]
+    );
 
     if (loading && !data) {
         return (
@@ -198,9 +274,12 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
 
     if (!data) return null;
 
-    const { customer, kpi, weight, cod, financial, financial_refreshed_at, date_range, shipments } = data;
+    const { customer, history, kpi, weight, cod, financial, financial_refreshed_at, date_range, shipments } = data;
     const isVip = !!(customer.vip_code && customer.vip_code.trim());
     const financialSnapshotAge = formatSnapshotAge(financial_refreshed_at);
+    const effectiveName = customer.override_name?.trim() || customer.name?.trim() || 'ลูกค้าไม่ระบุชื่อ';
+    const effectivePhone = customer.override_phone?.trim() || customer.phone || null;
+    const hasOverride = !!(customer.override_phone?.trim() || customer.override_name?.trim() || customer.admin_notes?.trim());
 
     return (
         <div className="space-y-6 pb-20">
@@ -213,39 +292,76 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
             </Link>
 
             <AdminPageHeader
-                title={customer.name?.trim() || 'ลูกค้าไม่ระบุชื่อ'}
-                description={`เบอร์โทร ${maskPhone(customer.phone)} · ${
+                title={effectiveName}
+                description={`เบอร์โทร ${maskPhone(effectivePhone)} · ${
                     date_range ? `ช่วงข้อมูล ${date_range.from} → ${date_range.to}` : 'ยังไม่มีพัสดุในระบบ'
                 }`}
                 tone="dark"
                 meta={
-                    isVip ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
-                            <Crown className="h-3 w-3" aria-hidden />
-                            {customer.vip_code}
-                        </span>
-                    ) : (
-                        <span className="rounded-full bg-slate-700/40 px-2.5 py-0.5 text-xs font-semibold text-slate-300 ring-1 ring-slate-600/40">
-                            ลูกค้าทั่วไป
-                        </span>
-                    )
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {isVip ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
+                                <Crown className="h-3 w-3" aria-hidden />
+                                {customer.vip_code}
+                            </span>
+                        ) : (
+                            <span className="rounded-full bg-slate-700/40 px-2.5 py-0.5 text-xs font-semibold text-slate-300 ring-1 ring-slate-600/40">
+                                ลูกค้าทั่วไป
+                            </span>
+                        )}
+                        {hasOverride ? (
+                            <span
+                                className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300 ring-1 ring-sky-500/30"
+                                title={customer.updated_by ? `แก้โดย ${customer.updated_by} · ${formatDateTime(customer.updated_at)}` : 'มี override'}
+                            >
+                                <ClipboardEdit className="h-3 w-3" aria-hidden />
+                                แอดมินแก้ข้อมูล
+                            </span>
+                        ) : null}
+                    </div>
                 }
                 actions={
-                    <button
-                        type="button"
-                        onClick={fetchDetail}
-                        disabled={loading}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {loading ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                        ) : (
-                            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                        )}
-                        รีเฟรช
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {isAdmin ? (
+                            <button
+                                type="button"
+                                onClick={() => setEditOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400 hover:bg-sky-500/20"
+                            >
+                                <Pencil className="h-3.5 w-3.5" aria-hidden />
+                                แก้ไขข้อมูลติดต่อ
+                            </button>
+                        ) : null}
+                        <button
+                            type="button"
+                            onClick={fetchDetail}
+                            disabled={loading}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : (
+                                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                            )}
+                            รีเฟรช
+                        </button>
+                    </div>
                 }
             />
+
+            {customer.admin_notes ? (
+                <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 ring-1 ring-amber-500/15">
+                    <div className="flex items-start gap-2">
+                        <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/80">หมายเหตุภายใน</p>
+                            <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-amber-100">
+                                {customer.admin_notes}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            ) : null}
 
             {/* KPI */}
             <section aria-label="KPI พัสดุ" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -504,6 +620,69 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
                     </table>
                 </div>
             </section>
+
+            {history.length > 0 ? (
+                <section className="rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
+                    <button
+                        type="button"
+                        onClick={() => setHistoryOpen((v) => !v)}
+                        className="flex w-full items-center justify-between gap-2"
+                    >
+                        <span className="flex items-center gap-2">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25">
+                                <History className="h-3.5 w-3.5" aria-hidden />
+                            </span>
+                            <span className="text-left">
+                                <h2 className="text-sm font-bold text-white">ประวัติการแก้ไขข้อมูลติดต่อ</h2>
+                                <p className="text-[11px] text-slate-500">{history.length} รายการล่าสุด</p>
+                            </span>
+                        </span>
+                        <span className="text-[11px] font-semibold text-slate-400">
+                            {historyOpen ? 'ซ่อน' : 'ดู'}
+                        </span>
+                    </button>
+                    {historyOpen ? (
+                        <ul className="mt-3 space-y-2">
+                            {history.map((h) => (
+                                <li
+                                    key={h.id}
+                                    className="rounded-xl border border-slate-800/70 bg-slate-900/40 p-3 text-xs text-slate-200"
+                                >
+                                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                                        <span className="rounded-full bg-violet-500/15 px-2 py-0.5 font-semibold text-violet-300 ring-1 ring-violet-500/25">
+                                            {fieldLabel(h.changed_field)}
+                                        </span>
+                                        <span className="tabular-nums">{formatDateTime(h.changed_at)}</span>
+                                        <span>· {h.changed_by}</span>
+                                    </div>
+                                    <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                                        <div>
+                                            <span className="text-[10px] uppercase tracking-wider text-slate-500">เดิม</span>
+                                            <p className="break-words text-slate-400 line-through">
+                                                {h.old_value || <span className="italic">(ว่าง)</span>}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] uppercase tracking-wider text-slate-500">ใหม่</span>
+                                            <p className="break-words text-slate-100">
+                                                {h.new_value || <span className="italic">(ว่าง)</span>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
+                </section>
+            ) : null}
+
+            {editOpen ? (
+                <EditOverrideModal
+                    customer={customer}
+                    onClose={() => setEditOpen(false)}
+                    onSave={handleSaveOverride}
+                />
+            ) : null}
         </div>
     );
 }
@@ -587,6 +766,164 @@ function CodTile({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
             <p className={`mt-1 text-base font-bold tabular-nums ${tone}`}>{value}</p>
             <p className="mt-0.5 text-[10px] text-slate-500">{sub}</p>
+        </div>
+    );
+}
+
+function EditOverrideModal({
+    customer,
+    onClose,
+    onSave,
+}: {
+    customer: Customer;
+    onClose: () => void;
+    onSave: (patch: {
+        override_phone?: string | null;
+        override_name?: string | null;
+        admin_notes?: string | null;
+        clear_phone?: boolean;
+        clear_name?: boolean;
+        clear_notes?: boolean;
+    }) => Promise<void>;
+}) {
+    const [phone, setPhone] = useState(customer.override_phone ?? '');
+    const [name, setName] = useState(customer.override_name ?? '');
+    const [notes, setNotes] = useState(customer.admin_notes ?? '');
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState<string | null>(null);
+
+    const original = useMemo(
+        () => ({
+            phone: customer.override_phone ?? '',
+            name: customer.override_name ?? '',
+            notes: customer.admin_notes ?? '',
+        }),
+        [customer.override_phone, customer.override_name, customer.admin_notes]
+    );
+
+    const handleSubmit = async () => {
+        setSaving(true);
+        setErr(null);
+        try {
+            const patch: Parameters<typeof onSave>[0] = {};
+            if (phone.trim() !== original.phone.trim()) {
+                if (phone.trim() === '') patch.clear_phone = true;
+                else patch.override_phone = phone.trim();
+            }
+            if (name.trim() !== original.name.trim()) {
+                if (name.trim() === '') patch.clear_name = true;
+                else patch.override_name = name.trim();
+            }
+            if (notes.trim() !== original.notes.trim()) {
+                if (notes.trim() === '') patch.clear_notes = true;
+                else patch.admin_notes = notes.trim();
+            }
+            if (Object.keys(patch).length === 0) {
+                onClose();
+                return;
+            }
+            await onSave(patch);
+            onClose();
+        } catch (e) {
+            setErr(e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => {
+                if (e.target === e.currentTarget && !saving) onClose();
+            }}
+        >
+            <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl ring-1 ring-white/5">
+                <header className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-bold text-white">แก้ไขข้อมูลติดต่อ</h3>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={saving}
+                        className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                        aria-label="ปิด"
+                    >
+                        <X className="h-4 w-4" aria-hidden />
+                    </button>
+                </header>
+                <p className="mt-1 text-[11px] text-slate-500">
+                    ค่า override จะแสดงแทนข้อมูลจาก J&amp;T — ปล่อยว่างเพื่อกลับไปใช้ข้อมูลต้นทาง
+                </p>
+
+                <div className="mt-4 space-y-3">
+                    <label className="block">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">เบอร์โทรศัพท์</span>
+                        <input
+                            type="tel"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder={customer.phone ?? 'ไม่มีในระบบ'}
+                            maxLength={50}
+                            className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        />
+                    </label>
+                    <label className="block">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">ชื่อ / Nickname</span>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder={customer.name ?? ''}
+                            maxLength={200}
+                            className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        />
+                    </label>
+                    <label className="block">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">หมายเหตุภายใน</span>
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows={3}
+                            maxLength={2000}
+                            placeholder="เช่น ขอให้ติดต่อตอน 9-17 น."
+                            className="mt-1 w-full resize-y rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        />
+                    </label>
+                </div>
+
+                {err ? (
+                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+                        <span>{err}</span>
+                    </div>
+                ) : null}
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={saving}
+                        className="rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                    >
+                        ยกเลิก
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={saving}
+                        className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {saving ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        ) : (
+                            <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                        บันทึก
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
