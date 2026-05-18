@@ -316,8 +316,14 @@ export function CustomerProfileListClient() {
                     {/* Shared sentinel for infinite scroll (mobile + desktop) */}
                     {hasMore && !showSkeleton && !showEmpty ? (
                         <div ref={sentinelRef} className="mt-2 py-3 text-center text-[11px] text-slate-500">
-                            <Loader2 className="mr-1.5 inline h-3 w-3 animate-spin align-[-2px]" aria-hidden />
-                            {loadingMore ? 'กำลังโหลด…' : `เลื่อนเพื่อโหลด ${formatCount(total - rows.length)} ราย`}
+                            {loadingMore ? (
+                                <>
+                                    <Loader2 className="mr-1.5 inline h-3 w-3 animate-spin align-[-2px]" aria-hidden />
+                                    กำลังโหลด…
+                                </>
+                            ) : (
+                                `เลื่อนเพื่อโหลด ${formatCount(total - rows.length)} ราย`
+                            )}
                         </div>
                     ) : null}
                 </div>
@@ -401,20 +407,21 @@ function CustomerListCard({ row, animationIndex }: { row: CustomerRow; animation
                     {row.vip_code ? (
                         <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-1.5 py-0 text-[10px] font-bold text-amber-200 ring-1 ring-amber-500/40">
                             <BadgeCheck className="h-2.5 w-2.5" aria-hidden />
-                            VIP
+                            {row.vip_code}
                         </span>
                     ) : null}
                 </p>
-                <p className="mt-0.5 flex items-center gap-2 text-[11px] tabular-nums text-slate-500">
-                    <span className="inline-flex items-center gap-1">
-                        <Phone className="h-2.5 w-2.5" aria-hidden />
-                        {maskPhone(row.phone)}
-                    </span>
-                    <span className="text-slate-700">·</span>
-                    <span><span className="font-semibold text-slate-300">{formatCount(row.shipment_count)}</span> ชิ้น</span>
+                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] tabular-nums text-slate-500">
+                    <Phone className="h-2.5 w-2.5 shrink-0" aria-hidden />
+                    {maskPhone(row.phone)}
                 </p>
             </div>
-            <span className="shrink-0 text-sky-300 transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="rounded-md bg-slate-800/70 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-slate-200 ring-1 ring-slate-700/50">
+                    {formatCount(row.shipment_count)}<span className="ml-0.5 text-[10px] font-normal text-slate-500">ชิ้น</span>
+                </span>
+                <span className="text-sky-300 transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
+            </div>
         </Link>
     );
 }

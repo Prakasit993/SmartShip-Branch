@@ -201,6 +201,8 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const [error, setError] = useState<string | null>(null);
     const [editOpen, setEditOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [weightOpen, setWeightOpen] = useState(false);
+    const [codOpen, setCodOpen] = useState(true);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
     const copyToClipboard = useCallback(async (text: string, token: string) => {
@@ -309,6 +311,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const effectiveName = customer.override_name?.trim() || customer.name?.trim() || 'ลูกค้าไม่ระบุชื่อ';
     const effectivePhone = customer.override_phone?.trim() || customer.phone || null;
     const hasOverride = !!(customer.override_phone?.trim() || customer.override_name?.trim() || customer.admin_notes?.trim());
+    const openShipments = kpi.total - kpi.closed;
     const avatarGradient = pickGradient(customer.sender_key || customer.name);
     const avatarInitial = initialOf(effectiveName);
 
@@ -385,6 +388,39 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                                     )}
                                 </span>
                             </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                                <span className="inline-flex items-center gap-1">
+                                    <Package className="h-3 w-3 text-slate-500" aria-hidden />
+                                    <span className="tabular-nums font-bold text-white">{fmtCount(kpi.total)}</span>
+                                    <span className="text-slate-500">พัสดุ</span>
+                                </span>
+                                <span className="text-slate-700" aria-hidden>·</span>
+                                <span className="inline-flex items-center gap-1 text-emerald-300">
+                                    <CheckCircle2 className="h-3 w-3" aria-hidden />
+                                    <span className="tabular-nums font-bold">{fmtPct(kpi.closed, kpi.total)}</span>
+                                    <span className="text-slate-500">สำเร็จ</span>
+                                </span>
+                                {kpi.withIssue > 0 ? (
+                                    <>
+                                        <span className="text-slate-700" aria-hidden>·</span>
+                                        <span className="inline-flex items-center gap-1 text-rose-300">
+                                            <AlertCircle className="h-3 w-3" aria-hidden />
+                                            <span className="tabular-nums font-bold">{fmtCount(kpi.withIssue)}</span>
+                                            <span className="text-slate-500">มีปัญหา</span>
+                                        </span>
+                                    </>
+                                ) : null}
+                                {kpi.overdueOver7Days > 0 ? (
+                                    <>
+                                        <span className="text-slate-700" aria-hidden>·</span>
+                                        <span className="inline-flex items-center gap-1 text-red-300">
+                                            <AlertTriangle className="h-3 w-3" aria-hidden />
+                                            <span className="tabular-nums font-bold">{fmtCount(kpi.overdueOver7Days)}</span>
+                                            <span className="text-slate-500">ค้าง&gt;7วัน</span>
+                                        </span>
+                                    </>
+                                ) : null}
+                            </div>
                         </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -432,7 +468,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
             ) : null}
 
             {/* KPI */}
-            <section aria-label="KPI พัสดุ" className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
+            <section aria-label="KPI พัสดุ" className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-2.5">
                 <KpiCard
                     icon={<Package className="h-4 w-4" aria-hidden />}
                     accent="from-sky-500/40 to-blue-500/10"
@@ -450,6 +486,8 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     value={fmtCount(kpi.closed)}
                     hint={`${fmtPct(kpi.closed, kpi.total)} ของพัสดุรวม`}
                     delay={0.1}
+                    progress={kpi.total > 0 ? kpi.closed / kpi.total : 0}
+                    accentFill="bg-emerald-400/60"
                 />
                 <KpiCard
                     icon={<Clock3 className="h-4 w-4" aria-hidden />}
@@ -457,8 +495,10 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     iconTone="bg-amber-500/15 text-amber-300 ring-amber-500/25"
                     label="ค้าง > 3 วัน"
                     value={fmtCount(kpi.overdueOver3Days)}
-                    hint={`${fmtPct(kpi.overdueOver3Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่ปิดงาน (overdue)`}
+                    hint={`${fmtPct(kpi.overdueOver3Days, openShipments)} ของพัสดุที่ยังไม่ปิดงาน`}
                     delay={0.15}
+                    progress={openShipments > 0 ? kpi.overdueOver3Days / openShipments : 0}
+                    accentFill="bg-amber-400/60"
                 />
                 <KpiCard
                     icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
@@ -466,127 +506,109 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     iconTone="bg-red-500/15 text-red-300 ring-red-500/25"
                     label="ค้าง > 7 วัน"
                     value={fmtCount(kpi.overdueOver7Days)}
-                    hint={`${fmtPct(kpi.overdueOver7Days, kpi.total - kpi.closed)} ของพัสดุที่ยังไม่ปิดงาน (severe)`}
+                    hint={`${fmtPct(kpi.overdueOver7Days, openShipments)} ของพัสดุที่ยังไม่ปิดงาน`}
                     delay={0.2}
+                    progress={openShipments > 0 ? kpi.overdueOver7Days / openShipments : 0}
+                    accentFill="bg-red-400/60"
                 />
                 <KpiCard
-                    icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
+                    icon={<AlertCircle className="h-4 w-4" aria-hidden />}
                     accent="from-rose-500/40 to-amber-500/10"
                     iconTone="bg-rose-500/15 text-rose-300 ring-rose-500/25"
                     label="มีปัญหา"
                     value={fmtCount(kpi.withIssue)}
                     hint={`${fmtPct(kpi.withIssue, kpi.total)} ของพัสดุรวม`}
                     delay={0.26}
+                    progress={kpi.total > 0 ? kpi.withIssue / kpi.total : 0}
+                    accentFill="bg-rose-400/60"
                 />
             </section>
 
-            {/* Weight + COD */}
-            <div className="grid gap-2.5 lg:grid-cols-2">
-                <section className="animate-home-fade-up home-delay-2 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-violet-950/20 sm:p-3.5">
-                    <header className="mb-2.5 flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
+            {/* Weight (collapsible — starts closed) */}
+            <section className="animate-home-fade-up home-delay-2 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
+                <button
+                    type="button"
+                    onClick={() => setWeightOpen((v) => !v)}
+                    className="group flex w-full items-center justify-between gap-2"
+                    aria-expanded={weightOpen}
+                >
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
                             <Scale className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <div className="min-w-0">
+                        <span className="min-w-0 text-left">
                             <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">
-                                เทียบ billed · order · gateway
-                            </p>
-                        </div>
+                            <p className="text-[10px] leading-snug text-slate-500">เทียบ billed · order · gateway</p>
+                        </span>
                         {weight.adjustedCount > 0 ? (
-                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
+                            <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
                                 <AlertTriangle className="h-3 w-3" aria-hidden />
                                 ถูกปรับ {fmtCount(weight.adjustedCount)} ชิ้น
                             </span>
                         ) : (
-                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
+                            <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
                                 <CheckCircle2 className="h-3 w-3" aria-hidden />
                                 ไม่มีการปรับ
                             </span>
                         )}
-                    </header>
-
-                    <div className="overflow-x-auto rounded-xl border border-slate-800/70">
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-violet-500/40 group-hover:text-violet-200">
+                        {weightOpen ? 'ซ่อน' : 'ดู'}
+                        <span className={`transition-transform ${weightOpen ? 'rotate-180' : ''}`}>▾</span>
+                    </span>
+                </button>
+                {weightOpen ? (
+                    <div className="mt-2.5 overflow-x-auto rounded-xl border border-slate-800/70">
                         <table className="w-full min-w-[360px] text-left text-xs">
                             <thead className="bg-slate-900/70 text-[10px] uppercase tracking-wider text-slate-400">
                                 <tr>
                                     <th className="px-2 py-1.5 font-semibold">ฟิลด์</th>
                                     <th className="px-2 py-1.5 text-right font-semibold">รวม</th>
                                     <th className="px-2 py-1.5 text-right font-semibold">เฉลี่ย</th>
-                                    <th className="px-2 py-1.5 text-right font-semibold">samples</th>
+                                    <th className="px-2 py-1.5 text-right font-semibold">จำนวน</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/70">
-                                <WeightRow
-                                    name="billed"
-                                    subtitle="ใช้เก็บเงิน"
-                                    sum={weight.sum.billed}
-                                    avg={weight.avg.billed}
-                                    samples={weight.samples.billed}
-                                    tone="text-violet-300"
-                                />
-                                <WeightRow
-                                    name="order"
-                                    subtitle="ลูกค้าแจ้ง"
-                                    sum={weight.sum.order}
-                                    avg={weight.avg.order}
-                                    samples={weight.samples.order}
-                                    tone="text-sky-300"
-                                />
-                                <WeightRow
-                                    name="gateway"
-                                    subtitle="ชั่งจริง"
-                                    sum={weight.sum.gateway}
-                                    avg={weight.avg.gateway}
-                                    samples={weight.samples.gateway}
-                                    tone="text-emerald-300"
-                                />
+                                <WeightRow name="billed" subtitle="ใช้เก็บเงิน" sum={weight.sum.billed} avg={weight.avg.billed} samples={weight.samples.billed} tone="text-violet-300" />
+                                <WeightRow name="order" subtitle="ลูกค้าแจ้ง" sum={weight.sum.order} avg={weight.avg.order} samples={weight.samples.order} tone="text-sky-300" />
+                                <WeightRow name="gateway" subtitle="ชั่งจริง" sum={weight.sum.gateway} avg={weight.avg.gateway} samples={weight.samples.gateway} tone="text-emerald-300" />
                             </tbody>
                         </table>
                     </div>
-                </section>
+                ) : null}
+            </section>
 
-                <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-emerald-950/20 sm:p-3.5">
-                    <header className="mb-2.5 flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
+            {/* COD (collapsible — starts open) */}
+            <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
+                <button
+                    type="button"
+                    onClick={() => setCodOpen((v) => !v)}
+                    className="group flex w-full items-center justify-between gap-2"
+                    aria-expanded={codOpen}
+                >
+                    <span className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
                             <Wallet className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <div className="min-w-0">
+                        <span className="text-left">
                             <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">
-                                cod_amount · cod_status · cod_payment_time
-                            </p>
-                        </div>
-                    </header>
-
-                    <div className="grid grid-cols-2 gap-1.5">
-                        <CodTile
-                            label="ยอด COD รวม"
-                            value={fmtThb(cod.totalAmount)}
-                            sub="ทุกพัสดุที่มี cod_amount > 0"
-                            tone="text-emerald-300"
-                        />
-                        <CodTile
-                            label="จ่ายแล้ว"
-                            value={`${fmtCount(cod.paidCount)} ชิ้น`}
-                            sub={fmtThb(cod.paidAmount)}
-                            tone="text-sky-300"
-                        />
-                        <CodTile
-                            label="รอจ่าย"
-                            value={`${fmtCount(cod.pendingCount)} ชิ้น`}
-                            sub={fmtThb(cod.pendingAmount)}
-                            tone="text-amber-300"
-                        />
-                        <CodTile
-                            label="ไม่ได้เก็บ"
-                            value={`${fmtCount(cod.noCollectionCount)} ชิ้น`}
-                            sub="No Collection"
-                            tone="text-rose-300"
-                        />
+                            <p className="text-[10px] leading-snug text-slate-500">cod_amount · cod_status · cod_payment_time</p>
+                        </span>
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-emerald-500/40 group-hover:text-emerald-200">
+                        {codOpen ? 'ซ่อน' : 'ดู'}
+                        <span className={`transition-transform ${codOpen ? 'rotate-180' : ''}`}>▾</span>
+                    </span>
+                </button>
+                {codOpen ? (
+                    <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                        <CodTile label="ยอด COD รวม" value={fmtThb(cod.totalAmount)} sub="ทุกพัสดุที่มี cod_amount > 0" tone="text-emerald-300" />
+                        <CodTile label="จ่ายแล้ว" value={`${fmtCount(cod.paidCount)} ชิ้น`} sub={`${fmtThb(cod.paidAmount)}${cod.totalAmount > 0 ? ` · ${fmtPct(cod.paidAmount, cod.totalAmount)}` : ''}`} tone="text-sky-300" />
+                        <CodTile label="รอจ่าย" value={`${fmtCount(cod.pendingCount)} ชิ้น`} sub={`${fmtThb(cod.pendingAmount)}${cod.totalAmount > 0 ? ` · ${fmtPct(cod.pendingAmount, cod.totalAmount)}` : ''}`} tone="text-amber-300" />
+                        <CodTile label="ไม่ได้เก็บ" value={`${fmtCount(cod.noCollectionCount)} ชิ้น`} sub="No Collection" tone="text-rose-300" />
                     </div>
-                </section>
-            </div>
+                ) : null}
+            </section>
 
             {/* Weight Anomaly — เคสที่ gateway machine ปรับน้ำหนัก/ปริมาตรสูงเกิน admin */}
             {weight.anomalyCount > 0 ? (
@@ -661,7 +683,8 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                             label="กำไร"
                             value={fmtThb(financial.total_profit)}
                             sub={`เฉลี่ย ${fmtThb(financial.avg_profit_per_shipment)}/ชิ้น`}
-                            tone={financial.total_profit >= 0 ? 'text-sky-300' : 'text-rose-300'}
+                            tone={financial.total_profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}
+                            highlight={financial.total_profit >= 0 ? 'positive' : 'negative'}
                             info="กำไรสุทธิ = รายได้รวม − ต้นทุนรวม และคำนวณค่าเฉลี่ยต่อพัสดุจากจำนวนพัสดุที่คำนวณ"
                         />
                     </div>
@@ -754,6 +777,8 @@ function KpiCard({
     value,
     hint,
     delay = 0,
+    progress,
+    accentFill,
 }: {
     icon: React.ReactNode;
     accent: string;
@@ -762,10 +787,12 @@ function KpiCard({
     value: string;
     hint: string;
     delay?: number;
+    progress?: number;
+    accentFill?: string;
 }) {
     return (
         <div
-            className="group relative overflow-hidden rounded-xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/80 to-zinc-950/70 p-2.5 shadow-md shadow-black/30 ring-1 ring-white/[0.03] transition-all hover:-translate-y-0.5 hover:border-zinc-700/90 hover:shadow-lg hover:shadow-black/40 animate-home-fade-up sm:p-3"
+            className="group relative overflow-hidden rounded-xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/80 to-zinc-950/70 p-2 shadow-md shadow-black/30 ring-1 ring-white/[0.03] transition-all hover:-translate-y-0.5 hover:border-zinc-700/90 hover:shadow-lg hover:shadow-black/40 animate-home-fade-up sm:p-2.5"
             style={{ animationDelay: `${delay}s` }}
         >
             <div
@@ -776,14 +803,28 @@ function KpiCard({
                 <span className={`flex h-7 w-7 items-center justify-center rounded-md ring-1 ${iconTone}`}>
                     {icon}
                 </span>
+                {progress !== undefined && (
+                    <span className="text-[10px] tabular-nums font-semibold text-zinc-400">
+                        {Math.round(progress * 100)}%
+                    </span>
+                )}
             </div>
             <p className="relative mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wider text-zinc-500">
                 {label}
             </p>
-            <p className="relative mt-0.5 text-xl font-black tabular-nums tracking-tight text-white sm:text-2xl">
+            <p className="relative mt-0.5 text-lg font-black tabular-nums tracking-tight text-white sm:text-xl">
                 {value}
             </p>
-            <p className="relative mt-0.5 text-[10px] leading-snug text-zinc-500 line-clamp-2">{hint}</p>
+            {progress !== undefined ? (
+                <div className="relative mt-1.5 h-0.5 overflow-hidden rounded-full bg-slate-800/60">
+                    <div
+                        className={`absolute inset-y-0 left-0 rounded-full ${accentFill ?? 'bg-slate-400'} transition-all duration-700`}
+                        style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+                        aria-hidden
+                    />
+                </div>
+            ) : null}
+            <p className="relative mt-1 text-[10px] leading-snug text-zinc-500 line-clamp-2">{hint}</p>
         </div>
     );
 }
@@ -829,7 +870,7 @@ function WeightAnomalySection({
     onCopyAll: () => void;
     copiedToken: string | null;
 }) {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(count > 0 && count <= 5);
     return (
         <section className="animate-home-fade-up home-delay-3 relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-950/40 via-slate-950/60 to-slate-950/80 p-3 shadow-md shadow-rose-950/30 ring-1 ring-rose-500/15 sm:p-3.5">
             <div
@@ -1053,15 +1094,23 @@ function CodTile({
     sub,
     tone,
     info,
+    highlight,
 }: {
     label: string;
     value: string;
     sub: string;
     tone: string;
     info?: string;
+    highlight?: 'positive' | 'negative';
 }) {
+    const highlightClass =
+        highlight === 'positive'
+            ? 'border-emerald-500/25 bg-emerald-500/[0.06] hover:border-emerald-500/35'
+            : highlight === 'negative'
+            ? 'border-rose-500/25 bg-rose-500/[0.06] hover:border-rose-500/35'
+            : 'border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-900/30 hover:border-slate-700/80 hover:from-slate-900/80 hover:to-slate-900/50';
     return (
-        <div className="group rounded-lg border border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-900/30 p-2 transition-colors hover:border-slate-700/80 hover:from-slate-900/80 hover:to-slate-900/50 sm:p-2.5">
+        <div className={`group rounded-lg border p-2 transition-colors sm:p-2.5 ${highlightClass}`}>
             <div className="flex items-center gap-1">
                 <p className="text-[10px] font-semibold uppercase leading-tight tracking-wider text-slate-500">{label}</p>
                 {info ? <InfoTip text={info} ariaLabel={`รายละเอียด ${label}`} /> : null}
