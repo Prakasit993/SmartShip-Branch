@@ -6,6 +6,8 @@ import {
     AlertCircle,
     BadgeCheck,
     Crown,
+    Eye,
+    EyeOff,
     Inbox,
     Loader2,
     Phone,
@@ -382,26 +384,31 @@ function CustomerListCard({ row, animationIndex }: { row: CustomerRow; animation
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
+    const [showPhone, setShowPhone] = useState(false);
 
     return (
-        <Link
-            href={`/admin/customer-profile/${row.id}`}
-            prefetch
-            onMouseEnter={() => {
-                void fetch(`/api/admin/customer-profile/${row.id}`, {
-                    credentials: 'include',
-                }).catch(() => {});
-            }}
-            className="group flex items-center gap-2.5 rounded-xl border border-slate-800/70 bg-slate-900/40 p-2.5 transition-all animate-home-fade-up hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-slate-900/60 hover:shadow-md hover:shadow-sky-950/30 active:translate-y-0"
+        <div
+            className="group relative flex items-center gap-2.5 rounded-xl border border-slate-800/70 bg-slate-900/40 p-2.5 transition-all animate-home-fade-up hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-slate-900/60 hover:shadow-md hover:shadow-sky-950/30 active:translate-y-0"
             style={{ animationDelay: `${delay}s` }}
         >
+            <Link
+                href={`/admin/customer-profile/${row.id}`}
+                prefetch
+                onMouseEnter={() => {
+                    void fetch(`/api/admin/customer-profile/${row.id}`, {
+                        credentials: 'include',
+                    }).catch(() => {});
+                }}
+                className="absolute inset-0 rounded-xl"
+                aria-label={`ดูโปรไฟล์ ${row.name ?? 'ลูกค้า'}`}
+            />
             <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-[13px] font-bold text-white shadow-md shadow-black/40 ring-1 ring-white/10`}
+                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-[13px] font-bold text-white shadow-md shadow-black/40 ring-1 ring-white/10`}
                 aria-hidden
             >
                 {initial}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 truncate text-[13px] font-semibold text-slate-100">
                     <span className="truncate">{row.name || <span className="italic text-slate-500">ไม่ระบุชื่อ</span>}</span>
                     {row.vip_code ? (
@@ -411,18 +418,28 @@ function CustomerListCard({ row, animationIndex }: { row: CustomerRow; animation
                         </span>
                     ) : null}
                 </p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] tabular-nums text-slate-500">
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] tabular-nums text-slate-500">
                     <Phone className="h-2.5 w-2.5 shrink-0" aria-hidden />
-                    {maskPhone(row.phone)}
+                    <span className="font-mono">{showPhone ? (row.phone ?? '—') : maskPhone(row.phone)}</span>
+                    {row.phone ? (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setShowPhone((v) => !v); }}
+                            className="relative z-10 rounded p-0.5 text-slate-600 transition-colors hover:text-slate-300"
+                            aria-label={showPhone ? 'ซ่อนเบอร์โทร' : 'แสดงเบอร์โทรเต็ม'}
+                        >
+                            {showPhone ? <EyeOff className="h-2.5 w-2.5" aria-hidden /> : <Eye className="h-2.5 w-2.5" aria-hidden />}
+                        </button>
+                    ) : null}
                 </p>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
+            <div className="relative flex shrink-0 flex-col items-end gap-1">
                 <span className="rounded-md bg-slate-800/70 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-slate-200 ring-1 ring-slate-700/50">
                     {formatCount(row.shipment_count)}<span className="ml-0.5 text-[10px] font-normal text-slate-500">ชิ้น</span>
                 </span>
                 <span className="text-sky-300 transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
             </div>
-        </Link>
+        </div>
     );
 }
 
@@ -430,6 +447,7 @@ function CustomerListRow({ row, animationIndex }: { row: CustomerRow; animationI
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
+    const [showPhone, setShowPhone] = useState(false);
 
     return (
         <tr
@@ -452,7 +470,17 @@ function CustomerListRow({ row, animationIndex }: { row: CustomerRow; animationI
             <td className="px-2.5 py-2 text-slate-300">
                 <span className="inline-flex items-center gap-1 tabular-nums">
                     <Phone className="h-3 w-3 text-slate-500" aria-hidden />
-                    {maskPhone(row.phone)}
+                    <span className="font-mono">{showPhone ? (row.phone ?? '—') : maskPhone(row.phone)}</span>
+                    {row.phone ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowPhone((v) => !v)}
+                            className="rounded p-0.5 text-slate-600 transition-colors hover:text-slate-300"
+                            aria-label={showPhone ? 'ซ่อนเบอร์โทร' : 'แสดงเบอร์โทรเต็ม'}
+                        >
+                            {showPhone ? <EyeOff className="h-3 w-3" aria-hidden /> : <Eye className="h-3 w-3" aria-hidden />}
+                        </button>
+                    ) : null}
                 </span>
             </td>
             <td className="px-2.5 py-2">

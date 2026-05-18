@@ -12,6 +12,8 @@ import {
     ClipboardEdit,
     Copy,
     Crown,
+    Eye,
+    EyeOff,
     History,
     Info,
     Loader2,
@@ -203,6 +205,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const [weightOpen, setWeightOpen] = useState(false);
     const [codOpen, setCodOpen] = useState(false);
     const [activeKpiPanel, setActiveKpiPanel] = useState<'overdue3' | 'overdue7' | 'issue' | null>(null);
+    const [showContactFull, setShowContactFull] = useState(false);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
     const copyToClipboard = useCallback(async (text: string, token: string) => {
@@ -373,7 +376,21 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                             <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] leading-relaxed text-slate-300">
                                 <span className="inline-flex items-center gap-1">
                                     <Package className="h-3 w-3 text-slate-500" aria-hidden />
-                                    <span className="font-mono text-slate-200">{maskPhone(effectivePhone)}</span>
+                                    <span className="font-mono text-slate-200">
+                                        {showContactFull ? (effectivePhone ?? '—') : maskPhone(effectivePhone)}
+                                    </span>
+                                    {history.length > 0 && effectivePhone ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowContactFull((v) => !v)}
+                                            className="rounded p-0.5 text-slate-500 transition-colors hover:text-slate-200"
+                                            aria-label={showContactFull ? 'ซ่อนเบอร์โทร' : 'แสดงเบอร์โทรเต็ม'}
+                                        >
+                                            {showContactFull
+                                                ? <EyeOff className="h-3 w-3" aria-hidden />
+                                                : <Eye className="h-3 w-3" aria-hidden />}
+                                        </button>
+                                    ) : null}
                                 </span>
                                 <span className="text-slate-400">
                                     {date_range ? (
