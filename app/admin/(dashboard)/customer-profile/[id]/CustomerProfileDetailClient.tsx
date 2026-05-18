@@ -7,9 +7,11 @@ import {
     AlertTriangle,
     ArrowLeft,
     BadgeCheck,
+    Check,
     CheckCircle2,
     Clock3,
     ClipboardEdit,
+    Copy,
     Crown,
     History,
     Info,
@@ -217,6 +219,20 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const [error, setError] = useState<string | null>(null);
     const [editOpen, setEditOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [shipmentsOpen, setShipmentsOpen] = useState(false);
+    const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+    const copyToClipboard = useCallback(async (text: string, token: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedToken(token);
+            window.setTimeout(() => {
+                setCopiedToken((cur) => (cur === token ? null : cur));
+            }, 1500);
+        } catch (err) {
+            console.error('[customer-profile] clipboard write failed:', err);
+        }
+    }, []);
 
     const fetchDetail = useCallback(async () => {
         setLoading(true);
@@ -596,6 +612,17 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                 <WeightAnomalySection
                     count={weight.anomalyCount}
                     shipments={weight.anomalyShipments}
+                    onCopyAwb={(awb) => copyToClipboard(awb, `awb-${awb}`)}
+                    onCopyAll={() =>
+                        copyToClipboard(
+                            weight.anomalyShipments
+                                .map((s) => s.awb_number ?? '')
+                                .filter(Boolean)
+                                .join('\n'),
+                            'anomaly-awbs'
+                        )
+                    }
+                    copiedToken={copiedToken}
                 />
             ) : null}
 
@@ -660,86 +687,133 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                 </section>
             ) : null}
 
-            {/* Shipments table */}
+            {/* Shipments table — collapsed by default */}
             <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
-                <header className="mb-2.5 flex flex-wrap items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
-                        <Package className="h-3.5 w-3.5" aria-hidden />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                        <h2 className="text-[13px] font-bold leading-tight text-white">รายการพัสดุ</h2>
-                        <p className="text-[10px] leading-snug text-slate-500">
-                            <span className="font-semibold text-slate-300">{fmtCount(shipments.length)}</span>
-                            <span className="mx-1">/</span>
-                            <span className="font-semibold text-slate-300">{fmtCount(data.shipments_total)}</span> ชิ้น
-                            {data.shipments_truncated ? (
-                                <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-500/15 px-1.5 py-0 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25">
-                                    200 ล่าสุด
-                                </span>
-                            ) : null}
-                        </p>
-                    </div>
+                <header className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setShipmentsOpen((v) => !v)}
+                        className="group flex min-w-0 flex-1 items-center gap-2 text-left"
+                        aria-expanded={shipmentsOpen}
+                    >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
+                            <Package className="h-3.5 w-3.5" aria-hidden />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <h2 className="flex items-center gap-1.5 text-[13px] font-bold leading-tight text-white">
+                                รายการพัสดุ
+                                <span className={`text-slate-500 transition-transform ${shipmentsOpen ? 'rotate-180' : ''}`}>▾</span>
+                            </h2>
+                            <p className="text-[10px] leading-snug text-slate-500">
+                                <span className="font-semibold text-slate-300">{fmtCount(shipments.length)}</span>
+                                <span className="mx-1">/</span>
+                                <span className="font-semibold text-slate-300">{fmtCount(data.shipments_total)}</span> ชิ้น
+                                {data.shipments_truncated ? (
+                                    <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-500/15 px-1.5 py-0 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/25">
+                                        200 ล่าสุด
+                                    </span>
+                                ) : null}
+                            </p>
+                        </div>
+                    </button>
+                    {shipments.length > 0 ? (
+                        <div className="flex shrink-0 items-center gap-1.5">
+                            <CopyButton
+                                label="AWB"
+                                copiedLabel="คัดลอกแล้ว"
+                                onClick={() =>
+                                    copyToClipboard(
+                                        shipments
+                                            .map((s) => s.awb_number ?? '')
+                                            .filter(Boolean)
+                                            .join('\n'),
+                                        'shipments-awbs'
+                                    )
+                                }
+                                copied={copiedToken === 'shipments-awbs'}
+                                title="คัดลอก AWB ทั้งหมด (แยกบรรทัด)"
+                            />
+                            <CopyButton
+                                label="ตาราง"
+                                copiedLabel="คัดลอกแล้ว"
+                                onClick={() =>
+                                    copyToClipboard(buildShipmentsTsv(shipments), 'shipments-tsv')
+                                }
+                                copied={copiedToken === 'shipments-tsv'}
+                                title="คัดลอกทั้งตาราง (TSV — paste ใน Excel/Sheets ได้)"
+                            />
+                        </div>
+                    ) : null}
                 </header>
 
-                {/* Mobile: card list */}
-                <div className="space-y-1.5 sm:hidden">
-                    {shipments.length === 0 ? (
-                        <div className="rounded-lg border border-slate-800/60 bg-slate-900/30 px-3 py-6 text-center">
-                            <ShipmentsEmpty />
-                        </div>
-                    ) : (
-                        shipments.map((s, idx) => <ShipmentCard key={s.awb_number ?? `row-${idx}`} s={s} />)
-                    )}
-                </div>
-
-                {/* Desktop: table */}
-                <div className="hidden overflow-x-auto rounded-xl border border-slate-800/70 shadow-inner shadow-black/20 sm:block">
-                    <table className="w-full min-w-[640px] text-left text-xs">
-                        <thead className="bg-gradient-to-b from-slate-900/80 to-slate-900/50 text-[10px] uppercase tracking-wider text-slate-400">
-                            <tr>
-                                <th className="px-2.5 py-2 font-semibold">AWB</th>
-                                <th className="px-2.5 py-2 font-semibold">วันที่จอง</th>
-                                <th className="px-2.5 py-2 font-semibold">สถานะปัญหา</th>
-                                <th className="px-2.5 py-2 font-semibold">Scan ล่าสุด</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60">
+                {shipmentsOpen ? (
+                    <>
+                        {/* Mobile: card list */}
+                        <div className="mt-2.5 space-y-1.5 sm:hidden">
                             {shipments.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="px-3 py-6 text-center">
-                                        <ShipmentsEmpty />
-                                    </td>
-                                </tr>
+                                <div className="rounded-lg border border-slate-800/60 bg-slate-900/30 px-3 py-6 text-center">
+                                    <ShipmentsEmpty />
+                                </div>
                             ) : (
                                 shipments.map((s, idx) => (
-                                    <tr
+                                    <ShipmentCard
                                         key={s.awb_number ?? `row-${idx}`}
-                                        className="group/row transition-colors hover:bg-gradient-to-r hover:from-slate-900/80 hover:to-slate-900/30"
-                                    >
-                                        <td className="px-2.5 py-1.5 font-mono text-[11px] text-slate-100">
-                                            {s.awb_number ? (
-                                                <span className="rounded bg-slate-800/50 px-1.5 py-0.5 ring-1 ring-slate-700/40 group-hover/row:bg-slate-800 group-hover/row:ring-slate-600/50">
-                                                    {s.awb_number}
-                                                </span>
-                                            ) : (
-                                                <span className="text-slate-600">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-2.5 py-1.5 tabular-nums text-slate-300">
-                                            {shortDate(s.booking_date)}
-                                        </td>
-                                        <td className="px-2.5 py-1.5">
-                                            <ShipmentStatusBadge returnType={s.return_type} signer={s.signer_name} />
-                                        </td>
-                                        <td className="px-2.5 py-1.5 text-slate-300">
-                                            {s.latest_scan_type || <span className="text-slate-600">—</span>}
-                                        </td>
-                                    </tr>
+                                        s={s}
+                                        onCopyAwb={(awb) => copyToClipboard(awb, `awb-${awb}`)}
+                                        copiedAwb={copiedToken?.startsWith('awb-') ? copiedToken.slice(4) : null}
+                                    />
                                 ))
                             )}
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+
+                        {/* Desktop: table */}
+                        <div className="mt-2.5 hidden overflow-x-auto rounded-xl border border-slate-800/70 shadow-inner shadow-black/20 sm:block">
+                            <table className="w-full min-w-[640px] text-left text-xs">
+                                <thead className="bg-gradient-to-b from-slate-900/80 to-slate-900/50 text-[10px] uppercase tracking-wider text-slate-400">
+                                    <tr>
+                                        <th className="px-2.5 py-2 font-semibold">AWB</th>
+                                        <th className="px-2.5 py-2 font-semibold">วันที่จอง</th>
+                                        <th className="px-2.5 py-2 font-semibold">สถานะปัญหา</th>
+                                        <th className="px-2.5 py-2 font-semibold">Scan ล่าสุด</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/60">
+                                    {shipments.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-3 py-6 text-center">
+                                                <ShipmentsEmpty />
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        shipments.map((s, idx) => (
+                                            <tr
+                                                key={s.awb_number ?? `row-${idx}`}
+                                                className="group/row transition-colors hover:bg-gradient-to-r hover:from-slate-900/80 hover:to-slate-900/30"
+                                            >
+                                                <td className="px-2.5 py-1.5 font-mono text-[11px] text-slate-100">
+                                                    <AwbChip
+                                                        awb={s.awb_number}
+                                                        onCopy={(awb) => copyToClipboard(awb, `awb-${awb}`)}
+                                                        copied={copiedToken === `awb-${s.awb_number}`}
+                                                    />
+                                                </td>
+                                                <td className="px-2.5 py-1.5 tabular-nums text-slate-300">
+                                                    {shortDate(s.booking_date)}
+                                                </td>
+                                                <td className="px-2.5 py-1.5">
+                                                    <ShipmentStatusBadge returnType={s.return_type} signer={s.signer_name} />
+                                                </td>
+                                                <td className="px-2.5 py-1.5 text-slate-300">
+                                                    {s.latest_scan_type || <span className="text-slate-600">—</span>}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                ) : null}
             </section>
 
             {history.length > 0 ? (
@@ -893,11 +967,17 @@ function WeightRow({
 function WeightAnomalySection({
     count,
     shipments,
+    onCopyAwb,
+    onCopyAll,
+    copiedToken,
 }: {
     count: number;
     shipments: WeightAnomalyRow[];
+    onCopyAwb: (awb: string) => void;
+    onCopyAll: () => void;
+    copiedToken: string | null;
 }) {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(false);
     return (
         <section className="animate-home-fade-up home-delay-3 relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-950/40 via-slate-950/60 to-slate-950/80 p-3 shadow-md shadow-rose-950/30 ring-1 ring-rose-500/15 sm:p-3.5">
             <div
@@ -905,29 +985,37 @@ function WeightAnomalySection({
                 aria-hidden
             />
             <header className="relative flex flex-wrap items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-rose-500/30 to-rose-500/15 text-rose-200 ring-1 ring-rose-500/40 shadow-sm shadow-rose-950/40">
-                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                    <h2 className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold leading-tight text-white">
-                        เคสน้ำหนักผิดปกติ
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500/30 to-rose-500/15 px-1.5 py-0 text-[11px] font-bold text-rose-100 ring-1 ring-rose-500/40">
-                            {fmtCount(count)} ชิ้น
-                        </span>
-                    </h2>
-                    <p className="text-[10px] leading-snug text-slate-400">
-                        gateway ปรับน้ำหนัก/ปริมาตร &gt; 2.5× admin คีย์ (และห่าง &gt; 1 กก.) — อาจถูกคิดต้นทุนเกินจริง
-                    </p>
-                </div>
                 <button
                     type="button"
                     onClick={() => setOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:bg-rose-500/20"
+                    className="group flex min-w-0 flex-1 items-center gap-2 text-left"
                     aria-expanded={open}
                 >
-                    {open ? 'ซ่อน' : 'ดู'}
-                    <span className={`transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-rose-500/30 to-rose-500/15 text-rose-200 ring-1 ring-rose-500/40 shadow-sm shadow-rose-950/40">
+                        <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <h2 className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold leading-tight text-white">
+                            เคสน้ำหนักผิดปกติ
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500/30 to-rose-500/15 px-1.5 py-0 text-[11px] font-bold text-rose-100 ring-1 ring-rose-500/40">
+                                {fmtCount(count)} ชิ้น
+                            </span>
+                            <span className={`text-rose-300 transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+                        </h2>
+                        <p className="text-[10px] leading-snug text-slate-400">
+                            gateway ปรับน้ำหนัก/ปริมาตร &gt; 2.5× admin คีย์ (และห่าง &gt; 1 กก.)
+                        </p>
+                    </div>
                 </button>
+                {shipments.length > 0 ? (
+                    <CopyButton
+                        label="AWB"
+                        copiedLabel="คัดลอกแล้ว"
+                        onClick={onCopyAll}
+                        copied={copiedToken === 'anomaly-awbs'}
+                        title="คัดลอก AWB ทั้งหมดของเคสผิดปกติ"
+                    />
+                ) : null}
             </header>
 
             {open ? (
@@ -945,12 +1033,12 @@ function WeightAnomalySection({
                                     className="rounded-lg border border-rose-500/20 bg-slate-950/40 p-2 text-[11px] text-slate-200"
                                 >
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="truncate font-mono text-rose-100">
-                                            {s.awb_number ? (
-                                                <span className="rounded bg-rose-500/10 px-1.5 py-0.5 ring-1 ring-rose-500/25">
-                                                    {s.awb_number}
-                                                </span>
-                                            ) : '—'}
+                                        <span className="truncate text-[11px]">
+                                            <AwbChip
+                                                awb={s.awb_number}
+                                                onCopy={onCopyAwb}
+                                                copied={copiedToken === `awb-${s.awb_number}`}
+                                            />
                                         </span>
                                         <span className="inline-flex shrink-0 items-center rounded-full bg-gradient-to-r from-rose-500/25 to-amber-500/20 px-1.5 py-0 text-[11px] font-bold tabular-nums text-rose-100 ring-1 ring-rose-500/40">
                                             {s.ratio.toLocaleString('th-TH', { maximumFractionDigits: 1 })}×
@@ -1002,14 +1090,12 @@ function WeightAnomalySection({
                                             key={s.awb_number ?? `anomaly-${idx}`}
                                             className="group/row transition-colors hover:bg-rose-500/[0.06]"
                                         >
-                                            <td className="px-2.5 py-1.5 font-mono text-[11px] text-rose-100">
-                                                {s.awb_number ? (
-                                                    <span className="rounded bg-rose-500/10 px-1.5 py-0.5 ring-1 ring-rose-500/25 group-hover/row:bg-rose-500/15 group-hover/row:ring-rose-500/40">
-                                                        {s.awb_number}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-600">—</span>
-                                                )}
+                                            <td className="px-2.5 py-1.5 text-[11px]">
+                                                <AwbChip
+                                                    awb={s.awb_number}
+                                                    onCopy={onCopyAwb}
+                                                    copied={copiedToken === `awb-${s.awb_number}`}
+                                                />
                                             </td>
                                             <td className="px-2.5 py-1.5 tabular-nums text-slate-300">
                                                 {shortDate(s.booking_date)}
@@ -1043,6 +1129,91 @@ function WeightAnomalySection({
             ) : null}
         </section>
     );
+}
+
+function CopyButton({
+    label,
+    copiedLabel,
+    onClick,
+    copied,
+    title,
+}: {
+    label: string;
+    copiedLabel: string;
+    onClick: () => void;
+    copied: boolean;
+    title?: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            title={title}
+            className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold transition-all ${
+                copied
+                    ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200'
+                    : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-sky-500/40 hover:text-sky-200'
+            }`}
+        >
+            {copied ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
+            <span className="hidden sm:inline">{copied ? copiedLabel : label}</span>
+        </button>
+    );
+}
+
+function AwbChip({
+    awb,
+    onCopy,
+    copied,
+}: {
+    awb: string | null;
+    onCopy: (awb: string) => void;
+    copied: boolean;
+}) {
+    if (!awb) return <span className="text-slate-600">—</span>;
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                onCopy(awb);
+            }}
+            title={copied ? 'คัดลอกแล้ว' : 'คลิกเพื่อคัดลอก AWB'}
+            className={`group/awb inline-flex items-center gap-1 rounded px-1.5 py-0.5 ring-1 transition-all ${
+                copied
+                    ? 'bg-emerald-500/15 ring-emerald-500/40 text-emerald-200'
+                    : 'bg-slate-800/50 ring-slate-700/40 text-slate-100 hover:bg-slate-800 hover:ring-sky-500/40'
+            }`}
+        >
+            <span className="font-mono">{awb}</span>
+            {copied ? (
+                <Check className="h-2.5 w-2.5" aria-hidden />
+            ) : (
+                <Copy className="h-2.5 w-2.5 text-slate-500 opacity-0 transition-opacity group-hover/awb:opacity-100" aria-hidden />
+            )}
+        </button>
+    );
+}
+
+function buildShipmentsTsv(shipments: ShipmentLine[]): string {
+    const header = ['AWB', 'วันที่จอง', 'สถานะ', 'return_type', 'signer_name', 'scan ล่าสุด', 'scan เวลา'].join('\t');
+    const rows = shipments.map((s) => {
+        const status = hasMeaningfulReturnType(s.return_type)
+            ? 'มีปัญหา'
+            : isMeaningfulSigner(s.signer_name)
+                ? 'ปิดงาน'
+                : 'ดำเนินการ';
+        return [
+            s.awb_number ?? '',
+            shortDate(s.booking_date),
+            status,
+            s.return_type ?? '',
+            s.signer_name ?? '',
+            s.latest_scan_type ?? '',
+            s.latest_scan_time ?? '',
+        ].map((v) => String(v).replace(/\t/g, ' ').replace(/\n/g, ' ')).join('\t');
+    });
+    return [header, ...rows].join('\n');
 }
 
 function ShipmentsEmpty() {
@@ -1104,16 +1275,20 @@ function isMeaningfulSigner(raw: string | null): raw is string {
     return t.toUpperCase() !== 'NULL';
 }
 
-function ShipmentCard({ s }: { s: ShipmentLine }) {
+function ShipmentCard({
+    s,
+    onCopyAwb,
+    copiedAwb,
+}: {
+    s: ShipmentLine;
+    onCopyAwb: (awb: string) => void;
+    copiedAwb: string | null;
+}) {
     return (
         <div className="rounded-lg border border-slate-800/70 bg-slate-900/40 p-2 text-[11px] text-slate-200">
             <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-mono text-slate-100">
-                    {s.awb_number ? (
-                        <span className="rounded bg-slate-800/50 px-1.5 py-0.5 ring-1 ring-slate-700/40">
-                            {s.awb_number}
-                        </span>
-                    ) : '—'}
+                <span className="truncate text-[11px]">
+                    <AwbChip awb={s.awb_number} onCopy={onCopyAwb} copied={copiedAwb === s.awb_number} />
                 </span>
                 <ShipmentStatusBadge returnType={s.return_type} signer={s.signer_name} />
             </div>
