@@ -203,6 +203,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const [historyOpen, setHistoryOpen] = useState(false);
     const [weightOpen, setWeightOpen] = useState(false);
     const [codOpen, setCodOpen] = useState(true);
+    const [activeKpiPanel, setActiveKpiPanel] = useState<'overdue3' | 'overdue7' | 'issue' | null>(null);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
     const copyToClipboard = useCallback(async (text: string, token: string) => {
@@ -499,6 +500,8 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     delay={0.15}
                     progress={openShipments > 0 ? kpi.overdueOver3Days / openShipments : 0}
                     accentFill="bg-amber-400/60"
+                    onClick={kpi.overdueOver3Days > 0 ? () => setActiveKpiPanel((v) => (v === 'overdue3' ? null : 'overdue3')) : undefined}
+                    isActive={activeKpiPanel === 'overdue3'}
                 />
                 <KpiCard
                     icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
@@ -510,6 +513,8 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     delay={0.2}
                     progress={openShipments > 0 ? kpi.overdueOver7Days / openShipments : 0}
                     accentFill="bg-red-400/60"
+                    onClick={kpi.overdueOver7Days > 0 ? () => setActiveKpiPanel((v) => (v === 'overdue7' ? null : 'overdue7')) : undefined}
+                    isActive={activeKpiPanel === 'overdue7'}
                 />
                 <KpiCard
                     icon={<AlertCircle className="h-4 w-4" aria-hidden />}
@@ -521,117 +526,25 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     delay={0.26}
                     progress={kpi.total > 0 ? kpi.withIssue / kpi.total : 0}
                     accentFill="bg-rose-400/60"
+                    onClick={kpi.withIssue > 0 ? () => setActiveKpiPanel((v) => (v === 'issue' ? null : 'issue')) : undefined}
+                    isActive={activeKpiPanel === 'issue'}
                 />
             </section>
 
-            {/* Weight (collapsible — starts closed) */}
-            <section className="animate-home-fade-up home-delay-2 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
-                <button
-                    type="button"
-                    onClick={() => setWeightOpen((v) => !v)}
-                    className="group flex w-full items-center justify-between gap-2"
-                    aria-expanded={weightOpen}
-                >
-                    <span className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
-                            <Scale className="h-3.5 w-3.5" aria-hidden />
-                        </span>
-                        <span className="min-w-0 text-left">
-                            <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">เทียบ billed · order · gateway</p>
-                        </span>
-                        {weight.adjustedCount > 0 ? (
-                            <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
-                                <AlertTriangle className="h-3 w-3" aria-hidden />
-                                ถูกปรับ {fmtCount(weight.adjustedCount)} ชิ้น
-                            </span>
-                        ) : (
-                            <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
-                                <CheckCircle2 className="h-3 w-3" aria-hidden />
-                                ไม่มีการปรับ
-                            </span>
-                        )}
-                    </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-violet-500/40 group-hover:text-violet-200">
-                        {weightOpen ? 'ซ่อน' : 'ดู'}
-                        <span className={`transition-transform ${weightOpen ? 'rotate-180' : ''}`}>▾</span>
-                    </span>
-                </button>
-                {weightOpen ? (
-                    <div className="mt-2.5 overflow-x-auto rounded-xl border border-slate-800/70">
-                        <table className="w-full min-w-[360px] text-left text-xs">
-                            <thead className="bg-slate-900/70 text-[10px] uppercase tracking-wider text-slate-400">
-                                <tr>
-                                    <th className="px-2 py-1.5 font-semibold">ฟิลด์</th>
-                                    <th className="px-2 py-1.5 text-right font-semibold">รวม</th>
-                                    <th className="px-2 py-1.5 text-right font-semibold">เฉลี่ย</th>
-                                    <th className="px-2 py-1.5 text-right font-semibold">จำนวน</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/70">
-                                <WeightRow name="billed" subtitle="ใช้เก็บเงิน" sum={weight.sum.billed} avg={weight.avg.billed} samples={weight.samples.billed} tone="text-violet-300" />
-                                <WeightRow name="order" subtitle="ลูกค้าแจ้ง" sum={weight.sum.order} avg={weight.avg.order} samples={weight.samples.order} tone="text-sky-300" />
-                                <WeightRow name="gateway" subtitle="ชั่งจริง" sum={weight.sum.gateway} avg={weight.avg.gateway} samples={weight.samples.gateway} tone="text-emerald-300" />
-                            </tbody>
-                        </table>
-                    </div>
-                ) : null}
-            </section>
-
-            {/* COD (collapsible — starts open) */}
-            <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
-                <button
-                    type="button"
-                    onClick={() => setCodOpen((v) => !v)}
-                    className="group flex w-full items-center justify-between gap-2"
-                    aria-expanded={codOpen}
-                >
-                    <span className="flex items-center gap-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
-                            <Wallet className="h-3.5 w-3.5" aria-hidden />
-                        </span>
-                        <span className="text-left">
-                            <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">cod_amount · cod_status · cod_payment_time</p>
-                        </span>
-                    </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-emerald-500/40 group-hover:text-emerald-200">
-                        {codOpen ? 'ซ่อน' : 'ดู'}
-                        <span className={`transition-transform ${codOpen ? 'rotate-180' : ''}`}>▾</span>
-                    </span>
-                </button>
-                {codOpen ? (
-                    <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                        <CodTile label="ยอด COD รวม" value={fmtThb(cod.totalAmount)} sub="ทุกพัสดุที่มี cod_amount > 0" tone="text-emerald-300" />
-                        <CodTile label="จ่ายแล้ว" value={`${fmtCount(cod.paidCount)} ชิ้น`} sub={`${fmtThb(cod.paidAmount)}${cod.totalAmount > 0 ? ` · ${fmtPct(cod.paidAmount, cod.totalAmount)}` : ''}`} tone="text-sky-300" />
-                        <CodTile label="รอจ่าย" value={`${fmtCount(cod.pendingCount)} ชิ้น`} sub={`${fmtThb(cod.pendingAmount)}${cod.totalAmount > 0 ? ` · ${fmtPct(cod.pendingAmount, cod.totalAmount)}` : ''}`} tone="text-amber-300" />
-                        <CodTile label="ไม่ได้เก็บ" value={`${fmtCount(cod.noCollectionCount)} ชิ้น`} sub="No Collection" tone="text-rose-300" />
-                    </div>
-                ) : null}
-            </section>
-
-            {/* Weight Anomaly — เคสที่ gateway machine ปรับน้ำหนัก/ปริมาตรสูงเกิน admin */}
-            {weight.anomalyCount > 0 ? (
-                <WeightAnomalySection
-                    count={weight.anomalyCount}
-                    shipments={weight.anomalyShipments}
-                    onCopyAwb={(awb) => copyToClipboard(awb, `awb-${awb}`)}
-                    onCopyAll={() =>
-                        copyToClipboard(
-                            weight.anomalyShipments
-                                .map((s) => s.awb_number ?? '')
-                                .filter(Boolean)
-                                .join('\n'),
-                            'anomaly-awbs'
-                        )
-                    }
+            {/* KPI Drill-down Panel */}
+            {activeKpiPanel !== null ? (
+                <OverduePanel
+                    id={id}
+                    type={activeKpiPanel}
+                    onClose={() => setActiveKpiPanel(null)}
                     copiedToken={copiedToken}
+                    onCopyAwb={copyToClipboard}
                 />
             ) : null}
 
-            {/* Financial RPC */}
+            {/* Financial RPC — ขึ้นมาก่อน เพราะเป็น metric ธุรกิจหลัก */}
             {financial ? (
-                <section className="animate-home-fade-up home-delay-4 relative rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-sky-950/25 sm:p-3.5">
+                <section className="animate-home-fade-up home-delay-2 relative rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-sky-950/25 sm:p-3.5">
                     {/* orb wrapper has its own overflow-hidden so tooltips on tiles can escape */}
                     <div
                         className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
@@ -690,6 +603,108 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     </div>
                 </section>
             ) : null}
+
+            {/* COD (collapsible — starts open) */}
+            <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
+                <button
+                    type="button"
+                    onClick={() => setCodOpen((v) => !v)}
+                    className="group flex w-full items-center justify-between gap-2"
+                    aria-expanded={codOpen}
+                >
+                    <span className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
+                            <Wallet className="h-3.5 w-3.5" aria-hidden />
+                        </span>
+                        <span className="text-left">
+                            <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
+                            <p className="text-[10px] leading-snug text-slate-500">cod_amount · cod_status · cod_payment_time</p>
+                        </span>
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-emerald-500/40 group-hover:text-emerald-200">
+                        {codOpen ? 'ซ่อน' : 'ดู'}
+                        <span className={`transition-transform ${codOpen ? 'rotate-180' : ''}`}>▾</span>
+                    </span>
+                </button>
+                {codOpen ? (
+                    <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                        <CodTile label="ยอด COD รวม" value={fmtThb(cod.totalAmount)} sub="ทุกพัสดุที่มี cod_amount > 0" tone="text-emerald-300" />
+                        <CodTile label="จ่ายแล้ว" value={`${fmtCount(cod.paidCount)} ชิ้น`} sub={`${fmtThb(cod.paidAmount)}${cod.totalAmount > 0 ? ` · ${fmtPct(cod.paidAmount, cod.totalAmount)}` : ''}`} tone="text-sky-300" />
+                        <CodTile label="รอจ่าย" value={`${fmtCount(cod.pendingCount)} ชิ้น`} sub={`${fmtThb(cod.pendingAmount)}${cod.totalAmount > 0 ? ` · ${fmtPct(cod.pendingAmount, cod.totalAmount)}` : ''}`} tone="text-amber-300" />
+                        <CodTile label="ไม่ได้เก็บ" value={`${fmtCount(cod.noCollectionCount)} ชิ้น`} sub="No Collection" tone="text-rose-300" />
+                    </div>
+                ) : null}
+            </section>
+
+            {/* Weight Anomaly */}
+            {weight.anomalyCount > 0 ? (
+                <WeightAnomalySection
+                    count={weight.anomalyCount}
+                    shipments={weight.anomalyShipments}
+                    onCopyAwb={(awb) => copyToClipboard(awb, `awb-${awb}`)}
+                    onCopyAll={() =>
+                        copyToClipboard(
+                            weight.anomalyShipments.map((s) => s.awb_number ?? '').filter(Boolean).join('\n'),
+                            'anomaly-awbs'
+                        )
+                    }
+                    copiedToken={copiedToken}
+                />
+            ) : null}
+
+            {/* Weight (collapsible — starts closed) */}
+            <section className="animate-home-fade-up home-delay-4 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
+                <button
+                    type="button"
+                    onClick={() => setWeightOpen((v) => !v)}
+                    className="group flex w-full items-center justify-between gap-2"
+                    aria-expanded={weightOpen}
+                >
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
+                            <Scale className="h-3.5 w-3.5" aria-hidden />
+                        </span>
+                        <span className="min-w-0 text-left">
+                            <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
+                            <p className="text-[10px] leading-snug text-slate-500">เทียบ billed · order · gateway</p>
+                        </span>
+                        {weight.adjustedCount > 0 ? (
+                            <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
+                                <AlertTriangle className="h-3 w-3" aria-hidden />
+                                ถูกปรับ {fmtCount(weight.adjustedCount)} ชิ้น
+                            </span>
+                        ) : (
+                            <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-500/30">
+                                <CheckCircle2 className="h-3 w-3" aria-hidden />
+                                ไม่มีการปรับ
+                            </span>
+                        )}
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-violet-500/40 group-hover:text-violet-200">
+                        {weightOpen ? 'ซ่อน' : 'ดู'}
+                        <span className={`transition-transform ${weightOpen ? 'rotate-180' : ''}`}>▾</span>
+                    </span>
+                </button>
+                {weightOpen ? (
+                    <div className="mt-2.5 overflow-x-auto rounded-xl border border-slate-800/70">
+                        <table className="w-full min-w-[360px] text-left text-xs">
+                            <thead className="bg-slate-900/70 text-[10px] uppercase tracking-wider text-slate-400">
+                                <tr>
+                                    <th className="px-2 py-1.5 font-semibold">ฟิลด์</th>
+                                    <th className="px-2 py-1.5 text-right font-semibold">รวม</th>
+                                    <th className="px-2 py-1.5 text-right font-semibold">เฉลี่ย</th>
+                                    <th className="px-2 py-1.5 text-right font-semibold">จำนวน</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/70">
+                                <WeightRow name="billed" subtitle="ใช้เก็บเงิน" sum={weight.sum.billed} avg={weight.avg.billed} samples={weight.samples.billed} tone="text-violet-300" />
+                                <WeightRow name="order" subtitle="ลูกค้าแจ้ง" sum={weight.sum.order} avg={weight.avg.order} samples={weight.samples.order} tone="text-sky-300" />
+                                <WeightRow name="gateway" subtitle="ชั่งจริง" sum={weight.sum.gateway} avg={weight.avg.gateway} samples={weight.samples.gateway} tone="text-emerald-300" />
+                            </tbody>
+                        </table>
+                    </div>
+                ) : null}
+            </section>
 
             {history.length > 0 ? (
                 <section className="animate-home-fade-up home-delay-5 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
@@ -779,6 +794,8 @@ function KpiCard({
     delay = 0,
     progress,
     accentFill,
+    onClick,
+    isActive = false,
 }: {
     icon: React.ReactNode;
     accent: string;
@@ -789,10 +806,18 @@ function KpiCard({
     delay?: number;
     progress?: number;
     accentFill?: string;
+    onClick?: () => void;
+    isActive?: boolean;
 }) {
+    const Tag = onClick ? 'button' : 'div';
     return (
-        <div
-            className="group relative overflow-hidden rounded-xl border border-zinc-800/90 bg-gradient-to-br from-zinc-900/80 to-zinc-950/70 p-2 shadow-md shadow-black/30 ring-1 ring-white/[0.03] transition-all hover:-translate-y-0.5 hover:border-zinc-700/90 hover:shadow-lg hover:shadow-black/40 animate-home-fade-up sm:p-2.5"
+        <Tag
+            {...(onClick ? { type: 'button' as const, onClick } : {})}
+            className={`group relative overflow-hidden rounded-xl border bg-gradient-to-br from-zinc-900/80 to-zinc-950/70 p-2 shadow-md shadow-black/30 ring-1 ring-white/[0.03] transition-all animate-home-fade-up sm:p-2.5 ${
+                isActive
+                    ? 'border-sky-500/50 ring-sky-500/20 shadow-sky-950/30 -translate-y-0.5'
+                    : 'border-zinc-800/90 hover:-translate-y-0.5 hover:border-zinc-700/90 hover:shadow-lg hover:shadow-black/40'
+            } ${onClick ? 'cursor-pointer' : ''}`}
             style={{ animationDelay: `${delay}s` }}
         >
             <div
@@ -825,7 +850,12 @@ function KpiCard({
                 </div>
             ) : null}
             <p className="relative mt-1 text-[10px] leading-snug text-zinc-500 line-clamp-2">{hint}</p>
-        </div>
+            {onClick ? (
+                <p className={`relative mt-1 text-[9px] font-semibold uppercase tracking-wider transition-colors ${isActive ? 'text-sky-400' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                    {isActive ? '▲ ซ่อน' : '▼ ดูรายชื่อ'}
+                </p>
+            ) : null}
+        </Tag>
     );
 }
 
@@ -1142,6 +1172,154 @@ function InfoTip({ text, ariaLabel }: { text: string; ariaLabel?: string }) {
                 />
             </span>
         </span>
+    );
+}
+
+type OverduePanelType = 'overdue3' | 'overdue7' | 'issue';
+
+type OverdueShipment = {
+    awb_number: string | null;
+    booking_date: string | null;
+    days_overdue?: number | null;
+    return_type?: string | null;
+};
+
+const OVERDUE_META: Record<OverduePanelType, { title: string; borderCls: string; bgCls: string; iconCls: string; badgeCls: string }> = {
+    overdue3: {
+        title: 'ค้างเกิน 3 วัน',
+        borderCls: 'border-amber-500/30',
+        bgCls: 'from-amber-950/30',
+        iconCls: 'bg-amber-500/20 text-amber-300 ring-amber-500/30',
+        badgeCls: 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30',
+    },
+    overdue7: {
+        title: 'ค้างเกิน 7 วัน',
+        borderCls: 'border-red-500/30',
+        bgCls: 'from-red-950/30',
+        iconCls: 'bg-red-500/20 text-red-300 ring-red-500/30',
+        badgeCls: 'bg-red-500/15 text-red-200 ring-1 ring-red-500/30',
+    },
+    issue: {
+        title: 'พัสดุมีปัญหา',
+        borderCls: 'border-rose-500/30',
+        bgCls: 'from-rose-950/30',
+        iconCls: 'bg-rose-500/20 text-rose-300 ring-rose-500/30',
+        badgeCls: 'bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30',
+    },
+};
+
+function OverduePanel({
+    id,
+    type,
+    onClose,
+    copiedToken,
+    onCopyAwb,
+}: {
+    id: string;
+    type: OverduePanelType;
+    onClose: () => void;
+    copiedToken: string | null;
+    onCopyAwb: (awb: string, token: string) => void;
+}) {
+    const [shipments, setShipments] = useState<OverdueShipment[]>([]);
+    const [panelLoading, setPanelLoading] = useState(true);
+    const [panelError, setPanelError] = useState<string | null>(null);
+    const meta = OVERDUE_META[type];
+
+    useEffect(() => {
+        setPanelLoading(true);
+        setPanelError(null);
+        fetch(`/api/admin/customer-profile/${id}/overdue?type=${type}`, { credentials: 'include' })
+            .then(async (r) => {
+                if (!r.ok) {
+                    const b = await r.json().catch(() => ({}));
+                    throw new Error((b as { error?: string })?.error || `HTTP ${r.status}`);
+                }
+                return r.json() as Promise<{ shipments: OverdueShipment[] }>;
+            })
+            .then((d) => setShipments(d.shipments ?? []))
+            .catch((e) => setPanelError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ'))
+            .finally(() => setPanelLoading(false));
+    }, [id, type]);
+
+    return (
+        <section className={`animate-home-fade-up rounded-2xl border ${meta.borderCls} bg-gradient-to-br ${meta.bgCls} via-slate-950/60 to-slate-950/80 p-3 shadow-md ring-1 ring-white/[0.03] sm:p-3.5`}>
+            <header className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-md ring-1 ${meta.iconCls}`}>
+                        {type === 'issue' ? <AlertCircle className="h-3.5 w-3.5" aria-hidden /> : <Clock3 className="h-3.5 w-3.5" aria-hidden />}
+                    </span>
+                    <div>
+                        <h2 className="text-[13px] font-bold text-white">{meta.title}</h2>
+                        <p className="text-[10px] text-slate-500">
+                            {panelLoading ? 'กำลังโหลด…' : panelError ? panelError : `${shipments.length} รายการ`}
+                        </p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-400 transition hover:border-slate-600 hover:text-slate-200"
+                    aria-label="ปิด"
+                >
+                    ✕ ปิด
+                </button>
+            </header>
+
+            <div className="mt-2.5">
+                {panelLoading ? (
+                    <div className="space-y-1.5">
+                        {[1, 2, 3].map((i) => <div key={i} className="h-8 animate-pulse rounded-lg bg-slate-800/50" />)}
+                    </div>
+                ) : panelError ? (
+                    <p className="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300">{panelError}</p>
+                ) : shipments.length === 0 ? (
+                    <p className="rounded-lg border border-slate-800/50 bg-slate-900/30 px-3 py-3 text-center text-[11px] text-slate-500">ไม่พบรายการ</p>
+                ) : (
+                    <div className="overflow-x-auto rounded-xl border border-slate-800/60 bg-slate-950/40">
+                        <table className="w-full min-w-[400px] text-left text-[12px]">
+                            <thead className={`bg-gradient-to-b ${meta.bgCls} to-slate-900/50 text-[10px] uppercase tracking-wider text-slate-400`}>
+                                <tr>
+                                    <th className="px-2.5 py-2 font-semibold">AWB</th>
+                                    <th className="px-2.5 py-2 font-semibold">วันที่จอง</th>
+                                    {type !== 'issue' ? (
+                                        <th className="px-2.5 py-2 text-right font-semibold">ค้างมา</th>
+                                    ) : (
+                                        <th className="px-2.5 py-2 font-semibold">ประเภทปัญหา</th>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50">
+                                {shipments.map((s, idx) => (
+                                    <tr key={s.awb_number ?? `r-${idx}`} className="transition-colors hover:bg-slate-800/20">
+                                        <td className="px-2.5 py-1.5">
+                                            <AwbChip
+                                                awb={s.awb_number}
+                                                onCopy={(awb) => onCopyAwb(awb, `odawb-${awb}`)}
+                                                copied={copiedToken === `odawb-${s.awb_number}`}
+                                            />
+                                        </td>
+                                        <td className="px-2.5 py-1.5 tabular-nums text-slate-300">{shortDate(s.booking_date)}</td>
+                                        {type !== 'issue' ? (
+                                            <td className="px-2.5 py-1.5 text-right">
+                                                <span className={`inline-flex items-center rounded-full px-1.5 py-0 text-[11px] font-bold tabular-nums ${meta.badgeCls}`}>
+                                                    {s.days_overdue != null ? `${s.days_overdue} วัน` : '—'}
+                                                </span>
+                                            </td>
+                                        ) : (
+                                            <td className="px-2.5 py-1.5 text-[11px] text-slate-300">{s.return_type ?? '—'}</td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {shipments.length >= 100 ? (
+                            <p className="border-t border-slate-800/50 px-3 py-1.5 text-[10px] text-slate-500">แสดง 100 รายการแรก</p>
+                        ) : null}
+                    </div>
+                )}
+            </div>
+        </section>
     );
 }
 
