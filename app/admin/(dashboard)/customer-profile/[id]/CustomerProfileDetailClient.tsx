@@ -201,7 +201,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const [editOpen, setEditOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [weightOpen, setWeightOpen] = useState(false);
-    const [codOpen, setCodOpen] = useState(true);
+    const [codOpen, setCodOpen] = useState(false);
     const [activeKpiPanel, setActiveKpiPanel] = useState<'overdue3' | 'overdue7' | 'issue' | null>(null);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
