@@ -81,6 +81,7 @@ type ApiResponse = {
     weight: WeightSummary;
     cod: CodSummary;
     financial: Financial;
+    financial_refreshed_at: string | null;
     date_range: { from: string; to: string } | null;
     shipments: ShipmentLine[];
     shipments_total: number;
@@ -117,6 +118,19 @@ function shortDate(s: string | null): string {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s.trim());
     if (!m) return s;
     return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+function formatSnapshotAge(iso: string | null): string | null {
+    if (!iso) return null;
+    const t = Date.parse(iso);
+    if (Number.isNaN(t)) return null;
+    const diffMs = Date.now() - t;
+    const diffMin = Math.round(diffMs / 60_000);
+    if (diffMin < 60) return `cache ${Math.max(diffMin, 0)} นาทีที่แล้ว`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 48) return `cache ${diffH} ชม.ที่แล้ว`;
+    const diffD = Math.round(diffH / 24);
+    return `cache ${diffD} วันที่แล้ว`;
 }
 
 export function CustomerProfileDetailClient({ id }: { id: string }) {
@@ -184,8 +198,9 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
 
     if (!data) return null;
 
-    const { customer, kpi, weight, cod, financial, date_range, shipments } = data;
+    const { customer, kpi, weight, cod, financial, financial_refreshed_at, date_range, shipments } = data;
     const isVip = !!(customer.vip_code && customer.vip_code.trim());
+    const financialSnapshotAge = formatSnapshotAge(financial_refreshed_at);
 
     return (
         <div className="space-y-6 pb-20">
@@ -386,9 +401,10 @@ export function CustomerProfileDetailClient({ id }: { id: string }) {
                             <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
                         </span>
                         <div>
-                            <h2 className="text-sm font-bold text-white">สรุปกำไร (จาก RPC)</h2>
+                            <h2 className="text-sm font-bold text-white">สรุปกำไร (จาก snapshot)</h2>
                             <p className="text-[11px] text-slate-500">
-                                get_financial_customer_breakdown_billable_weight · {date_range?.from} → {date_range?.to}
+                                {date_range?.from} → {date_range?.to}
+                                {financialSnapshotAge ? ` · ${financialSnapshotAge}` : ''}
                             </p>
                         </div>
                     </header>

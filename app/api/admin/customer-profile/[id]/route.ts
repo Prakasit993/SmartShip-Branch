@@ -130,6 +130,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
             weight: unknown;
             cod: unknown;
             financial: unknown;
+            financial_refreshed_at: string | null;
             date_range: unknown;
             shipments: unknown[];
             shipments_total: number;
@@ -149,6 +150,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
                 weight: payload.weight,
                 cod: payload.cod,
                 financial: payload.financial,
+                financial_refreshed_at: payload.financial_refreshed_at,
                 date_range: payload.date_range,
                 shipments: payload.shipments,
                 shipments_total: payload.shipments_total,
