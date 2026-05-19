@@ -1,0 +1,42 @@
+<svg viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <!-- Single soft cyan glow center — the only color story -->
+    <radialGradient id="glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.20"/>
+      <stop offset="40%" stop-color="#0891b2" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Very faint vignette for depth -->
+    <radialGradient id="vignette" cx="50%" cy="50%" r="75%">
+      <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.5"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Pure dark base -->
+  <rect width="1200" height="900" fill="#09090b"/>
+  <rect width="1200" height="900" fill="url(#glow)"/>
+
+  <!-- Giant hex mark — outline only, takes most of the canvas -->
+  <g transform="translate(600 430)">
+    <g transform="translate(-280 -280) scale(17.5)">
+      <path d="M16 3 L27 9 L27 23 L16 29 L5 23 L5 9 Z"
+            fill="none" stroke="#f4f4f5" stroke-width="0.55" opacity="0.92" stroke-linejoin="round"/>
+      <path d="M10.5 11 L10.5 21" stroke="#f4f4f5" stroke-width="0.85" stroke-linecap="round"/>
+      <path d="M21.5 11 L21.5 21" stroke="#f4f4f5" stroke-width="0.85" stroke-linecap="round"/>
+      <path d="M10.5 11 L21.5 21" stroke="#22d3ee" stroke-width="1.05" stroke-linecap="round"/>
+      <circle cx="16" cy="3" r="0.55" fill="#22d3ee"/>
+      <circle cx="16" cy="29" r="0.55" fill="#22d3ee"/>
+    </g>
+  </g>
+
+  <!-- Wordmark — small, spaced, sits low — premium feel -->
+  <text x="600" y="800" text-anchor="middle"
+        font-family="ui-sans-serif, system-ui, sans-serif"
+        font-size="22" font-weight="700" letter-spacing="14" fill="#a1a1aa">
+    N<tspan fill="#22d3ee">Y</tspan>XEL
+  </text>
+
+  <!-- Vignette on top -->
+  <rect width="1200" height="900" fill="url(#vignette)"/>
+</svg>

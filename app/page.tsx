@@ -226,11 +226,11 @@ export default async function Home() {
         )}
 
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="absolute inset-0 bg-grid-zinc-200/50 dark:bg-grid-zinc-800/50 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] pointer-events-none" />
+        <section className="relative overflow-hidden bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-900">
+          <div className="absolute inset-0 bg-grid-zinc-200/40 dark:bg-grid-zinc-800/30 [mask-image:radial-gradient(ellipse_at_center,white_30%,transparent_75%)] pointer-events-none" />
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={true}>
-            <div className="absolute -top-28 -left-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl animate-hero-blob dark:bg-blue-500/12" />
-            <div className="absolute top-1/4 -right-20 h-72 w-72 rounded-full bg-cyan-400/18 blur-3xl animate-hero-blob-alt dark:bg-cyan-400/12" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[42rem] w-[42rem] rounded-full bg-cyan-500/8 blur-3xl dark:bg-cyan-500/10" />
+            <div className="absolute top-1/4 -right-20 h-72 w-72 rounded-full bg-cyan-400/14 blur-3xl animate-hero-blob-alt dark:bg-cyan-400/8" />
           </div>
 
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 home-section-y-lg relative z-10">
