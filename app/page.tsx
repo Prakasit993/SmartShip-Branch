@@ -10,6 +10,7 @@ import { getHeroSlidesFromSettings, getHomeSeoFromSettings } from '@app/lib/home
 import { splitHeroTitle } from '@app/lib/split-hero-title';
 import HomeReveal from '@app/components/home/HomeReveal';
 import FaqSection from '@app/components/home/FaqSection';
+import NyxelCard from '@app/components/ui/NyxelCard';
 import { HOME_DEFAULTS } from '@/lib/home-defaults';
 import { HOME_FAQ } from '@app/lib/home-faq';
 
@@ -385,39 +386,55 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Services Section */}
-        <section className="bg-zinc-900 text-white home-section-y px-4 sm:px-6 relative overflow-hidden">
-          <div className="hidden md:block absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="hidden md:block absolute bottom-0 left-0 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        {/* Services Section — unified NyxelCard system */}
+        <section className="bg-zinc-50 dark:bg-black home-section-y px-4 sm:px-6 relative overflow-hidden border-t border-zinc-200 dark:border-zinc-800">
+          <div className="hidden md:block absolute top-0 right-0 w-96 h-96 bg-cyan-500/8 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" aria-hidden />
+          <div className="hidden md:block absolute bottom-0 left-0 w-96 h-96 bg-blue-500/8 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" aria-hidden />
 
-          <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 lg:gap-12 text-center relative z-10">
-            <HomeReveal className="text-center">
-              <div className="p-6 sm:p-8 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/12 hover:border-white/20 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-1 transition-all duration-300 h-full">
-              <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-400 ring-1 ring-blue-400/30 shadow-inner">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <div className="max-w-7xl mx-auto w-full relative z-10">
+            <HomeReveal className="text-center mb-10 sm:mb-14">
+              <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 font-mono text-[11px] font-bold tracking-[0.25em] uppercase mb-4 ring-1 ring-cyan-500/30">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                // SERVICE.MANIFEST
               </div>
-              <h3 className="home-type-card-heading font-bold mb-2 sm:mb-3">{HOME_DEFAULTS.services[0].title}</h3>
-              <p className="home-type-body-muted text-zinc-400 text-pretty">{HOME_DEFAULTS.services[0].desc}</p>
-              </div>
+              <h2 className="home-type-section font-black mb-3 text-balance text-zinc-900 dark:text-white">
+                สิ่งที่ NYXEL พร้อมส่งมอบ
+              </h2>
             </HomeReveal>
-            <HomeReveal delayMs={65} className="text-center">
-              <div className="p-6 sm:p-8 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/12 hover:border-white/20 hover:shadow-lg hover:shadow-purple-500/5 hover:-translate-y-1 transition-all duration-300 h-full">
-              <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-purple-400 ring-1 ring-purple-400/30 shadow-inner">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <h3 className="home-type-card-heading font-bold mb-2 sm:mb-3">{HOME_DEFAULTS.services[1].title}</h3>
-              <p className="home-type-body-muted text-zinc-400 text-pretty">{HOME_DEFAULTS.services[1].desc}</p>
-              </div>
-            </HomeReveal>
-            <HomeReveal delayMs={130} className="text-center">
-              <div className="p-6 sm:p-8 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/12 hover:border-white/20 hover:shadow-lg hover:shadow-green-500/5 hover:-translate-y-1 transition-all duration-300 h-full">
-              <div className="w-16 h-16 bg-green-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-green-400 ring-1 ring-green-400/30 shadow-inner">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-              </div>
-              <h3 className="home-type-card-heading font-bold mb-2 sm:mb-3">{HOME_DEFAULTS.services[2].title}</h3>
-              <p className="home-type-body-muted text-zinc-400 text-pretty">{HOME_DEFAULTS.services[2].desc}</p>
-              </div>
-            </HomeReveal>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+              {HOME_DEFAULTS.services.map((svc, idx) => {
+                const icons = [
+                  // 01 — authentic / receipt
+                  <svg key="0" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                  // 02 — fast shipping
+                  <svg key="1" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+                  // 03 — used / refurbished
+                  <svg key="2" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
+                ];
+                return (
+                  <HomeReveal key={idx} delayMs={idx * 65}>
+                    <NyxelCard
+                      variant="lab"
+                      index={idx + 1}
+                      subLabel="SERVICE"
+                      subLabelTag="NYXEL // SVC"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-cyan-500/10 ring-1 ring-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 group-hover:bg-cyan-500/20 group-hover:scale-110 transition-all duration-300 mb-4">
+                        {icons[idx]}
+                      </div>
+                      <h3 className="font-bold text-zinc-900 dark:text-white text-base sm:text-lg leading-snug mb-3 text-pretty">
+                        {svc.title}
+                      </h3>
+                      <div className="h-px w-10 bg-cyan-500/30 group-hover:w-20 group-hover:bg-cyan-500/60 transition-all duration-500 mb-3" aria-hidden />
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed text-pretty">
+                        {svc.desc}
+                      </p>
+                    </NyxelCard>
+                  </HomeReveal>
+                );
+              })}
+            </div>
           </div>
         </section>
 
