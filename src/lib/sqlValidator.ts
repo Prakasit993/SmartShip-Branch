@@ -24,10 +24,34 @@ import { Parser, type AST } from 'node-sql-parser';
 const PARSER_DIALECT = 'postgresql' as const;
 const PARSER_TIMEOUT_MS = 1000;
 
-/** Tables the AI may SELECT from. Mirrors `database/db/migrations/20260515_ai_readonly_role.sql`. */
+/**
+ * Tables the AI may SELECT from. Mirrors GRANTs in
+ *   - database/db/migrations/20260515_ai_readonly_sql_tool.sql (jt + shipping)
+ *   - database/db/migrations/20260520_ai_readonly_grant_nyxel.sql (inventory + pricing)
+ *
+ * Scope philosophy:
+ *   - Operations + inventory + pricing: whitelist (low PII risk)
+ *   - Customer / order / review tables with PII: defer to Level 2 with audit
+ */
 const ALLOWED_TABLES = new Set([
+    // J&T operations (Phase 2 original scope)
     'jt_shipments',
     'shipping_cost_master',
+
+    // NYXEL inventory & taxonomy (Level 1 — read-only catalog access)
+    'products',
+    'bundles',
+    'categories',
+    'bundle_items',
+    'bundle_option_groups',
+    'bundle_options',
+
+    // Pricing rules (admin-only, no PII)
+    'coupons',
+    'bulk_discounts',
+
+    // Order line items — snapshots only (bundle_name + price text), no customer FK
+    'order_items',
 ]);
 
 /**

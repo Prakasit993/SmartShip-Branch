@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import CookieSettingsButton from '@app/components/ui/CookieSettingsButton';
 import { useLanguage } from '@app/context/LanguageContext';
+import NyxelMark from '@app/components/brand/NyxelMark';
 
 interface FooterProps {
     settings?: Record<string, string>;
@@ -35,16 +36,18 @@ export default function Footer({ settings = {} }: FooterProps) {
                     {/* Brand Section */}
                     <div className="md:col-span-1">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center text-2xl shadow-lg shadow-blue-900/40">
-                                📦
+                            <div className="w-12 h-12 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-cyan-900/40">
+                                <NyxelMark className="w-8 h-8" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-xl">Express Shop</h3>
-                                <p className="text-xs text-zinc-400">Premium Packing</p>
+                                <h3 className="font-bold text-xl">
+                                    N<span style={{ color: 'var(--nyxel-accent)' }}>Y</span>XEL
+                                </h3>
+                                <p className="text-xs text-zinc-400">Premium IT</p>
                             </div>
                         </div>
                         <p className="text-sm text-zinc-400 leading-relaxed mb-6">
-                            อุปกรณ์แพ็คกิ้งพรีเมียมและชุดบริการสำหรับความต้องการในการจัดส่งของคุณ
+                            {t('footer.description')}
                         </p>
 
                         {/* Social Links */}
@@ -169,7 +172,7 @@ export default function Footer({ settings = {} }: FooterProps) {
                 {/* Bottom Bar */}
                 <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-sm text-zinc-500">
-                        © {currentYear} Express Shop. สงวนลิขสิทธิ์
+                        © {currentYear} NYXEL. {t('footer.rights')}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-zinc-600">
                         <span>Made with</span>
