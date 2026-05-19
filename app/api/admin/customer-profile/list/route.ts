@@ -79,14 +79,82 @@ export async function GET(req: Request) {
             total_count: number | string;
         }>;
 
-        const rows = raw.map((r) => ({
-            // ใช้ display_name (ที่ยังไม่ lower-case) เพื่อให้ detail page query ตรงกับข้อมูลจริง
-            id: encodeURIComponent(r.display_name ?? r.sender_key),
-            name: r.display_name,
-            phone: r.sender_phone,
-            vip_code: r.vip_code,
-            shipment_count: Number(r.shipment_count) || 0,
-        }));
+        const senderNames = raw
+            .map((r) => r.display_name)
+            .filter((n): n is string => typeof n === 'string' && n.length > 0);
+
+        type KpiCounts = { overdue3: number; overdue7: number; withIssue: number };
+        const kpiMap: Record<string, KpiCounts> = {};
+
+        if (senderNames.length > 0) {
+            const senderOrFilter = senderNames.map((n) => `sender_name.ilike.${n}`).join(',');
+            const openFilter = 'signer_name.is.null,signer_name.eq.,signer_name.ilike.NULL';
+
+            const today = new Date();
+            const cut3 = new Date(today);
+            cut3.setUTCDate(cut3.getUTCDate() - 3);
+            const cut7 = new Date(today);
+            cut7.setUTCDate(cut7.getUTCDate() - 7);
+            const cutStr3 = cut3.toISOString().split('T')[0];
+            const cutStr7 = cut7.toISOString().split('T')[0];
+
+            const [res3, res7, resIssue] = await Promise.allSettled([
+                supabaseAdmin
+                    .from('jt_shipments')
+                    .select('sender_name')
+                    .or(senderOrFilter)
+                    .or(openFilter)
+                    .not('booking_date', 'is', null)
+                    .lt('booking_date', cutStr3)
+                    .limit(5000),
+                supabaseAdmin
+                    .from('jt_shipments')
+                    .select('sender_name')
+                    .or(senderOrFilter)
+                    .or(openFilter)
+                    .not('booking_date', 'is', null)
+                    .lt('booking_date', cutStr7)
+                    .limit(5000),
+                supabaseAdmin
+                    .from('jt_shipments')
+                    .select('sender_name')
+                    .or(senderOrFilter)
+                    .not('return_type', 'is', null)
+                    .not('return_type', 'eq', '')
+                    .not('return_type', 'ilike', 'EMPTY')
+                    .not('return_type', 'ilike', 'NULL')
+                    .not('return_type', 'eq', '-')
+                    .limit(5000),
+            ]);
+
+            function tally(settled: (typeof res3), field: keyof KpiCounts) {
+                if (settled.status !== 'fulfilled' || !settled.value.data) return;
+                for (const row of settled.value.data) {
+                    const key = ((row as { sender_name?: string }).sender_name ?? '').toLowerCase();
+                    if (!key) continue;
+                    if (!kpiMap[key]) kpiMap[key] = { overdue3: 0, overdue7: 0, withIssue: 0 };
+                    kpiMap[key][field]++;
+                }
+            }
+
+            tally(res3, 'overdue3');
+            tally(res7, 'overdue7');
+            tally(resIssue, 'withIssue');
+        }
+
+        const rows = raw.map((r) => {
+            const kpi = kpiMap[(r.display_name ?? '').toLowerCase()] ?? { overdue3: 0, overdue7: 0, withIssue: 0 };
+            return {
+                id: encodeURIComponent(r.display_name ?? r.sender_key),
+                name: r.display_name,
+                phone: r.sender_phone,
+                vip_code: r.vip_code,
+                shipment_count: Number(r.shipment_count) || 0,
+                overdue3: kpi.overdue3,
+                overdue7: kpi.overdue7,
+                withIssue: kpi.withIssue,
+            };
+        });
 
         const total = raw.length > 0 ? Number(raw[0].total_count) || 0 : 0;
 
