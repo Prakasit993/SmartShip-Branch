@@ -39,15 +39,18 @@ export async function generateMetadata(): Promise<Metadata> {
     title: seo.title,
     description: seo.description,
     keywords: [
-      'Express Shop',
-      'SmartShip',
-      'กล่องพัสดุ',
-      'แพ็คกิ้ง',
-      'อุปกรณ์แพ็ก',
-      'วัสดุบรรจุภัณฑ์',
-      'ชุดกล่อง',
-      'ร้านส่งด่วน',
-      'packing supplies',
+      'NYXEL',
+      'สินค้า IT',
+      'อุปกรณ์ IT',
+      'Notebook',
+      'การ์ดจอ',
+      'การ์ดจอมือสอง',
+      'RAM',
+      'หูฟัง gaming',
+      'คีย์บอร์ด mechanical',
+      'gadget พรีเมียม',
+      'IT shop ของแท้',
+      'ส่งด่วนทั่วไทย',
     ],
     alternates: {
       canonical: '/',
@@ -233,22 +236,22 @@ export default async function Home() {
         {/* Best Sellers Section */}
         <section className="relative home-section-y-lg overflow-hidden">
           {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-red-50 dark:from-zinc-900 dark:via-black dark:to-zinc-900" />
-          <div className="hidden md:block absolute top-0 left-1/4 w-96 h-96 bg-orange-400/20 rounded-full blur-3xl animate-pulse" />
-          <div className="hidden md:block absolute bottom-0 right-1/4 w-96 h-96 bg-red-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute inset-0 bg-gradient-to-br from-zinc-50 via-white to-zinc-50 dark:from-zinc-950 dark:via-black dark:to-zinc-950" />
+          <div className="hidden md:block absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl animate-pulse" />
+          <div className="hidden md:block absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 relative z-10">
             <HomeReveal className="text-center mb-10 sm:mb-14 lg:mb-16">
-              <div className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-2 sm:px-5 sm:py-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-500/30 mb-4 sm:mb-6 ring-1 ring-white/20">
-                <span className="md:animate-bounce">🔥</span>
+              <div className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-2 sm:px-5 sm:py-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/30 mb-4 sm:mb-6 ring-1 ring-white/20">
+                <span className="md:animate-bounce">⚡</span>
                 สินค้าขายดี
-                <span className="md:animate-bounce" style={{ animationDelay: '0.2s' }}>🔥</span>
+                <span className="md:animate-bounce" style={{ animationDelay: '0.2s' }}>⚡</span>
               </div>
-              <h2 className="home-type-section font-black mb-3 sm:mb-4 bg-gradient-to-r from-orange-600 via-red-600 to-orange-600 bg-clip-text text-transparent drop-shadow-sm px-1 text-balance">
+              <h2 className="home-type-section font-black mb-3 sm:mb-4 bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-500 dark:from-cyan-300 dark:via-white dark:to-cyan-300 bg-clip-text text-transparent drop-shadow-sm px-1 text-balance">
                 สินค้ายอดนิยม
               </h2>
               <p className="home-type-intro text-zinc-500 dark:text-zinc-400 max-w-md mx-auto text-pretty px-1">
-                สินค้าที่ลูกค้าเลือกซื้อมากที่สุด คุณภาพเกินราคา!
+                สินค้า IT ที่ลูกค้าเลือกซื้อมากที่สุด ของแท้ทุกชิ้น
               </p>
             </HomeReveal>
 
@@ -256,13 +259,13 @@ export default async function Home() {
               {featuredBundles?.map((bundle, index) => (
                 <HomeReveal key={bundle.id} delayMs={index * 50} className="min-h-0 h-full">
                   <Link href={`/shop/bundle/${bundle.slug}`} className="group block h-full">
-                  <div className="relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border-2 border-transparent hover:border-orange-400 shadow-lg hover:shadow-2xl hover:shadow-orange-500/25 hover:-translate-y-2 hover:ring-2 hover:ring-orange-400/20 transition-all duration-300 h-full flex flex-col">
+                  <div className="relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border-2 border-transparent hover:border-cyan-400 shadow-lg hover:shadow-2xl hover:shadow-cyan-500/25 hover:-translate-y-2 hover:ring-2 hover:ring-cyan-400/20 transition-all duration-300 h-full flex flex-col">
                     {/* Ranking Badge */}
                     <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20">
                       <div className={`w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm rounded-full flex items-center justify-center font-black text-white shadow-lg ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' :
                         index === 1 ? 'bg-gradient-to-br from-zinc-300 to-zinc-500' :
                           index === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-800' :
-                            'bg-gradient-to-br from-orange-400 to-red-500'
+                            'bg-gradient-to-br from-cyan-400 to-blue-500'
                         }`}>
                         {index + 1}
                       </div>
@@ -281,29 +284,29 @@ export default async function Home() {
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900">
-                          <div className="w-16 h-16 mb-3 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-3xl shadow-lg">
-                            📦
+                          <div className="w-16 h-16 mb-3 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-3xl shadow-lg">
+                            💻
                           </div>
                           <span className="text-xs text-zinc-400 font-medium">สินค้าพร้อมส่ง</span>
                         </div>
                       )}
                       {/* Hot Badge */}
-                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-lg flex items-center gap-0.5 sm:gap-1">
-                        <span className="animate-pulse">🔥</span> HOT
+                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-lg flex items-center gap-0.5 sm:gap-1">
+                        <span className="animate-pulse">⚡</span> HOT
                       </div>
                       {/* Overlay on hover */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </div>
 
                     <div className="p-3 sm:p-4 md:p-5 flex-1 flex flex-col bg-gradient-to-b from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-950">
-                      <h3 className="home-type-product-name font-bold line-clamp-2 mb-2 sm:mb-3 group-hover:text-orange-600 transition-colors">{bundle.name}</h3>
+                      <h3 className="home-type-product-name font-bold line-clamp-2 mb-2 sm:mb-3 group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors">{bundle.name}</h3>
                       <div className="mt-auto flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="home-type-price font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                          <p className="home-type-price font-black bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-300 dark:to-cyan-500 bg-clip-text text-transparent">
                             ฿{bundle.price?.toLocaleString()}
                           </p>
                         </div>
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                         </div>
                       </div>
@@ -313,8 +316,8 @@ export default async function Home() {
                 </HomeReveal>
               ))}
               {(!featuredBundles || featuredBundles.length === 0) && (
-                <div className="col-span-2 md:col-span-4 text-center py-14 sm:py-20 rounded-2xl sm:rounded-3xl bg-white dark:bg-zinc-900 border-2 border-dashed border-orange-200 dark:border-zinc-800 px-4">
-                  <div className="text-6xl mb-4">📦</div>
+                <div className="col-span-2 md:col-span-4 text-center py-14 sm:py-20 rounded-2xl sm:rounded-3xl bg-white dark:bg-zinc-900 border-2 border-dashed border-cyan-200 dark:border-zinc-800 px-4">
+                  <div className="text-6xl mb-4">💻</div>
                   <p className="home-type-intro text-zinc-500">เร็วๆ นี้จะมีสินค้าขายดี!</p>
                 </div>
               )}
@@ -323,7 +326,7 @@ export default async function Home() {
             <HomeReveal className="text-center mt-10 sm:mt-14">
               <Link
                 href="/shop"
-                className="group inline-flex min-h-11 w-full max-w-md sm:w-auto items-center justify-center gap-2 sm:gap-3 px-8 py-4 sm:px-10 sm:py-5 mx-auto bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white rounded-full font-semibold home-type-cta shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/45 hover:-translate-y-1 active:scale-[0.98] transition-all duration-200 ring-1 ring-white/15"
+                className="group inline-flex min-h-11 w-full max-w-md sm:w-auto items-center justify-center gap-2 sm:gap-3 px-8 py-4 sm:px-10 sm:py-5 mx-auto bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-500 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white rounded-full font-semibold home-type-cta shadow-xl shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/45 hover:-translate-y-1 active:scale-[0.98] transition-all duration-200 ring-1 ring-white/15"
               >
                 ดูสินค้าทั้งหมด
                 <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>

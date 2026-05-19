@@ -103,7 +103,7 @@ export default function ShippingSelector({ onSelect }: ShippingSelectorProps) {
                                         ฟรี
                                     </span>
                                 ) : (
-                                    <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                                    <span className="text-sm text-cyan-600 dark:text-cyan-400 font-medium">
                                         {option.priceDisplay}
                                     </span>
                                 )}
@@ -127,8 +127,8 @@ export default function ShippingSelector({ onSelect }: ShippingSelectorProps) {
 
             {/* Note for delivery option */}
             {selected === 'delivery' && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
-                    <p className="text-sm text-orange-700 dark:text-orange-300">
+                <div className="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800 rounded-lg p-3">
+                    <p className="text-sm text-cyan-700 dark:text-cyan-300">
                         📦 หลังจากสั่งซื้อ Admin จะติดต่อกลับเพื่อแจ้งค่าจัดส่งตามที่อยู่และน้ำหนักสินค้า
                     </p>
                 </div>

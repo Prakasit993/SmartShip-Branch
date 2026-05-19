@@ -111,7 +111,7 @@ export default function CartPanel({
                         <Link
                             href="/shop"
                             onClick={variant === 'drawer' ? onRequestClose : undefined}
-                            className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 transition-colors"
+                            className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-cyan-500 text-white font-semibold text-sm hover:bg-cyan-600 transition-colors"
                         >
                             {t('cart.start_shopping')}
                         </Link>
@@ -147,7 +147,7 @@ export default function CartPanel({
                                         <Link
                                             href={`/shop/bundle/${item.bundle_slug}`}
                                             onClick={variant === 'drawer' ? onRequestClose : undefined}
-                                            className="font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-tight text-left hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                                            className="font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-tight text-left hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
                                         >
                                             {item.bundle_name}
                                         </Link>
@@ -239,7 +239,7 @@ export default function CartPanel({
                         <Link
                             href="/shop"
                             onClick={variant === 'drawer' ? onRequestClose : undefined}
-                            className="block w-full py-3 text-center text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                            className="block w-full py-3 text-center text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
                         >
                             {t('cart.continue_shopping')}
                         </Link>

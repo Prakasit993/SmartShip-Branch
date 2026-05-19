@@ -143,7 +143,7 @@ export default function Header() {
                     <div className="flex items-center gap-0.5 sm:gap-1">
                         <Link
                             href="/cart"
-                            className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium text-zinc-600 hover:text-orange-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-orange-400 dark:hover:bg-zinc-800 transition-colors"
+                            className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium text-zinc-600 hover:text-cyan-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-cyan-400 dark:hover:bg-zinc-800 transition-colors"
                         >
                             {t('nav.cart')}
                             {cartCount > 0 && (
