@@ -580,26 +580,26 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 
             {/* COD (collapsible — starts closed) */}
             <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
-                <button
-                    type="button"
-                    onClick={() => setCodOpen((v) => !v)}
-                    className="group flex w-full items-center justify-between gap-2"
-                    aria-expanded={codOpen}
-                >
-                    <span className="flex items-center gap-2">
+                <div className="flex w-full items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
                             <Wallet className="h-3.5 w-3.5" aria-hidden />
                         </span>
                         <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
-                            <InfoTip text="cod_amount · cod_status · cod_payment_time" ariaLabel="ฟิลล์ที่ใช้คำนวณ COD" asSpan />
+                            <InfoTip text="cod_amount · cod_status · cod_payment_time" ariaLabel="ฟิลล์ที่ใช้คำนวณ COD" />
                         </span>
-                    </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-emerald-500/40 group-hover:text-emerald-200">
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setCodOpen((v) => !v)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors hover:border-emerald-500/40 hover:text-emerald-200"
+                        aria-expanded={codOpen}
+                    >
                         {codOpen ? 'ซ่อน' : 'ดู'}
                         <span className={`transition-transform ${codOpen ? 'rotate-180' : ''}`}>▾</span>
-                    </span>
-                </button>
+                    </button>
+                </div>
                 {codOpen ? (
                     <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                         <CodTile label="ยอด COD รวม" value={fmtThb(cod.totalAmount)} sub="ทุกพัสดุที่มี cod_amount > 0" tone="text-emerald-300" />
@@ -628,19 +628,14 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 
             {/* Weight (collapsible — starts closed) */}
             <section className="animate-home-fade-up home-delay-4 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
-                <button
-                    type="button"
-                    onClick={() => setWeightOpen((v) => !v)}
-                    className="group flex w-full items-center justify-between gap-2"
-                    aria-expanded={weightOpen}
-                >
-                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="flex w-full items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
                             <Scale className="h-3.5 w-3.5" aria-hidden />
                         </span>
                         <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
-                            <InfoTip text="เทียบ billed · order · gateway" ariaLabel="ฟิลล์น้ำหนักที่เปรียบเทียบ" asSpan />
+                            <InfoTip text="เทียบ billed · order · gateway" ariaLabel="ฟิลล์น้ำหนักที่เปรียบเทียบ" />
                         </span>
                         {weight.adjustedCount > 0 ? (
                             <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
@@ -653,12 +648,17 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                                 ไม่มีการปรับ
                             </span>
                         )}
-                    </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-violet-500/40 group-hover:text-violet-200">
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setWeightOpen((v) => !v)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors hover:border-violet-500/40 hover:text-violet-200"
+                        aria-expanded={weightOpen}
+                    >
                         {weightOpen ? 'ซ่อน' : 'ดู'}
                         <span className={`transition-transform ${weightOpen ? 'rotate-180' : ''}`}>▾</span>
-                    </span>
-                </button>
+                    </button>
+                </div>
                 {weightOpen ? (
                     <div className="mt-2.5 overflow-x-auto rounded-xl border border-slate-800/70">
                         <table className="w-full min-w-[360px] text-left text-xs">
@@ -1125,18 +1125,17 @@ function CodTile({
     );
 }
 
-function InfoTip({ text, ariaLabel, asSpan }: { text: string; ariaLabel?: string; asSpan?: boolean }) {
-    const Trigger = asSpan ? 'span' : 'button';
+function InfoTip({ text, ariaLabel }: { text: string; ariaLabel?: string }) {
     return (
         <span className="group/tip relative inline-flex">
-            <Trigger
-                {...(!asSpan ? { type: 'button' as const } : {})}
+            <button
+                type="button"
                 aria-label={ariaLabel ?? 'ข้อมูลเพิ่มเติม'}
                 tabIndex={0}
                 className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-500 transition-colors hover:text-sky-300 focus:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
             >
                 <Info className="h-3 w-3" aria-hidden />
-            </Trigger>
+            </button>
             <span
                 role="tooltip"
                 className="pointer-events-none invisible absolute bottom-full left-1/2 z-50 mb-2 w-60 max-w-[min(16rem,80vw)] -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-[11px] font-normal leading-relaxed text-slate-200 opacity-0 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-sm transition-all duration-150 group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100"
