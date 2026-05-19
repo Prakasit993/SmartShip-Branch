@@ -122,14 +122,50 @@ export default async function Home() {
         description: seo.description,
         inLanguage: 'th-TH',
         publisher: { '@id': `${origin}/#organization` },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${origin}/shop?name={search_term_string}`,
+          },
+          'query-input': 'required name=search_term_string',
+        },
       },
       {
-        '@type': 'Organization',
+        '@type': ['Organization', 'OnlineStore'],
         '@id': `${origin}/#organization`,
         name: seo.siteName,
+        alternateName: 'NYXEL IT',
         url: `${origin}/`,
         description: seo.description,
-        ...(seo.contactPhone ? { telephone: seo.contactPhone } : {}),
+        logo: absoluteFromSiteBase(seo.ogImagePath, base),
+        image: absoluteFromSiteBase(seo.ogImagePath, base),
+        areaServed: { '@type': 'Country', name: 'Thailand' },
+        currenciesAccepted: 'THB',
+        paymentAccepted: ['Bank Transfer', 'PromptPay', 'Cash'],
+        knowsAbout: [
+          'Notebook',
+          'Graphics Card',
+          'GPU',
+          'RAM',
+          'Mechanical Keyboard',
+          'Gaming Headphones',
+          'IT Equipment',
+          'Express Shipping',
+          'J&T Express',
+        ],
+        ...(seo.contactPhone
+          ? {
+              telephone: seo.contactPhone,
+              contactPoint: {
+                '@type': 'ContactPoint',
+                telephone: seo.contactPhone,
+                contactType: 'customer service',
+                areaServed: 'TH',
+                availableLanguage: ['th', 'en'],
+              },
+            }
+          : {}),
         ...(seo.contactAddress
           ? {
               address: {

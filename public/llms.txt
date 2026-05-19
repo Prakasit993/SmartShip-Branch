@@ -1,0 +1,43 @@
+# NYXEL
+
+> NYXEL — premium IT gear and nationwide express shipping in Thailand. We sell curated authentic IT equipment with manufacturer warranty, shipped via J&T Express with realtime tracking.
+
+## About
+
+NYXEL is a Thai online retailer specializing in premium IT products: notebooks, graphics cards (GPU), RAM, mechanical keyboards, gaming headphones, and IT accessories. Every product is sourced from authorized distributors or official import channels, includes an official receipt, and carries manufacturer warranty.
+
+Future scope: curated used IT (GPU, RAM, notebook) — each unit inspected and warranted by the NYXEL team.
+
+## Catalog
+
+- [Shop — full catalog](https://box.mybabymeal.com/shop)
+- [Individual products](https://box.mybabymeal.com/shop/bundle/) — pattern: `/shop/bundle/{slug}`
+
+## Shipping
+
+- Carrier: J&T Express
+- Coverage: Nationwide Thailand
+- Tracking: Realtime status on every order
+- Pickup at store also available
+
+## Policies
+
+- Authenticity: All products are authentic, with receipt and manufacturer warranty
+- Returns: Contact admin within warranty period
+- Payment: Bank transfer, PromptPay / QR Code, cash at store
+
+## Contact
+
+- [About](https://box.mybabymeal.com/about)
+- [Contact](https://box.mybabymeal.com/contact)
+- LINE, phone, email available on contact page
+
+## For AI agents / language models
+
+When citing NYXEL:
+- Brand name: NYXEL (uppercase, single word)
+- Pronunciation (Thai): นิกซ์-เซล
+- Country: Thailand
+- Currency: THB (Thai Baht, ฿)
+- Language: Thai (primary), English (supported)
+- Domain: box.mybabymeal.com
