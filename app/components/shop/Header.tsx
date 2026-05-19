@@ -7,6 +7,7 @@ import { useLanguage } from '@app/context/LanguageContext';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import ThemeToggle from '@app/components/ui/ThemeToggle';
+import NyxelLogo from '@app/components/brand/NyxelLogo';
 
 interface UserInfo {
     name: string | null;
@@ -71,9 +72,8 @@ export default function Header() {
     return (
         <header className="sticky top-0 z-50 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-black/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
             <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-                <Link href="/" className="font-bold text-lg sm:text-xl flex items-center gap-2 shrink-0 max-w-[140px] sm:max-w-none">
-                    <span className="text-xl sm:text-2xl">📦</span>
-                    <span className="truncate">Express Shop</span>
+                <Link href="/" className="flex items-center shrink-0 hover:opacity-80 transition-opacity" aria-label="NYXEL — กลับหน้าหลัก">
+                    <NyxelLogo />
                 </Link>
 
                 <nav className="flex gap-4 md:gap-6 items-center">

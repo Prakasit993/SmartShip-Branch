@@ -1,0 +1,59 @@
+<svg viewBox="0 0 560 220" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+  <rect x="0" y="0" width="560" height="220" fill="#f4f4f5"/>
+
+  <!-- Option A: Diamond -->
+  <g transform="translate(40, 30)">
+    <g transform="scale(3)">
+      <rect x="0" y="0" width="32" height="32" rx="7" fill="#09090b"/>
+      <path d="M16 4 L28 16 L16 28 L4 16 Z" fill="none" stroke="#f4f4f5" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M10.5 10 L10.5 22" stroke="#f4f4f5" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M21.5 10 L21.5 22" stroke="#f4f4f5" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M10.5 10 L21.5 22" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <text x="48" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">A · Diamond</text>
+    <text x="48" y="145" text-anchor="middle" font-size="11" fill="#71717a">geometric, balanced</text>
+  </g>
+
+  <!-- Option B: Hexagon -->
+  <g transform="translate(170, 30)">
+    <g transform="scale(3)">
+      <rect x="0" y="0" width="32" height="32" rx="7" fill="#09090b"/>
+      <path d="M16 3 L27 9 L27 23 L16 29 L5 23 L5 9 Z" fill="none" stroke="#f4f4f5" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M10.5 11 L10.5 21" stroke="#f4f4f5" stroke-width="2.25" stroke-linecap="round"/>
+      <path d="M21.5 11 L21.5 21" stroke="#f4f4f5" stroke-width="2.25" stroke-linecap="round"/>
+      <path d="M10.5 11 L21.5 21" stroke="#22d3ee" stroke-width="2.75" stroke-linecap="round"/>
+      <circle cx="16" cy="29" r="1" fill="#22d3ee"/>
+      <circle cx="16" cy="3" r="1" fill="#22d3ee"/>
+    </g>
+    <text x="48" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">B · Hex chip</text>
+    <text x="48" y="145" text-anchor="middle" font-size="11" fill="#71717a">IT/hardware</text>
+  </g>
+
+  <!-- Option C: Bolt -->
+  <g transform="translate(300, 30)">
+    <g transform="scale(3)">
+      <rect x="0" y="0" width="32" height="32" rx="7" fill="#09090b"/>
+      <path d="M13 4 L13 14 L7 14 L19 28 L19 18 L25 18 Z" fill="#22d3ee" stroke="#f4f4f5" stroke-width="1.2" stroke-linejoin="round"/>
+    </g>
+    <text x="48" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">C · Bolt</text>
+    <text x="48" y="145" text-anchor="middle" font-size="11" fill="#71717a">speed / express</text>
+  </g>
+
+  <!-- Option D: Bracket -->
+  <g transform="translate(430, 30)">
+    <g transform="scale(3)">
+      <rect x="0" y="0" width="32" height="32" rx="7" fill="#09090b"/>
+      <path d="M9 7 L4 16 L9 25" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M23 7 L28 16 L23 25" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 11 L12 21 M20 11 L20 21 M12 11 L20 21" stroke="#f4f4f5" stroke-width="2.25" stroke-linecap="round"/>
+    </g>
+    <text x="48" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">D · Bracket</text>
+    <text x="48" y="145" text-anchor="middle" font-size="11" fill="#71717a">code / dev</text>
+  </g>
+
+  <!-- Wordmark preview row -->
+  <text x="280" y="185" text-anchor="middle" font-size="11" fill="#71717a" font-weight="600">Wordmark preview (สีเดียวกันทุก option)</text>
+  <text x="280" y="208" text-anchor="middle" font-size="26" font-weight="900" fill="#18181b" letter-spacing="0.5">
+    N<tspan fill="#0891b2">Y</tspan>XEL
+  </text>
+</svg>
