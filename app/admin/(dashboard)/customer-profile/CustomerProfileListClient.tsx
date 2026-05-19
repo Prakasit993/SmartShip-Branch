@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     AlertCircle,
@@ -320,15 +321,14 @@ export function CustomerProfileListClient() {
 
                     {/* Desktop: table */}
                     <div className="mt-3 hidden overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-900/40 shadow-inner shadow-black/30 sm:block">
-                        <table className="w-full min-w-[720px] table-fixed text-left text-[13px]">
+                        <table className="w-full min-w-[640px] table-fixed text-left text-[13px]">
                             <thead className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 text-[10px] uppercase tracking-wider text-slate-400">
                                 <tr>
-                                    <th className="w-[26%] px-2.5 py-2 font-semibold">ชื่อลูกค้า</th>
-                                    <th className="w-[17%] px-2.5 py-2 font-semibold">เบอร์โทร</th>
-                                    <th className="w-[24%] px-2.5 py-2 font-semibold">แจ้งเตือน</th>
-                                    <th className="w-[15%] px-2.5 py-2 font-semibold">VIP</th>
-                                    <th className="w-[10%] px-2.5 py-2 text-right font-semibold">พัสดุ</th>
-                                    <th className="w-[8%] px-2.5 py-2 text-right font-semibold">ดู</th>
+                                    <th className="w-[28%] px-2.5 py-2 font-semibold">ชื่อลูกค้า</th>
+                                    <th className="w-[18%] px-2.5 py-2 font-semibold">เบอร์โทร</th>
+                                    <th className="w-[26%] px-2.5 py-2 font-semibold">แจ้งเตือน</th>
+                                    <th className="w-[16%] px-2.5 py-2 font-semibold">VIP</th>
+                                    <th className="w-[12%] px-2.5 py-2 text-right font-semibold">พัสดุ</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/60">
@@ -336,7 +336,7 @@ export function CustomerProfileListClient() {
                                     <SkeletonRows />
                                 ) : showEmpty ? (
                                     <tr>
-                                        <td colSpan={6} className="px-3 py-10 text-center">
+                                        <td colSpan={5} className="px-3 py-10 text-center">
                                             <EmptyStateInline debouncedQ={debouncedQ} />
                                         </td>
                                     </tr>
@@ -552,15 +552,21 @@ function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }:
     isAcknowledged: boolean;
     onAcknowledge: (id: string) => void;
 }) {
+    const router = useRouter();
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
     const [showPhone, setShowPhone] = useState(true);
+    const href = `/admin/customer-profile/${row.id}`;
 
     return (
         <tr
-            className="group animate-home-fade-up transition-colors hover:bg-gradient-to-r hover:from-slate-900/80 hover:via-slate-900/60 hover:to-slate-900/30"
+            className="group animate-home-fade-up cursor-pointer transition-colors hover:bg-gradient-to-r hover:from-slate-900/80 hover:via-slate-900/60 hover:to-slate-900/30"
             style={{ animationDelay: `${delay}s` }}
+            onClick={() => router.push(href)}
+            onMouseEnter={() => {
+                void fetch(`/api/admin/customer-profile/${row.id}`, { credentials: 'include' }).catch(() => {});
+            }}
         >
             <td className="px-2.5 py-2 text-slate-100">
                 <div className="flex items-center gap-2">
@@ -573,6 +579,7 @@ function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }:
                     <span className="block min-w-0 flex-1 truncate font-medium leading-snug" title={row.name ?? ''}>
                         {row.name || <span className="italic text-slate-500">ไม่ระบุชื่อ</span>}
                     </span>
+                    <span className="ml-auto text-slate-700 transition-colors group-hover:text-sky-400" aria-hidden>→</span>
                 </div>
             </td>
             <td className="px-2.5 py-2 text-slate-300">
@@ -582,7 +589,7 @@ function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }:
                     {row.phone ? (
                         <button
                             type="button"
-                            onClick={() => setShowPhone((v) => !v)}
+                            onClick={(e) => { e.stopPropagation(); setShowPhone((v) => !v); }}
                             className="rounded p-0.5 text-slate-600 transition-colors hover:text-slate-300"
                             aria-label={showPhone ? 'ซ่อนเบอร์โทร' : 'แสดงเบอร์โทรเต็ม'}
                         >
@@ -607,21 +614,6 @@ function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }:
             <td className="px-2.5 py-2 text-right tabular-nums">
                 <span className="font-semibold text-slate-100">{formatCount(row.shipment_count)}</span>
                 <span className="ml-0.5 text-[10px] text-slate-500">ชิ้น</span>
-            </td>
-            <td className="px-2.5 py-2 text-right">
-                <Link
-                    href={`/admin/customer-profile/${row.id}`}
-                    prefetch
-                    onMouseEnter={() => {
-                        void fetch(`/api/admin/customer-profile/${row.id}`, {
-                            credentials: 'include',
-                        }).catch(() => {});
-                    }}
-                    className="inline-flex items-center gap-0.5 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-300 transition-all hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-500/20 hover:text-sky-100 hover:shadow-md hover:shadow-sky-950/40 group-hover:border-sky-400/60"
-                >
-                    ดู
-                    <span className="transition-transform group-hover:translate-x-0.5">→</span>
-                </Link>
             </td>
         </tr>
     );
@@ -649,9 +641,6 @@ function SkeletonRows() {
                     </td>
                     <td className="px-2.5 py-2.5 text-right">
                         <span className="ml-auto block h-2.5 w-10 animate-pulse rounded bg-slate-800/70" />
-                    </td>
-                    <td className="px-2.5 py-2.5 text-right">
-                        <span className="ml-auto block h-4 w-9 animate-pulse rounded bg-slate-800/70" />
                     </td>
                 </tr>
             ))}
