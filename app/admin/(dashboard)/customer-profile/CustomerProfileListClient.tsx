@@ -24,6 +24,7 @@ type CustomerRow = {
     id: string;
     name: string | null;
     phone: string | null;
+    override_phone: string | null;
     vip_code: string | null;
     shipment_count: number;
     overdue3: number;
@@ -485,6 +486,8 @@ function CustomerListCard({ row, animationIndex, isAcknowledged, onAcknowledge }
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
     const [showPhone, setShowPhone] = useState(true);
+    const effectivePhone = row.override_phone?.trim() || row.phone;
+    const hasOverride = !!row.override_phone?.trim();
 
     return (
         <div
@@ -520,8 +523,8 @@ function CustomerListCard({ row, animationIndex, isAcknowledged, onAcknowledge }
                 </p>
                 <p className="mt-0.5 flex items-center gap-1 text-[11px] tabular-nums text-slate-500">
                     <Phone className="h-2.5 w-2.5 shrink-0" aria-hidden />
-                    <span className="font-mono">{showPhone ? (row.phone ?? '—') : maskPhone(row.phone)}</span>
-                    {row.phone ? (
+                    <span className="font-mono">{showPhone ? (effectivePhone ?? '—') : maskPhone(effectivePhone)}</span>
+                    {hasOverride && effectivePhone ? (
                         <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setShowPhone((v) => !v); }}
@@ -558,6 +561,8 @@ function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }:
     const delay = Math.min(animationIndex, 8) * 0.04;
     const [showPhone, setShowPhone] = useState(true);
     const href = `/admin/customer-profile/${row.id}`;
+    const effectivePhone = row.override_phone?.trim() || row.phone;
+    const hasOverride = !!row.override_phone?.trim();
 
     return (
         <tr
@@ -585,8 +590,8 @@ function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }:
             <td className="px-2.5 py-2 text-slate-300">
                 <span className="inline-flex items-center gap-1 tabular-nums">
                     <Phone className="h-3 w-3 text-slate-500" aria-hidden />
-                    <span className="font-mono">{showPhone ? (row.phone ?? '—') : maskPhone(row.phone)}</span>
-                    {row.phone ? (
+                    <span className="font-mono">{showPhone ? (effectivePhone ?? '—') : maskPhone(effectivePhone)}</span>
+                    {hasOverride && effectivePhone ? (
                         <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setShowPhone((v) => !v); }}
