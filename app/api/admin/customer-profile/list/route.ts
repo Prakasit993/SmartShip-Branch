@@ -142,12 +142,28 @@ export async function GET(req: Request) {
             tally(resIssue, 'withIssue');
         }
 
+        // Batch-fetch override_phone from customers table by sender_key
+        const senderKeys = raw.map((r) => r.sender_key).filter((k): k is string => !!k);
+        const overrideMap: Record<string, string | null> = {};
+        if (senderKeys.length > 0) {
+            const { data: overrides } = await supabaseAdmin
+                .from('customers')
+                .select('sender_key, override_phone')
+                .in('sender_key', senderKeys);
+            if (overrides) {
+                for (const o of overrides) {
+                    if (o.sender_key) overrideMap[o.sender_key] = (o.override_phone as string | null) ?? null;
+                }
+            }
+        }
+
         const rows = raw.map((r) => {
             const kpi = kpiMap[(r.display_name ?? '').toLowerCase()] ?? { overdue3: 0, overdue7: 0, withIssue: 0 };
             return {
                 id: encodeURIComponent(r.display_name ?? r.sender_key),
                 name: r.display_name,
                 phone: r.sender_phone,
+                override_phone: overrideMap[r.sender_key] ?? null,
                 vip_code: r.vip_code,
                 shipment_count: Number(r.shipment_count) || 0,
                 overdue3: kpi.overdue3,
