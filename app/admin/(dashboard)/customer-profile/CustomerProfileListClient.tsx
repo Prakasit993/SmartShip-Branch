@@ -6,6 +6,8 @@ import {
     AlertCircle,
     BadgeCheck,
     Crown,
+    Eye,
+    EyeOff,
     Inbox,
     Loader2,
     Phone,
@@ -23,6 +25,9 @@ type CustomerRow = {
     phone: string | null;
     vip_code: string | null;
     shipment_count: number;
+    overdue3: number;
+    overdue7: number;
+    withIssue: number;
 };
 
 type ApiResponse = {
@@ -76,6 +81,23 @@ function initialOf(name: string | null): string {
     return code ? String.fromCodePoint(code).toUpperCase() : '?';
 }
 
+const ACK_KEY = 'smartship:ack:v1';
+
+function loadAck(): Set<string> {
+    try {
+        const raw = typeof window !== 'undefined' ? localStorage.getItem(ACK_KEY) : null;
+        return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+        return new Set();
+    }
+}
+
+function saveAck(set: Set<string>) {
+    try {
+        localStorage.setItem(ACK_KEY, JSON.stringify([...set]));
+    } catch {}
+}
+
 export function CustomerProfileListClient() {
     const [tab, setTab] = useState<TabKey>('vip');
     const [q, setQ] = useState('');
@@ -85,8 +107,21 @@ export function CustomerProfileListClient() {
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
     const sentinelRef = useRef<HTMLDivElement | null>(null);
     const requestSeqRef = useRef(0);
+
+    useEffect(() => { setAcknowledged(loadAck()); }, []);
+
+    const toggleAck = useCallback((id: string) => {
+        setAcknowledged((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            saveAck(next);
+            return next;
+        });
+    }, []);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedQ(q.trim()), SEARCH_DEBOUNCE_MS);
@@ -278,7 +313,7 @@ export function CustomerProfileListClient() {
                             <EmptyState debouncedQ={debouncedQ} />
                         ) : (
                             rows.map((row, idx) => (
-                                <CustomerListCard key={row.id} row={row} animationIndex={idx} />
+                                <CustomerListCard key={row.id} row={row} animationIndex={idx} isAcknowledged={acknowledged.has(row.id)} onAcknowledge={toggleAck} />
                             ))
                         )}
                     </div>
@@ -306,7 +341,7 @@ export function CustomerProfileListClient() {
                                     </tr>
                                 ) : (
                                     rows.map((row, idx) => (
-                                        <CustomerListRow key={row.id} row={row} animationIndex={idx} />
+                                        <CustomerListRow key={row.id} row={row} animationIndex={idx} isAcknowledged={acknowledged.has(row.id)} onAcknowledge={toggleAck} />
                                     ))
                                 )}
                             </tbody>
@@ -378,30 +413,101 @@ function CardSkeletonList() {
     );
 }
 
-function CustomerListCard({ row, animationIndex }: { row: CustomerRow; animationIndex: number }) {
+function AlertBadges({ row, isAcknowledged, onAcknowledge, size = 'sm' }: {
+    row: CustomerRow;
+    isAcknowledged: boolean;
+    onAcknowledge: (id: string) => void;
+    size?: 'sm' | 'xs';
+}) {
+    const hasAlert = row.overdue3 > 0 || row.overdue7 > 0 || row.withIssue > 0;
+    if (!hasAlert && !isAcknowledged) return null;
+
+    const px = size === 'xs' ? 'px-1 py-0' : 'px-1.5 py-0.5';
+    const txt = size === 'xs' ? 'text-[9px]' : 'text-[10px]';
+
+    if (isAcknowledged) {
+        return (
+            <span className="relative z-10 inline-flex items-center gap-1">
+                <span className={`inline-flex items-center gap-0.5 rounded-full bg-slate-700/40 ${px} ${txt} font-semibold text-slate-500 ring-1 ring-slate-700/50`}>
+                    ✓ รับทราบแล้ว
+                </span>
+                {hasAlert ? (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onAcknowledge(row.id); }}
+                        className="rounded p-0.5 text-slate-600 transition-colors hover:text-slate-300"
+                        aria-label="ยกเลิกรับทราบ"
+                    >
+                        <X className="h-2.5 w-2.5" aria-hidden />
+                    </button>
+                ) : null}
+            </span>
+        );
+    }
+
+    return (
+        <span className="relative z-10 inline-flex flex-wrap items-center gap-1">
+            {row.overdue3 > 0 && (
+                <span className={`inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 ${px} ${txt} font-bold tabular-nums text-amber-200 ring-1 ring-amber-500/30`}>
+                    ⏰ {row.overdue3}
+                </span>
+            )}
+            {row.overdue7 > 0 && (
+                <span className={`inline-flex items-center gap-0.5 rounded-full bg-red-500/15 ${px} ${txt} font-bold tabular-nums text-red-200 ring-1 ring-red-500/30`}>
+                    🔴 {row.overdue7}
+                </span>
+            )}
+            {row.withIssue > 0 && (
+                <span className={`inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 ${px} ${txt} font-bold tabular-nums text-rose-200 ring-1 ring-rose-500/30`}>
+                    ❗ {row.withIssue}
+                </span>
+            )}
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAcknowledge(row.id); }}
+                className={`inline-flex items-center gap-0.5 rounded-full bg-slate-700/50 ${px} ${txt} font-semibold text-slate-400 ring-1 ring-slate-600/50 transition-colors hover:bg-emerald-500/15 hover:text-emerald-300 hover:ring-emerald-500/30`}
+                aria-label="รับทราบเคสนี้"
+            >
+                ✓ รับทราบ
+            </button>
+        </span>
+    );
+}
+
+function CustomerListCard({ row, animationIndex, isAcknowledged, onAcknowledge }: {
+    row: CustomerRow;
+    animationIndex: number;
+    isAcknowledged: boolean;
+    onAcknowledge: (id: string) => void;
+}) {
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
+    const [showPhone, setShowPhone] = useState(true);
 
     return (
-        <Link
-            href={`/admin/customer-profile/${row.id}`}
-            prefetch
-            onMouseEnter={() => {
-                void fetch(`/api/admin/customer-profile/${row.id}`, {
-                    credentials: 'include',
-                }).catch(() => {});
-            }}
-            className="group flex items-center gap-2.5 rounded-xl border border-slate-800/70 bg-slate-900/40 p-2.5 transition-all animate-home-fade-up hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-slate-900/60 hover:shadow-md hover:shadow-sky-950/30 active:translate-y-0"
+        <div
+            className="group relative flex items-center gap-2.5 rounded-xl border border-slate-800/70 bg-slate-900/40 p-2.5 transition-all animate-home-fade-up hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-slate-900/60 hover:shadow-md hover:shadow-sky-950/30 active:translate-y-0"
             style={{ animationDelay: `${delay}s` }}
         >
+            <Link
+                href={`/admin/customer-profile/${row.id}`}
+                prefetch
+                onMouseEnter={() => {
+                    void fetch(`/api/admin/customer-profile/${row.id}`, {
+                        credentials: 'include',
+                    }).catch(() => {});
+                }}
+                className="absolute inset-0 rounded-xl"
+                aria-label={`ดูโปรไฟล์ ${row.name ?? 'ลูกค้า'}`}
+            />
             <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-[13px] font-bold text-white shadow-md shadow-black/40 ring-1 ring-white/10`}
+                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-[13px] font-bold text-white shadow-md shadow-black/40 ring-1 ring-white/10`}
                 aria-hidden
             >
                 {initial}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 truncate text-[13px] font-semibold text-slate-100">
                     <span className="truncate">{row.name || <span className="italic text-slate-500">ไม่ระบุชื่อ</span>}</span>
                     {row.vip_code ? (
@@ -411,25 +517,44 @@ function CustomerListCard({ row, animationIndex }: { row: CustomerRow; animation
                         </span>
                     ) : null}
                 </p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] tabular-nums text-slate-500">
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] tabular-nums text-slate-500">
                     <Phone className="h-2.5 w-2.5 shrink-0" aria-hidden />
-                    {maskPhone(row.phone)}
+                    <span className="font-mono">{showPhone ? (row.phone ?? '—') : maskPhone(row.phone)}</span>
+                    {row.phone ? (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setShowPhone((v) => !v); }}
+                            className="relative z-10 rounded p-0.5 text-slate-600 transition-colors hover:text-slate-300"
+                            aria-label={showPhone ? 'ซ่อนเบอร์โทร' : 'แสดงเบอร์โทรเต็ม'}
+                        >
+                            {showPhone ? <EyeOff className="h-2.5 w-2.5" aria-hidden /> : <Eye className="h-2.5 w-2.5" aria-hidden />}
+                        </button>
+                    ) : null}
                 </p>
+                <div className="mt-0.5">
+                    <AlertBadges row={row} isAcknowledged={isAcknowledged} onAcknowledge={onAcknowledge} size="xs" />
+                </div>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
+            <div className="relative flex shrink-0 flex-col items-end gap-1">
                 <span className="rounded-md bg-slate-800/70 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-slate-200 ring-1 ring-slate-700/50">
                     {formatCount(row.shipment_count)}<span className="ml-0.5 text-[10px] font-normal text-slate-500">ชิ้น</span>
                 </span>
                 <span className="text-sky-300 transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
             </div>
-        </Link>
+        </div>
     );
 }
 
-function CustomerListRow({ row, animationIndex }: { row: CustomerRow; animationIndex: number }) {
+function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }: {
+    row: CustomerRow;
+    animationIndex: number;
+    isAcknowledged: boolean;
+    onAcknowledge: (id: string) => void;
+}) {
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
     const delay = Math.min(animationIndex, 8) * 0.04;
+    const [showPhone, setShowPhone] = useState(true);
 
     return (
         <tr
@@ -452,8 +577,21 @@ function CustomerListRow({ row, animationIndex }: { row: CustomerRow; animationI
             <td className="px-2.5 py-2 text-slate-300">
                 <span className="inline-flex items-center gap-1 tabular-nums">
                     <Phone className="h-3 w-3 text-slate-500" aria-hidden />
-                    {maskPhone(row.phone)}
+                    <span className="font-mono">{showPhone ? (row.phone ?? '—') : maskPhone(row.phone)}</span>
+                    {row.phone ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowPhone((v) => !v)}
+                            className="rounded p-0.5 text-slate-600 transition-colors hover:text-slate-300"
+                            aria-label={showPhone ? 'ซ่อนเบอร์โทร' : 'แสดงเบอร์โทรเต็ม'}
+                        >
+                            {showPhone ? <EyeOff className="h-3 w-3" aria-hidden /> : <Eye className="h-3 w-3" aria-hidden />}
+                        </button>
+                    ) : null}
                 </span>
+            </td>
+            <td className="px-2.5 py-2">
+                <AlertBadges row={row} isAcknowledged={isAcknowledged} onAcknowledge={onAcknowledge} />
             </td>
             <td className="px-2.5 py-2">
                 {row.vip_code ? (

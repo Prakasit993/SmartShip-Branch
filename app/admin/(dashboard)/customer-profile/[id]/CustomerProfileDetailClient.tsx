@@ -6,13 +6,14 @@ import {
     AlertCircle,
     AlertTriangle,
     ArrowLeft,
-    BadgeCheck,
     Check,
     CheckCircle2,
     Clock3,
     ClipboardEdit,
     Copy,
     Crown,
+    Eye,
+    EyeOff,
     History,
     Info,
     Loader2,
@@ -202,8 +203,9 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
     const [editOpen, setEditOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [weightOpen, setWeightOpen] = useState(false);
-    const [codOpen, setCodOpen] = useState(true);
+    const [codOpen, setCodOpen] = useState(false);
     const [activeKpiPanel, setActiveKpiPanel] = useState<'overdue3' | 'overdue7' | 'issue' | null>(null);
+    const [showContactFull, setShowContactFull] = useState(true);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
     const copyToClipboard = useCallback(async (text: string, token: string) => {
@@ -306,9 +308,8 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
 
     if (!data) return null;
 
-    const { customer, history, kpi, weight, cod, financial, financial_refreshed_at, date_range } = data;
+    const { customer, history, kpi, weight, cod, financial, date_range } = data;
     const isVip = !!(customer.vip_code && customer.vip_code.trim());
-    const financialSnapshotAge = formatSnapshotAge(financial_refreshed_at);
     const effectiveName = customer.override_name?.trim() || customer.name?.trim() || 'ลูกค้าไม่ระบุชื่อ';
     const effectivePhone = customer.override_phone?.trim() || customer.phone || null;
     const hasOverride = !!(customer.override_phone?.trim() || customer.override_name?.trim() || customer.admin_notes?.trim());
@@ -375,7 +376,21 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                             <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] leading-relaxed text-slate-300">
                                 <span className="inline-flex items-center gap-1">
                                     <Package className="h-3 w-3 text-slate-500" aria-hidden />
-                                    <span className="font-mono text-slate-200">{maskPhone(effectivePhone)}</span>
+                                    <span className="font-mono text-slate-200">
+                                        {showContactFull ? (effectivePhone ?? '—') : maskPhone(effectivePhone)}
+                                    </span>
+                                    {history.length > 0 && effectivePhone ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowContactFull((v) => !v)}
+                                            className="rounded p-0.5 text-slate-500 transition-colors hover:text-slate-200"
+                                            aria-label={showContactFull ? 'ซ่อนเบอร์โทร' : 'แสดงเบอร์โทรเต็ม'}
+                                        >
+                                            {showContactFull
+                                                ? <EyeOff className="h-3 w-3" aria-hidden />
+                                                : <Eye className="h-3 w-3" aria-hidden />}
+                                        </button>
+                                    ) : null}
                                 </span>
                                 <span className="text-slate-400">
                                     {date_range ? (
@@ -563,69 +578,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                 />
             ) : null}
 
-            {/* Financial RPC — ขึ้นมาก่อน เพราะเป็น metric ธุรกิจหลัก */}
-            {financial ? (
-                <section className="animate-home-fade-up home-delay-2 relative rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/70 to-slate-950/80 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] transition-shadow hover:shadow-lg hover:shadow-sky-950/25 sm:p-3.5">
-                    {/* orb wrapper has its own overflow-hidden so tooltips on tiles can escape */}
-                    <div
-                        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-                        aria-hidden
-                    >
-                        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-sky-500/15 to-emerald-500/5 blur-3xl" />
-                    </div>
-                    <header className="relative mb-2.5 flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-500/25 to-sky-500/10 text-sky-300 ring-1 ring-sky-500/30 shadow-sm shadow-sky-950/30">
-                            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                            <h2 className="text-[13px] font-bold leading-tight text-white">สรุปกำไร (snapshot)</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">
-                                <span className="tabular-nums">{date_range?.from}</span>{' '}
-                                <span className="text-slate-600">→</span>{' '}
-                                <span className="tabular-nums">{date_range?.to}</span>
-                                {financialSnapshotAge ? (
-                                    <span className="ml-1.5 inline-flex items-center rounded-full bg-slate-800/60 px-1.5 py-0 text-[10px] text-slate-400 ring-1 ring-slate-700/50">
-                                        {financialSnapshotAge}
-                                    </span>
-                                ) : ''}
-                            </p>
-                        </div>
-                    </header>
-                    <div className="relative grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                        <CodTile
-                            label="พัสดุที่คำนวณ"
-                            value={fmtCount(financial.shipment_count)}
-                            sub="ที่มี booking_date"
-                            tone="text-slate-200"
-                            info="นับเฉพาะพัสดุที่มี booking_date ภายในช่วงข้อมูลของลูกค้า — ใช้เป็นฐานคำนวณรายได้และต้นทุน"
-                        />
-                        <CodTile
-                            label="รายได้"
-                            value={fmtThb(financial.total_revenue)}
-                            sub="total_shipping_fee"
-                            tone="text-emerald-300"
-                            info="รวมรายได้จริงจาก total_shipping_fee และ fallback เป็น shipping_fee ถ้าไม่มีค่า"
-                        />
-                        <CodTile
-                            label="ต้นทุน"
-                            value={fmtThb(financial.total_cost)}
-                            sub="zone × billable_weight"
-                            tone="text-amber-300"
-                            info="ต้นทุนการขนส่ง = อัตราตามโซนปลายทาง × น้ำหนักที่เรียกเก็บ (billable_weight)"
-                        />
-                        <CodTile
-                            label="กำไร"
-                            value={fmtThb(financial.total_profit)}
-                            sub={`เฉลี่ย ${fmtThb(financial.avg_profit_per_shipment)}/ชิ้น`}
-                            tone={financial.total_profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}
-                            highlight={financial.total_profit >= 0 ? 'positive' : 'negative'}
-                            info="กำไรสุทธิ = รายได้รวม − ต้นทุนรวม และคำนวณค่าเฉลี่ยต่อพัสดุจากจำนวนพัสดุที่คำนวณ"
-                        />
-                    </div>
-                </section>
-            ) : null}
-
-            {/* COD (collapsible — starts open) */}
+            {/* COD (collapsible — starts closed) */}
             <section className="animate-home-fade-up home-delay-3 rounded-2xl border border-slate-800/80 bg-slate-950/45 p-3 shadow-md shadow-black/20 ring-1 ring-white/[0.03] sm:p-3.5">
                 <button
                     type="button"
@@ -637,9 +590,9 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-950/30">
                             <Wallet className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <span className="text-left">
+                        <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">COD</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">cod_amount · cod_status · cod_payment_time</p>
+                            <InfoTip text="cod_amount · cod_status · cod_payment_time" ariaLabel="ฟิลล์ที่ใช้คำนวณ COD" asSpan />
                         </span>
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors group-hover:border-emerald-500/40 group-hover:text-emerald-200">
@@ -685,9 +638,9 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500/25 to-violet-500/10 text-violet-300 ring-1 ring-violet-500/30 shadow-sm shadow-violet-950/30">
                             <Scale className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                        <span className="min-w-0 text-left">
+                        <span className="flex items-center gap-1">
                             <h2 className="text-[13px] font-bold leading-tight text-white">น้ำหนักถูกปรับ</h2>
-                            <p className="text-[10px] leading-snug text-slate-500">เทียบ billed · order · gateway</p>
+                            <InfoTip text="เทียบ billed · order · gateway" ariaLabel="ฟิลล์น้ำหนักที่เปรียบเทียบ" asSpan />
                         </span>
                         {weight.adjustedCount > 0 ? (
                             <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-500/30">
@@ -1172,16 +1125,18 @@ function CodTile({
     );
 }
 
-function InfoTip({ text, ariaLabel }: { text: string; ariaLabel?: string }) {
+function InfoTip({ text, ariaLabel, asSpan }: { text: string; ariaLabel?: string; asSpan?: boolean }) {
+    const Trigger = asSpan ? 'span' : 'button';
     return (
         <span className="group/tip relative inline-flex">
-            <button
-                type="button"
+            <Trigger
+                {...(!asSpan ? { type: 'button' as const } : {})}
                 aria-label={ariaLabel ?? 'ข้อมูลเพิ่มเติม'}
+                tabIndex={0}
                 className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-500 transition-colors hover:text-sky-300 focus:text-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
             >
                 <Info className="h-3 w-3" aria-hidden />
-            </button>
+            </Trigger>
             <span
                 role="tooltip"
                 className="pointer-events-none invisible absolute bottom-full left-1/2 z-50 mb-2 w-60 max-w-[min(16rem,80vw)] -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-[11px] font-normal leading-relaxed text-slate-200 opacity-0 shadow-2xl shadow-black/60 ring-1 ring-white/5 backdrop-blur-sm transition-all duration-150 group-hover/tip:visible group-hover/tip:opacity-100 group-focus-within/tip:visible group-focus-within/tip:opacity-100"
@@ -1248,9 +1203,13 @@ function OverduePanel({
     const meta = OVERDUE_META[type];
 
     useEffect(() => {
+        const controller = new AbortController();
         setPanelLoading(true);
         setPanelError(null);
-        fetch(`/api/admin/customer-profile/${id}/overdue?type=${type}`, { credentials: 'include' })
+        fetch(`/api/admin/customer-profile/${id}/overdue?type=${type}`, {
+            credentials: 'include',
+            signal: controller.signal,
+        })
             .then(async (r) => {
                 if (!r.ok) {
                     const b = await r.json().catch(() => ({}));
@@ -1259,8 +1218,12 @@ function OverduePanel({
                 return r.json() as Promise<{ shipments: OverdueShipment[] }>;
             })
             .then((d) => setShipments(d.shipments ?? []))
-            .catch((e) => setPanelError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ'))
+            .catch((e) => {
+                if (e instanceof Error && e.name === 'AbortError') return;
+                setPanelError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ');
+            })
             .finally(() => setPanelLoading(false));
+        return () => controller.abort();
     }, [id, type]);
 
     return (
