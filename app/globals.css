@@ -65,6 +65,23 @@ html.dark {
   outline-offset: 2px;
 }
 
+/* FAQ card scan line — top → bottom sweep on hover.
+   Loops only while hovered (group-hover combines with animate-faq-scan). */
+@keyframes faq-scan {
+  0%   { transform: translateY(0);             opacity: 0.9; }
+  50%  { transform: translateY(180px);         opacity: 0.5; }
+  100% { transform: translateY(360px);         opacity: 0; }
+}
+.animate-faq-scan {
+  animation: faq-scan 1.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-faq-scan {
+    animation: none;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
