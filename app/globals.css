@@ -7,12 +7,34 @@ html {
   --background: #fafafa;
   --foreground: #18181b;
   color-scheme: light;
+
+  /* NYXEL brand tokens — light mode */
+  --nyxel-accent: #0891b2;           /* cyan-600 — primary accent on light bg */
+  --nyxel-accent-strong: #0e7490;    /* cyan-700 */
+  --nyxel-accent-soft: #cffafe;      /* cyan-100 — soft fill */
+  --nyxel-accent-fg: #ffffff;        /* text on accent */
+  --nyxel-glow: 8 145 178;           /* RGB for shadow / ring alpha */
+  --nyxel-surface: #ffffff;
+  --nyxel-surface-2: #fafafa;        /* zinc-50 */
+  --nyxel-border: #e4e4e7;           /* zinc-200 */
+  --nyxel-muted: #71717a;            /* zinc-500 */
 }
 
 html.dark {
   --background: #09090b;
   --foreground: #f4f4f5;
   color-scheme: dark;
+
+  /* NYXEL brand tokens — dark mode (jet black + cyan glow) */
+  --nyxel-accent: #22d3ee;           /* cyan-400 — pops on dark bg */
+  --nyxel-accent-strong: #06b6d4;    /* cyan-500 */
+  --nyxel-accent-soft: #155e75;      /* cyan-800 */
+  --nyxel-accent-fg: #09090b;        /* text on accent */
+  --nyxel-glow: 34 211 238;
+  --nyxel-surface: #18181b;          /* zinc-900 */
+  --nyxel-surface-2: #09090b;        /* zinc-950 */
+  --nyxel-border: #27272a;           /* zinc-800 */
+  --nyxel-muted: #a1a1aa;            /* zinc-400 */
 }
 
 @theme inline {
@@ -20,6 +42,27 @@ html.dark {
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Expose NYXEL tokens as Tailwind utilities:
+     bg-nyxel-accent / text-nyxel-accent / border-nyxel-border etc. */
+  --color-nyxel-accent: var(--nyxel-accent);
+  --color-nyxel-accent-strong: var(--nyxel-accent-strong);
+  --color-nyxel-accent-soft: var(--nyxel-accent-soft);
+  --color-nyxel-accent-fg: var(--nyxel-accent-fg);
+  --color-nyxel-surface: var(--nyxel-surface);
+  --color-nyxel-surface-2: var(--nyxel-surface-2);
+  --color-nyxel-border: var(--nyxel-border);
+  --color-nyxel-muted: var(--nyxel-muted);
+}
+
+/* Reusable utilities — apply NYXEL glow / focus ring without hardcoding cyan */
+.nyxel-glow {
+  box-shadow: 0 0 0 1px rgb(var(--nyxel-glow) / 0.25),
+              0 8px 24px -8px rgb(var(--nyxel-glow) / 0.45);
+}
+.nyxel-focus-ring:focus-visible {
+  outline: 2px solid rgb(var(--nyxel-glow) / 0.9);
+  outline-offset: 2px;
 }
 
 body {

@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@app/context/LanguageContext';
 import Link from 'next/link';
-import { Package, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
+import { BadgeCheck, Truck, BadgePercent, ArrowRight } from 'lucide-react';
 
 export default function BusinessPackingSection() {
     const { t } = useLanguage();
@@ -41,15 +41,15 @@ export default function BusinessPackingSection() {
                     {/* Minimal Features Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 w-full lg:w-auto lg:max-w-xl xl:max-w-2xl shrink-0">
                         <div className="flex flex-col gap-2 sm:gap-3 p-4 sm:p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-sm transition-all">
-                            <Package className="h-6 w-6 text-zinc-700 dark:text-white stroke-[1.5]" />
+                            <BadgeCheck className="h-6 w-6 text-zinc-700 dark:text-white stroke-[1.5]" />
                             <span className="home-type-feature-label font-medium text-zinc-900 dark:text-white">{t('packing.feature_materials')}</span>
                         </div>
                         <div className="flex flex-col gap-2 sm:gap-3 p-4 sm:p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-sm transition-all">
-                            <ShieldCheck className="h-6 w-6 text-zinc-700 dark:text-white stroke-[1.5]" />
+                            <Truck className="h-6 w-6 text-zinc-700 dark:text-white stroke-[1.5]" />
                             <span className="home-type-feature-label font-medium text-zinc-900 dark:text-white">{t('packing.feature_protection')}</span>
                         </div>
                         <div className="flex flex-col gap-2 sm:gap-3 p-4 sm:p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-sm transition-all">
-                            <Truck className="h-6 w-6 text-zinc-700 dark:text-white stroke-[1.5]" />
+                            <BadgePercent className="h-6 w-6 text-zinc-700 dark:text-white stroke-[1.5]" />
                             <span className="home-type-feature-label font-medium text-zinc-900 dark:text-white">{t('packing.feature_bulk')}</span>
                         </div>
                     </div>

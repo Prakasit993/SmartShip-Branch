@@ -30,8 +30,8 @@ export default function HeroCarousel({ slides }: HeroCarouselProps) {
         return (
             <div className="relative w-full h-auto aspect-[4/3] max-h-[min(68vh,560px)] rounded-2xl sm:rounded-3xl overflow-hidden mx-auto">
                 <Image
-                    src="/smartship-storefront.png"
-                    alt="หน้าร้าน Express Shop"
+                    src="/nyxel-hero.svg"
+                    alt="NYXEL — สินค้า IT พรีเมียม"
                     fill
                     className="object-cover"
                     sizes="(max-width: 1024px) 100vw, (max-width: 1536px) 45vw, 640px"

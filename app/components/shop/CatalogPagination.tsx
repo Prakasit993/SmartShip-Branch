@@ -160,7 +160,7 @@ export default function CatalogPagination({
                   href={catalogPageHref(query, item)}
                   className={`flex min-h-10 min-w-10 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
                     item === page
-                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
+                      ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/30'
                       : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800'
                   }`}
                   aria-current={item === page ? 'page' : undefined}
@@ -218,7 +218,7 @@ export default function CatalogPagination({
             max={totalPages}
             defaultValue={page}
             required
-            className="w-16 rounded-lg border border-zinc-200 bg-white px-2 py-2 text-center text-sm font-semibold tabular-nums text-zinc-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+            className="w-16 rounded-lg border border-zinc-200 bg-white px-2 py-2 text-center text-sm font-semibold tabular-nums text-zinc-900 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
             aria-describedby={`${jumpId}-hint`}
           />
           <span id={`${jumpId}-hint`} className="text-zinc-500 dark:text-zinc-400 tabular-nums">
@@ -226,7 +226,7 @@ export default function CatalogPagination({
           </span>
           <button
             type="submit"
-            className="inline-flex min-h-10 items-center rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-orange-500/25 transition-colors hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+            className="inline-flex min-h-10 items-center rounded-full bg-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-colors hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
           >
             ไป
           </button>

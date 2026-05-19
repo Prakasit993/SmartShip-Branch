@@ -15,7 +15,7 @@ export default function CartPage() {
                         <li>
                             <Link
                                 href="/"
-                                className="font-medium text-zinc-600 hover:text-orange-600 underline-offset-4 hover:underline dark:text-zinc-300"
+                                className="font-medium text-zinc-600 hover:text-cyan-600 underline-offset-4 hover:underline dark:text-zinc-300"
                             >
                                 หน้าแรก
                             </Link>

@@ -1,0 +1,176 @@
+<svg viewBox="0 0 1240 920" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+  <rect width="1240" height="920" fill="#f4f4f5"/>
+
+  <!-- ==================== X · Cyber Lab (current draft) ==================== -->
+  <g transform="translate(20 60)">
+    <text x="0" y="-12" font-size="16" font-weight="800" fill="#18181b">X · Cyber Lab (current draft)</text>
+    <text x="0" y="408" font-size="11" fill="#71717a">circuit traces + brackets + scan lines + glow</text>
+    <g>
+      <defs>
+        <radialGradient id="x-b1" cx="20%" cy="25%" r="55%">
+          <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#0e7490" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="x-b2" cx="85%" cy="70%" r="50%">
+          <stop offset="0%" stop-color="#1d4ed8" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0"/>
+        </radialGradient>
+        <pattern id="x-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#27272a" stroke-width="0.4"/>
+        </pattern>
+      </defs>
+      <rect width="590" height="390" fill="#09090b"/>
+      <rect width="590" height="390" fill="url(#x-grid)" opacity="0.6"/>
+      <rect width="590" height="390" fill="url(#x-b1)"/>
+      <rect width="590" height="390" fill="url(#x-b2)"/>
+      <!-- corner brackets -->
+      <g stroke="#22d3ee" stroke-width="1.2" fill="none" opacity="0.7">
+        <path d="M 560 30 L 560 50 M 560 30 L 540 30"/>
+        <path d="M 30 360 L 30 340 M 30 360 L 50 360"/>
+        <path d="M 560 360 L 560 340 M 560 360 L 540 360"/>
+      </g>
+      <text x="30" y="40" fill="#22d3ee" font-size="9" font-weight="700" letter-spacing="2.5">NYXEL · PREMIUM IT</text>
+      <line x1="30" y1="48" x2="135" y2="48" stroke="#22d3ee" stroke-width="0.8"/>
+      <!-- hex -->
+      <g transform="translate(295 200) scale(5.4) translate(-16 -16)">
+        <path d="M16 3 L27 9 L27 23 L16 29 L5 23 L5 9 Z" fill="rgba(9,9,11,0.6)" stroke="#f4f4f5" stroke-width="1.5"/>
+        <path d="M10.5 11 L10.5 21 M21.5 11 L21.5 21" stroke="#f4f4f5" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M10.5 11 L21.5 21" stroke="#22d3ee" stroke-width="2.3" stroke-linecap="round"/>
+        <circle cx="16" cy="3" r="1" fill="#22d3ee"/>
+        <circle cx="16" cy="29" r="1" fill="#22d3ee"/>
+      </g>
+      <!-- circuit -->
+      <g stroke="#22d3ee" stroke-width="0.8" fill="none" opacity="0.5">
+        <path d="M 130 200 L 200 200"/>
+        <path d="M 460 200 L 390 200"/>
+        <circle cx="130" cy="200" r="2" fill="#22d3ee"/>
+        <circle cx="460" cy="200" r="2" fill="#22d3ee"/>
+      </g>
+      <text x="295" y="350" text-anchor="middle" font-size="32" font-weight="900" letter-spacing="3" fill="#f4f4f5">N<tspan fill="#22d3ee">Y</tspan>XEL</text>
+    </g>
+  </g>
+
+  <!-- ==================== Y · Minimal Luxury ==================== -->
+  <g transform="translate(630 60)">
+    <text x="0" y="-12" font-size="16" font-weight="800" fill="#18181b">Y · Minimal Luxury</text>
+    <text x="0" y="408" font-size="11" fill="#71717a">oversized hex + soft glow only · Apple/Tesla feel</text>
+    <g>
+      <defs>
+        <radialGradient id="y-glow" cx="50%" cy="50%" r="55%">
+          <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.16"/>
+          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="590" height="390" fill="#09090b"/>
+      <rect width="590" height="390" fill="url(#y-glow)"/>
+      <!-- giant hex (no fill, just outline) -->
+      <g transform="translate(295 195) scale(9.8) translate(-16 -16)">
+        <path d="M16 3 L27 9 L27 23 L16 29 L5 23 L5 9 Z" fill="none" stroke="#f4f4f5" stroke-width="0.6" opacity="0.85"/>
+        <path d="M10.5 11 L10.5 21 M21.5 11 L21.5 21" stroke="#f4f4f5" stroke-width="0.9" stroke-linecap="round"/>
+        <path d="M10.5 11 L21.5 21" stroke="#22d3ee" stroke-width="1.1" stroke-linecap="round"/>
+      </g>
+      <!-- small wordmark bottom -->
+      <text x="295" y="355" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="8" fill="#71717a">N<tspan fill="#22d3ee">Y</tspan>XEL</text>
+    </g>
+  </g>
+
+  <!-- ==================== Z · Aurora Glass ==================== -->
+  <g transform="translate(20 510)">
+    <text x="0" y="-12" font-size="16" font-weight="800" fill="#18181b">Z · Aurora Glass</text>
+    <text x="0" y="408" font-size="11" fill="#71717a">aurora gradient + frosted glass card · Stripe/Linear feel</text>
+    <g>
+      <defs>
+        <radialGradient id="z-aur1" cx="15%" cy="20%" r="50%">
+          <stop offset="0%" stop-color="#a855f7" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="z-aur2" cx="85%" cy="15%" r="45%">
+          <stop offset="0%" stop-color="#ec4899" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#ec4899" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="z-aur3" cx="90%" cy="85%" r="55%">
+          <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="z-aur4" cx="10%" cy="90%" r="40%">
+          <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="590" height="390" fill="#09090b"/>
+      <rect width="590" height="390" fill="url(#z-aur1)"/>
+      <rect width="590" height="390" fill="url(#z-aur2)"/>
+      <rect width="590" height="390" fill="url(#z-aur3)"/>
+      <rect width="590" height="390" fill="url(#z-aur4)"/>
+      <!-- glass card -->
+      <rect x="155" y="80" width="280" height="230" rx="20" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+      <rect x="155" y="80" width="280" height="60" rx="20" fill="rgba(255,255,255,0.05)"/>
+      <!-- hex in card -->
+      <g transform="translate(295 180) scale(3.8) translate(-16 -16)">
+        <path d="M16 3 L27 9 L27 23 L16 29 L5 23 L5 9 Z" fill="rgba(9,9,11,0.4)" stroke="#f4f4f5" stroke-width="1.5"/>
+        <path d="M10.5 11 L10.5 21 M21.5 11 L21.5 21" stroke="#f4f4f5" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M10.5 11 L21.5 21" stroke="#22d3ee" stroke-width="2.4" stroke-linecap="round"/>
+      </g>
+      <text x="295" y="290" text-anchor="middle" font-size="20" font-weight="900" letter-spacing="4" fill="#f4f4f5">N<tspan fill="#22d3ee">Y</tspan>XEL</text>
+    </g>
+  </g>
+
+  <!-- ==================== W · Circuit Board (PCB) ==================== -->
+  <g transform="translate(630 510)">
+    <text x="0" y="-12" font-size="16" font-weight="800" fill="#18181b">W · Circuit Board (PCB)</text>
+    <text x="0" y="408" font-size="11" fill="#71717a">real PCB traces + vias + IC chip · hardcore IT</text>
+    <g>
+      <rect width="590" height="390" fill="#0a1f1c"/>
+      <!-- PCB traces -->
+      <g stroke="#0d6e54" stroke-width="3" fill="none" stroke-linecap="round">
+        <path d="M 20 60 L 100 60 L 130 90 L 200 90"/>
+        <path d="M 20 130 L 80 130 L 110 100"/>
+        <path d="M 20 200 L 150 200"/>
+        <path d="M 20 270 L 90 270 L 120 240"/>
+        <path d="M 20 330 L 200 330"/>
+        <path d="M 570 60 L 490 60 L 460 90 L 390 90"/>
+        <path d="M 570 130 L 510 130 L 480 100"/>
+        <path d="M 570 200 L 440 200"/>
+        <path d="M 570 270 L 500 270 L 470 240"/>
+        <path d="M 570 330 L 390 330"/>
+        <path d="M 295 20 L 295 100"/>
+        <path d="M 295 290 L 295 370"/>
+        <path d="M 200 90 L 200 290"/>
+        <path d="M 390 90 L 390 290"/>
+      </g>
+      <!-- vias / pads -->
+      <g fill="#1a8f70">
+        <circle cx="100" cy="60" r="3.5"/><circle cx="130" cy="90" r="3.5"/>
+        <circle cx="80" cy="130" r="3.5"/><circle cx="110" cy="100" r="3.5"/>
+        <circle cx="150" cy="200" r="3.5"/><circle cx="90" cy="270" r="3.5"/>
+        <circle cx="120" cy="240" r="3.5"/><circle cx="200" cy="330" r="3.5"/>
+        <circle cx="490" cy="60" r="3.5"/><circle cx="460" cy="90" r="3.5"/>
+        <circle cx="510" cy="130" r="3.5"/><circle cx="480" cy="100" r="3.5"/>
+        <circle cx="440" cy="200" r="3.5"/><circle cx="500" cy="270" r="3.5"/>
+        <circle cx="470" cy="240" r="3.5"/><circle cx="390" cy="330" r="3.5"/>
+      </g>
+      <!-- IC chip outline (where hex sits) -->
+      <rect x="200" y="90" width="190" height="200" rx="6" fill="#08110f" stroke="#0d6e54" stroke-width="2"/>
+      <!-- chip pins -->
+      <g fill="#1a8f70">
+        <rect x="206" y="100" width="4" height="14"/><rect x="206" y="130" width="4" height="14"/>
+        <rect x="206" y="160" width="4" height="14"/><rect x="206" y="190" width="4" height="14"/>
+        <rect x="206" y="220" width="4" height="14"/><rect x="206" y="250" width="4" height="14"/>
+        <rect x="380" y="100" width="4" height="14"/><rect x="380" y="130" width="4" height="14"/>
+        <rect x="380" y="160" width="4" height="14"/><rect x="380" y="190" width="4" height="14"/>
+        <rect x="380" y="220" width="4" height="14"/><rect x="380" y="250" width="4" height="14"/>
+      </g>
+      <!-- hex inside IC -->
+      <g transform="translate(295 190) scale(4.2) translate(-16 -16)">
+        <path d="M16 3 L27 9 L27 23 L16 29 L5 23 L5 9 Z" fill="#08110f" stroke="#f4f4f5" stroke-width="1.6"/>
+        <path d="M10.5 11 L10.5 21 M21.5 11 L21.5 21" stroke="#f4f4f5" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M10.5 11 L21.5 21" stroke="#22d3ee" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="16" cy="3" r="1" fill="#22d3ee"/>
+        <circle cx="16" cy="29" r="1" fill="#22d3ee"/>
+      </g>
+      <!-- silkscreen labels -->
+      <text x="20" y="370" font-size="8" letter-spacing="2" fill="#1a8f70" font-weight="600">NYXEL.IT · MARK01 · 2026</text>
+      <text x="570" y="370" text-anchor="end" font-size="8" letter-spacing="2" fill="#1a8f70" font-weight="600">REV.B</text>
+    </g>
+  </g>
+</svg>

@@ -23,19 +23,19 @@ const translations: Record<string, Record<Language, string>> = {
     'hero.view_all': { en: 'View All Products', th: 'ดูสินค้าทั้งหมด' },
     'home.featured': { en: 'Featured Sets', th: 'สินค้ายอดนิยม' },
 
-    // Business Packing Section
+    // Business IT Section (NYXEL B2B)
     'packing.title': {
-        en: 'Premium packing & cushioning for growing businesses',
-        th: 'แพ็คและห่อกันกระแทกพรีเมียมสำหรับธุรกิจที่ต้องการเติบโต',
+        en: 'IT solutions for teams that demand performance',
+        th: 'อุปกรณ์ IT ครบครัน สำหรับธุรกิจและทีมที่ต้องการพลังการทำงานเต็มประสิทธิภาพ',
     },
-    'packing.subtitle': { en: 'Elevate your brand with our premium packing services. We handle the boxing, protection, and sealing so you can focus on scaling your business.', th: 'ยกระดับแบรนด์ของคุณด้วยบริการแพ็คสินค้าพรีเมียม เราดูแลทั้งการบรรจุและห่อกันกระแทก เพื่อให้คุณโฟกัสกับการเติบโตของธุรกิจ' },
-    'packing.cta_quote': { en: 'Request a Quote', th: 'ขอใบเสนอราคา' },
-    'packing.cta_view': { en: 'View Packing Materials', th: 'ดูอุปกรณ์แพ็คกิ้ง' },
-    'packing.feature_materials': { en: 'Premium Materials', th: 'วัสดุเกรดพรีเมียม' },
-    'packing.feature_protection': { en: 'Secure Protection', th: 'ห่อกันกระแทกแน่นหนา' },
-    'packing.feature_bulk': { en: 'Bulk Shipping', th: 'รองรับจำนวนมาก' },
-    'packing.card_title': { en: 'SmartShip Packing Station', th: 'จุดบริการแพ็ค SmartShip' },
-    'packing.card_desc': { en: 'We use industry-standard techniques to ensure your products arrive safely and professionally presented.', th: 'เราใช้เทคนิคมาตรฐานอุตสาหกรรม เพื่อให้สินค้าถึงมือลูกค้าอย่างปลอดภัยและสวยงาม' },
+    'packing.subtitle': { en: 'From new offices to dev teams, gaming cafés, and creators — NYXEL curates premium IT gear with dedicated B2B support, bulk pricing, and warranty coordination.', th: 'ตั้งแต่ออฟฟิศใหม่ ทีมพัฒนา ร้านเกม ไปจนถึง creator — NYXEL คัดสรรอุปกรณ์ IT พรีเมียมพร้อมทีมเซลล์ B2B ราคาพิเศษสำหรับจำนวนมาก และประสานงานรับประกัน' },
+    'packing.cta_quote': { en: 'Request a B2B Quote', th: 'ขอใบเสนอราคาธุรกิจ' },
+    'packing.cta_view': { en: 'View All Products', th: 'ดูสินค้าทั้งหมด' },
+    'packing.feature_materials': { en: 'Authentic & Warranted', th: 'ของแท้ · มีรับประกัน' },
+    'packing.feature_protection': { en: 'Fast Tracked Shipping', th: 'ส่งไว · ติดตามได้' },
+    'packing.feature_bulk': { en: 'Bulk Pricing', th: 'ราคาพิเศษจำนวนมาก' },
+    'packing.card_title': { en: 'NYXEL B2B Desk', th: 'ทีม B2B ของ NYXEL' },
+    'packing.card_desc': { en: 'Dedicated sales for businesses — we help spec your build, coordinate procurement, and follow through on warranty claims.', th: 'ทีมเซลล์เฉพาะธุรกิจ ช่วยจัดสเปก ประสานงานจัดซื้อ และดูแลเคลมประกันให้คุณตลอดอายุการใช้งาน' },
 
     // Contact page
     'contact.breadcrumb_home': { en: 'Home', th: 'หน้าแรก' },
@@ -160,7 +160,7 @@ const translations: Record<string, Record<Language, string>> = {
     'form.method.cash': { en: 'Cash at Store', th: 'ชำระเงินสดที่หน้าร้าน' },
     'form.notes': { en: 'Notes (Optional)', th: 'หมายเหตุ (ถ้ามี)' },
     'form.notes_placeholder': { en: 'Any special instructions for delivery...', th: 'รายละเอียดเพิ่มเติม เช่น จุดสังเกต...' },
-    'search.placeholder': { en: 'Search by name, size (A2), or dimensions (30x20x5)...', th: 'ค้นหาชื่อ ขนาด (A2) หรือ กว้างxยาวxสูง (30x20x5)...' },
+    'search.placeholder': { en: 'Search notebook, GPU, RAM, headphones, keyboard...', th: 'ค้นหา notebook, การ์ดจอ, RAM, หูฟัง, คีย์บอร์ด...' },
 
     // Cookie Consent
     'cookie.title': { en: 'We use cookies', th: 'เราใช้คุกกี้' },
@@ -183,7 +183,7 @@ const translations: Record<string, Record<Language, string>> = {
     'cookie.view_cookies': { en: 'View cookies', th: 'ดูรายการคุกกี้' },
 
     // Footer
-    'footer.description': { en: 'Premium packing essentials and bundles for your shipping needs.', th: 'อุปกรณ์แพ็คกิ้งพรีเมียมและชุดบริการสำหรับความต้องการในการจัดส่งของคุณ' },
+    'footer.description': { en: 'NYXEL — premium IT gear and nationwide express shipping.', th: 'NYXEL — สินค้า IT พรีเมียมและบริการจัดส่งด่วนทั่วไทย' },
     'footer.quick_links': { en: 'Quick Links', th: 'ลิงก์ด่วน' },
     'footer.shop': { en: 'Shop', th: 'สินค้า' },
     'footer.track_order': { en: 'Track Order', th: 'ติดตามคำสั่งซื้อ' },

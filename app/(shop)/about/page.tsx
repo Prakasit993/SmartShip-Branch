@@ -38,7 +38,7 @@ export default function AboutPage() {
             titleTh: 'ทีมงานเชี่ยวชาญ',
             descEn: 'Our team is ready to help you with any questions.',
             descTh: 'ทีมงานพร้อมให้คำปรึกษาและแก้ปัญหาทุกข้อสงสัย',
-            color: 'orange'
+            color: 'cyan'
         }
     ];
 
@@ -115,7 +115,7 @@ export default function AboutPage() {
                                 blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
                                 green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
                                 purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-                                orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                                cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400'
                             };
                             return (
                                 <div key={index} className="bg-white dark:bg-zinc-800 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-700">

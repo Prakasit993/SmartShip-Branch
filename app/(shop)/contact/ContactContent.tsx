@@ -102,7 +102,7 @@ export default function ContactContent({
             body: (
                 <a
                     href={telHref(contactPhone)}
-                    className="group inline-flex items-center gap-1 text-lg font-bold text-zinc-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                    className="group inline-flex items-center gap-1 text-lg font-bold text-zinc-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
                 >
                     {contactPhone}
                     <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -112,7 +112,7 @@ export default function ContactContent({
                 <button
                     type="button"
                     onClick={() => copyToClipboard(contactPhone)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-orange-400/60 hover:text-orange-600 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-cyan-400/60 hover:text-cyan-600 transition-colors"
                 >
                     <Copy className="h-3.5 w-3.5" />
                     {t('contact.copy')}
@@ -149,7 +149,7 @@ export default function ContactContent({
                     <button
                         type="button"
                         onClick={() => copyToClipboard(contactLine)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-orange-400/60 transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-cyan-400/60 transition-colors"
                     >
                         <Copy className="h-3.5 w-3.5" />
                         {t('contact.copy')}
@@ -176,7 +176,7 @@ export default function ContactContent({
                 <button
                     type="button"
                     onClick={() => copyToClipboard(contactEmail)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-orange-400/60 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-cyan-400/60 transition-colors"
                 >
                     <Copy className="h-3.5 w-3.5" />
                     {t('contact.copy')}
@@ -186,7 +186,7 @@ export default function ContactContent({
         {
             key: 'address',
             icon: MapPin,
-            iconWrap: 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-300',
+            iconWrap: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-300',
             title: t('contact.address_title'),
             hint: t('contact.address_hint'),
             body: <p className="text-base leading-relaxed text-zinc-700 dark:text-zinc-200">{contactAddress}</p>,
@@ -195,7 +195,7 @@ export default function ContactContent({
                     href={mapLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-cyan-600 transition-colors"
                 >
                     <MapPinned className="h-3.5 w-3.5" />
                     {t('contact.navigate')}
@@ -207,14 +207,14 @@ export default function ContactContent({
     return (
         <div className="home-typography min-h-[70vh] bg-[var(--background)] font-sans">
             {/* Hero */}
-            <header className="border-b border-zinc-200/80 dark:border-zinc-800 bg-gradient-to-b from-orange-50/80 via-zinc-50/50 to-transparent dark:from-orange-950/25 dark:via-zinc-950/50 dark:to-transparent">
+            <header className="border-b border-zinc-200/80 dark:border-zinc-800 bg-gradient-to-b from-cyan-50/80 via-zinc-50/50 to-transparent dark:from-cyan-950/25 dark:via-zinc-950/50 dark:to-transparent">
                 <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
                     <nav aria-label="ตำแหน่งในหน้าเว็บ" className="mb-6">
                         <ol className="flex flex-wrap items-center gap-x-2 text-sm text-zinc-500 dark:text-zinc-400">
                             <li>
                                 <Link
                                     href="/"
-                                    className="font-medium text-zinc-600 hover:text-orange-600 underline-offset-4 hover:underline dark:text-zinc-300"
+                                    className="font-medium text-zinc-600 hover:text-cyan-600 underline-offset-4 hover:underline dark:text-zinc-300"
                                 >
                                     {t('contact.breadcrumb_home')}
                                 </Link>
@@ -227,7 +227,7 @@ export default function ContactContent({
                             </li>
                         </ol>
                     </nav>
-                    <p className="inline-block rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-800 dark:border-orange-800/60 dark:bg-orange-950/50 dark:text-orange-200 mb-4">
+                    <p className="inline-block rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800 dark:border-cyan-800/60 dark:bg-cyan-950/50 dark:text-cyan-200 mb-4">
                         {t('contact.badge')}
                     </p>
                     <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 dark:text-white text-balance tracking-tight">
@@ -245,7 +245,7 @@ export default function ContactContent({
                     {channelCards.map((card) => (
                         <article
                             key={card.key}
-                            className="flex flex-col rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm transition-all hover:border-orange-300/80 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-orange-500/30"
+                            className="flex flex-col rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm transition-all hover:border-cyan-300/80 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-cyan-500/30"
                         >
                             <div className="flex items-start gap-3 mb-4">
                                 <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${card.iconWrap}`}>
@@ -313,13 +313,13 @@ export default function ContactContent({
                 <div className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 border-t border-zinc-200 dark:border-zinc-800 pt-10">
                     <Link
                         href="/"
-                        className="text-sm font-semibold text-zinc-600 hover:text-orange-600 dark:text-zinc-400 dark:hover:text-orange-400 transition-colors"
+                        className="text-sm font-semibold text-zinc-600 hover:text-cyan-600 dark:text-zinc-400 dark:hover:text-cyan-400 transition-colors"
                     >
                         ← {t('contact.back_home')}
                     </Link>
                     <Link
                         href="/shop"
-                        className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-orange-500 bg-transparent px-6 py-2.5 text-sm font-bold text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/40 transition-colors"
+                        className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-cyan-500 bg-transparent px-6 py-2.5 text-sm font-bold text-cyan-600 hover:bg-cyan-50 dark:text-cyan-400 dark:hover:bg-cyan-950/40 transition-colors"
                     >
                         {t('contact.shop_cta')}
                     </Link>

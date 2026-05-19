@@ -39,8 +39,8 @@ export type HeroSlide = {
 };
 
 const DEFAULT_SLIDE: HeroSlide = {
-  url: '/smartship-storefront.png',
-  alt: 'หน้าร้านและบริการแพ็คกิ้ง',
+  url: '/nyxel-hero.svg',
+  alt: 'NYXEL — สินค้า IT พรีเมียม',
 };
 
 /**
@@ -94,7 +94,7 @@ export function getHomeSeoFromSettings(settings: SettingsRow[] | null | undefine
   const heroImagesRaw = getJsonSetting(settings, 'hero_images');
   const slides = normalizeHeroSlidesFromRaw(heroImagesRaw);
   const first = slides[0];
-  const ogImagePath = first?.url?.trim() ? first.url : '/smartship-storefront.png';
+  const ogImagePath = first?.url?.trim() ? first.url : '/nyxel-hero.svg';
   const ogImageAlt = first?.alt?.trim() || title;
 
   return {

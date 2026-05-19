@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'สินค้าทั้งหมด',
   description:
-    'ค้นหาและเลือกซื้อชุดกล่อง อุปกรณ์แพ็ค และของเสริม จัดกลุ่มตามหมวดหมู่ พร้อมค้นหาตามชื่อและขนาดกล่อง',
+    'รวมสินค้า IT พรีเมียม Notebook การ์ดจอ RAM หูฟัง คีย์บอร์ด — คัดสรรของแท้พร้อมรับประกัน จัดส่งด่วนทั่วไทย',
 };
 
 function displayCategory(name: string): string {
@@ -72,7 +72,7 @@ export default async function CatalogPage({
               <li>
                 <Link
                   href="/"
-                  className="font-medium text-zinc-600 underline-offset-4 transition-colors hover:text-orange-600 hover:underline dark:text-zinc-300 dark:hover:text-orange-400"
+                  className="font-medium text-zinc-600 underline-offset-4 transition-colors hover:text-cyan-600 hover:underline dark:text-zinc-300 dark:hover:text-cyan-400"
                 >
                   หน้าแรก
                 </Link>
@@ -159,7 +159,7 @@ export default async function CatalogPage({
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-6">
                   {items.map((bundle: any) => (
                     <Link href={`/shop/bundle/${bundle.slug}`} key={bundle.id} className="group block h-full">
-                      <article className="h-full flex flex-col bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-transparent hover:border-orange-400/80 dark:hover:border-orange-500/50 shadow-md hover:shadow-xl hover:shadow-orange-500/10 hover:-translate-y-1 transition-all duration-200">
+                      <article className="h-full flex flex-col bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-transparent hover:border-cyan-400/80 dark:hover:border-cyan-500/50 shadow-md hover:shadow-xl hover:shadow-cyan-500/10 hover:-translate-y-1 transition-all duration-200">
                         <div className="aspect-square relative bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                           {bundle.image_urls?.[0] ? (
                             <Image
@@ -189,17 +189,17 @@ export default async function CatalogPage({
                         </div>
 
                         <div className="p-3 sm:p-4 flex-1 flex flex-col">
-                          <h3 className="home-type-product-name font-bold line-clamp-2 text-zinc-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                          <h3 className="home-type-product-name font-bold line-clamp-2 text-zinc-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                             {bundle.name}
                           </h3>
                           <p className="home-type-body-muted text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-1.5 min-h-[2.75rem] text-pretty">
                             {bundle.description?.trim() ? bundle.description : ''}
                           </p>
                           <div className="mt-auto pt-3 flex items-end justify-between gap-2">
-                            <span className="home-type-price font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                            <span className="home-type-price font-black bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-300 dark:to-cyan-500 bg-clip-text text-transparent">
                               ฿{formatPrice(bundle.price)}
                             </span>
-                            <span className="text-orange-600 dark:text-orange-400 text-xs sm:text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                            <span className="text-cyan-600 dark:text-cyan-400 text-xs sm:text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
                               ดูรายละเอียด →
                             </span>
                           </div>
