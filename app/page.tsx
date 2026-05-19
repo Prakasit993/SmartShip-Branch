@@ -9,7 +9,9 @@ import { getHomePageData } from '@app/lib/getHomePageData';
 import { getHeroSlidesFromSettings, getHomeSeoFromSettings } from '@app/lib/home-seo';
 import { splitHeroTitle } from '@app/lib/split-hero-title';
 import HomeReveal from '@app/components/home/HomeReveal';
+import FaqSection from '@app/components/home/FaqSection';
 import { HOME_DEFAULTS } from '@/lib/home-defaults';
+import { HOME_FAQ } from '@app/lib/home-faq';
 
 const BusinessPackingSection = dynamic(() => import('@app/components/home/BusinessPackingSection'), {
   loading: () => <section className="py-16" aria-hidden="true" />,
@@ -130,6 +132,18 @@ export default async function Home() {
           },
           'query-input': 'required name=search_term_string',
         },
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${origin}/#faq`,
+        mainEntity: HOME_FAQ.map((item) => ({
+          '@type': 'Question',
+          name: item.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: item.answer,
+          },
+        })),
       },
       {
         '@type': ['Organization', 'OnlineStore'],
@@ -460,6 +474,8 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        <FaqSection />
 
         </main>
 
