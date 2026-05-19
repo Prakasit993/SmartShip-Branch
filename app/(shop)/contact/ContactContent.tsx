@@ -12,6 +12,7 @@ import {
 import { useLanguage } from '@app/context/LanguageContext';
 import Link from 'next/link';
 import { useToast } from '@app/components/ui/Toast';
+import NyxelCard from '@app/components/ui/NyxelCard';
 
 interface ContactContentProps {
     contactPhone: string;
@@ -92,20 +93,25 @@ export default function ContactContent({
         }
     };
 
+    /**
+     * 4 contact channels — each rendered inside a NyxelCard.
+     * Icon background uses cyan to stay unified with NYXEL palette.
+     * subLabel acts as the channel identifier (PHONE / LINE / EMAIL / ADDRESS).
+     */
     const channelCards = [
         {
             key: 'phone',
+            subLabel: 'PHONE',
             icon: Phone,
-            iconWrap: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300',
             title: t('contact.phone_title'),
             hint: t('contact.phone_hint'),
             body: (
                 <a
                     href={telHref(contactPhone)}
-                    className="group inline-flex items-center gap-1 text-lg font-bold text-zinc-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                    className="group/link inline-flex items-center gap-1 text-lg font-bold text-zinc-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors break-all"
                 >
                     {contactPhone}
-                    <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowUpRight className="h-4 w-4 shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
                 </a>
             ),
             actions: (
@@ -121,8 +127,8 @@ export default function ContactContent({
         },
         {
             key: 'line',
+            subLabel: 'LINE',
             icon: MessageCircle,
-            iconWrap: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300',
             title: t('contact.line_title'),
             hint: t('contact.line_hint'),
             body: (
@@ -130,7 +136,7 @@ export default function ContactContent({
                     href={contactLineUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group inline-flex items-center gap-1 text-lg font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                    className="group/link inline-flex items-center gap-1 text-lg font-bold text-zinc-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors break-all"
                 >
                     {contactLine}
                     <ArrowUpRight className="h-4 w-4 shrink-0" />
@@ -159,17 +165,17 @@ export default function ContactContent({
         },
         {
             key: 'email',
+            subLabel: 'EMAIL',
             icon: Mail,
-            iconWrap: 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300',
             title: t('contact.email_title'),
             hint: t('contact.email_hint'),
             body: (
                 <a
                     href={`mailto:${contactEmail}`}
-                    className="group inline-flex items-center gap-1 break-all text-lg font-bold text-violet-700 dark:text-violet-300 hover:underline"
+                    className="group/link inline-flex items-center gap-1 break-all text-lg font-bold text-zinc-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
                 >
                     {contactEmail}
-                    <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />
+                    <ArrowUpRight className="h-4 w-4 shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
                 </a>
             ),
             actions: (
@@ -185,11 +191,15 @@ export default function ContactContent({
         },
         {
             key: 'address',
+            subLabel: 'ADDRESS',
             icon: MapPin,
-            iconWrap: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-300',
             title: t('contact.address_title'),
             hint: t('contact.address_hint'),
-            body: <p className="text-base leading-relaxed text-zinc-700 dark:text-zinc-200">{contactAddress}</p>,
+            body: (
+                <p className="text-base leading-relaxed text-zinc-700 dark:text-zinc-200 break-words">
+                    {contactAddress}
+                </p>
+            ),
             actions: (
                 <a
                     href={mapLink}
@@ -206,9 +216,13 @@ export default function ContactContent({
 
     return (
         <div className="home-typography min-h-[70vh] bg-[var(--background)] font-sans">
-            {/* Hero */}
-            <header className="border-b border-zinc-200/80 dark:border-zinc-800 bg-gradient-to-b from-cyan-50/80 via-zinc-50/50 to-transparent dark:from-cyan-950/25 dark:via-zinc-950/50 dark:to-transparent">
-                <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+            {/* Hero — lab-style header matching home FAQ + Services */}
+            <header className="relative overflow-hidden border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">
+                {/* Ambient blobs */}
+                <div className="hidden md:block absolute top-0 -left-32 w-80 h-80 bg-cyan-500/8 rounded-full blur-3xl" aria-hidden />
+                <div className="hidden md:block absolute bottom-0 -right-32 w-80 h-80 bg-blue-500/8 rounded-full blur-3xl" aria-hidden />
+
+                <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-14 relative z-10">
                     <nav aria-label="ตำแหน่งในหน้าเว็บ" className="mb-6">
                         <ol className="flex flex-wrap items-center gap-x-2 text-sm text-zinc-500 dark:text-zinc-400">
                             <li>
@@ -227,46 +241,80 @@ export default function ContactContent({
                             </li>
                         </ol>
                     </nav>
-                    <p className="inline-block rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800 dark:border-cyan-800/60 dark:bg-cyan-950/50 dark:text-cyan-200 mb-4">
-                        {t('contact.badge')}
-                    </p>
+
+                    {/* Lab-style pill */}
+                    <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 font-mono text-[11px] font-bold tracking-[0.25em] uppercase mb-5 ring-1 ring-cyan-500/30 shadow-[0_0_24px_-8px_rgb(34_211_238/0.5)]">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                        // CONTACT.LOG
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    </div>
+
                     <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-zinc-900 dark:text-white text-balance tracking-tight">
                         {t('contact.title')}
                     </h1>
-                    <p className="mt-4 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed text-pretty">
+                    <p className="mt-4 max-w-2xl text-base sm:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed text-pretty">
                         {t('contact.lead')}
                     </p>
+
+                    {/* Dashed accent line — matches FAQ "08 ENTRIES" */}
+                    <div className="mt-5 flex items-center gap-3">
+                        <span className="h-px w-12 bg-cyan-500/40" />
+                        <span className="font-mono text-[10px] tracking-[0.3em] text-cyan-600 dark:text-cyan-400">
+                            04 CHANNELS
+                        </span>
+                        <span className="h-px w-12 bg-cyan-500/40" />
+                    </div>
                 </div>
             </header>
 
-            {/* Channels */}
+            {/* Channels — NyxelCard grid */}
             <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 lg:gap-6">
-                    {channelCards.map((card) => (
-                        <article
-                            key={card.key}
-                            className="flex flex-col rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm transition-all hover:border-cyan-300/80 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/80 dark:hover:border-cyan-500/30"
-                        >
-                            <div className="flex items-start gap-3 mb-4">
-                                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${card.iconWrap}`}>
-                                    <card.icon className="h-5 w-5" strokeWidth={2} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+                    {channelCards.map((card, idx) => {
+                        const Icon = card.icon;
+                        return (
+                            <NyxelCard
+                                key={card.key}
+                                variant="lab"
+                                index={idx + 1}
+                                subLabel={card.subLabel}
+                                subLabelTag="NYXEL // CONTACT"
+                            >
+                                {/* Icon + title row */}
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 ring-1 ring-cyan-500/30 group-hover:bg-cyan-500/20 group-hover:scale-110 transition-all duration-300">
+                                        <Icon className="h-5 w-5" strokeWidth={2} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h2 className="font-bold text-zinc-900 dark:text-white text-sm sm:text-base">
+                                            {card.title}
+                                        </h2>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                            {card.hint}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="min-w-0">
-                                    <h2 className="font-bold text-zinc-900 dark:text-white">{card.title}</h2>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{card.hint}</p>
+
+                                {/* Cyan divider — grows on hover */}
+                                <div className="h-px w-10 bg-cyan-500/30 group-hover:w-20 group-hover:bg-cyan-500/60 transition-all duration-500 mb-3" aria-hidden />
+
+                                {/* Body (the actual contact value) */}
+                                <div className="mb-4 min-h-[2.5rem]">{card.body}</div>
+
+                                {/* Actions */}
+                                <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                    {card.actions}
                                 </div>
-                            </div>
-                            <div className="flex-1 min-h-[3rem]">{card.body}</div>
-                            <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800">{card.actions}</div>
-                        </article>
-                    ))}
+                            </NyxelCard>
+                        );
+                    })}
                 </div>
 
                 {/* Map */}
                 <div className="mt-14 sm:mt-20">
                     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
                         <div className="flex items-start gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 ring-1 ring-cyan-500/30 text-cyan-600 dark:text-cyan-400">
                                 <MapPinned className="h-5 w-5" />
                             </div>
                             <div>
@@ -301,7 +349,7 @@ export default function ContactContent({
                             href={mapLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 transition-colors"
+                            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 hover:-translate-y-0.5 transition-all"
                         >
                             <MapPin className="h-5 w-5" />
                             {t('contact.open_maps')}
