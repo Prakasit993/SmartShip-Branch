@@ -101,3 +101,41 @@ FROM (VALUES
 WHERE NOT EXISTS (
   SELECT 1 FROM public.categories c WHERE c.slug = v.slug
 );
+
+-- =============================================================================
+-- 5) Archive pre-NYXEL inventory (box-shop legacy)
+--    Soft-deactivate every currently-active product and bundle. This preserves
+--    order_items.bundle_id references, reviews, and audit trail — but hides
+--    legacy items from /shop and admin catalog.
+--
+--    Admin can reactivate any individual row by flipping is_active=true.
+--    The condition_note marker makes the archive run discoverable later.
+--
+--    Idempotent: re-running won't double-stamp the marker; only touches
+--    rows still active. Run AFTER sections 1-2 (depends on condition_note).
+-- =============================================================================
+UPDATE public.bundles
+SET is_active = false,
+    condition_note = CASE
+      WHEN condition_note IS NULL OR condition_note = ''
+        THEN '[archived 2026-05-19: pre-NYXEL pivot]'
+      WHEN condition_note LIKE '%pre-NYXEL pivot%' THEN condition_note
+      ELSE condition_note || ' [archived 2026-05-19: pre-NYXEL pivot]'
+    END
+WHERE is_active = true;
+
+UPDATE public.products
+SET is_active = false,
+    condition_note = CASE
+      WHEN condition_note IS NULL OR condition_note = ''
+        THEN '[archived 2026-05-19: pre-NYXEL pivot]'
+      WHEN condition_note LIKE '%pre-NYXEL pivot%' THEN condition_note
+      ELSE condition_note || ' [archived 2026-05-19: pre-NYXEL pivot]'
+    END
+WHERE is_active = true;
+
+-- After this section: 0 active bundles, 0 active products.
+-- Admin must add new NYXEL IT inventory before /shop displays anything.
+-- To restore everything:
+--   UPDATE public.bundles SET is_active=true WHERE condition_note LIKE '%pre-NYXEL pivot%';
+--   UPDATE public.products SET is_active=true WHERE condition_note LIKE '%pre-NYXEL pivot%';

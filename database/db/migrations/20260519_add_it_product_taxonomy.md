@@ -171,7 +171,35 @@ DROP INDEX IF EXISTS public.idx_bundles_spec_json_gin;
 1. **Should `condition` exist on both tables?** Yes for now (denormalized for speed). Phase 3 admin UI must enforce consistency — fixed-type bundles auto-mirror from primary product.
 2. **`spec_json` validation?** Free-form for v1. Phase 3+ could add JSON Schema validation at admin form layer.
 3. **Categories seed conflict?** Current categories use Thai names. New IT categories are English. Confirm whether to keep English (matches JSON-LD better) or translate.
-4. **Existing rows?** All defaults are safe (`condition='new'`, `warranty_months=0`, brand/model NULL). No backfill needed for old box-shop rows; just gradually re-classify or deactivate them via `is_active = false`.
+4. **Existing rows — confirmed plan:** Section 5 of the migration sets `is_active=false` on every currently-active row in both tables and stamps `condition_note` with `[archived 2026-05-19: pre-NYXEL pivot]`. Order history and reviews stay intact (FK references preserved). After apply, `/shop` will show no products until admin adds new NYXEL inventory.
+
+## Section 5 — legacy archive (IMPORTANT)
+
+The migration archives **all** currently-active products and bundles. This is intentional — the screenshot of `order_items` (21 records of Box A1, Box B2, Bubble Wrap, etc.) confirmed everything currently in DB is pre-NYXEL inventory.
+
+### What survives
+- Order history (`orders` + `order_items`) — fully intact
+- Customer reviews — fully intact
+- All FK references — fully intact
+- The archived rows themselves — readable in admin, just `is_active=false`
+
+### What changes after apply
+- `/shop` page: empty until new NYXEL products are added
+- `/shop/bundle/[slug]` for old slugs: still works if user has bookmark, but admin pages won't list them
+
+### Restore command (if needed)
+```sql
+UPDATE public.bundles  SET is_active=true WHERE condition_note LIKE '%pre-NYXEL pivot%';
+UPDATE public.products SET is_active=true WHERE condition_note LIKE '%pre-NYXEL pivot%';
+```
+
+### Audit query
+```sql
+SELECT id, name, slug, condition_note
+FROM public.bundles
+WHERE condition_note LIKE '%pre-NYXEL pivot%'
+ORDER BY id;
+```
 
 ## Apply procedure
 
