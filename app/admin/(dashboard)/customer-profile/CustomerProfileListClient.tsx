@@ -320,14 +320,15 @@ export function CustomerProfileListClient() {
 
                     {/* Desktop: table */}
                     <div className="mt-3 hidden overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-900/40 shadow-inner shadow-black/30 sm:block">
-                        <table className="w-full min-w-[640px] table-fixed text-left text-[13px]">
+                        <table className="w-full min-w-[720px] table-fixed text-left text-[13px]">
                             <thead className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 text-[10px] uppercase tracking-wider text-slate-400">
                                 <tr>
-                                    <th className="w-[36%] px-2.5 py-2 font-semibold">ชื่อลูกค้า</th>
-                                    <th className="w-[20%] px-2.5 py-2 font-semibold">เบอร์โทร</th>
-                                    <th className="w-[18%] px-2.5 py-2 font-semibold">VIP</th>
-                                    <th className="w-[14%] px-2.5 py-2 text-right font-semibold">พัสดุ</th>
-                                    <th className="w-[12%] px-2.5 py-2 text-right font-semibold">ดู</th>
+                                    <th className="w-[26%] px-2.5 py-2 font-semibold">ชื่อลูกค้า</th>
+                                    <th className="w-[17%] px-2.5 py-2 font-semibold">เบอร์โทร</th>
+                                    <th className="w-[24%] px-2.5 py-2 font-semibold">แจ้งเตือน</th>
+                                    <th className="w-[15%] px-2.5 py-2 font-semibold">VIP</th>
+                                    <th className="w-[10%] px-2.5 py-2 text-right font-semibold">พัสดุ</th>
+                                    <th className="w-[8%] px-2.5 py-2 text-right font-semibold">ดู</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/60">
@@ -335,7 +336,7 @@ export function CustomerProfileListClient() {
                                     <SkeletonRows />
                                 ) : showEmpty ? (
                                     <tr>
-                                        <td colSpan={5} className="px-3 py-10 text-center">
+                                        <td colSpan={6} className="px-3 py-10 text-center">
                                             <EmptyStateInline debouncedQ={debouncedQ} />
                                         </td>
                                     </tr>
@@ -634,11 +635,14 @@ function SkeletonRows() {
                     <td className="px-2.5 py-2.5">
                         <div className="flex items-center gap-2">
                             <span className="h-7 w-7 shrink-0 animate-pulse rounded-full bg-slate-800/70" />
-                            <span className="block h-3 w-32 animate-pulse rounded bg-slate-800/70" />
+                            <span className="block h-3 w-28 animate-pulse rounded bg-slate-800/70" />
                         </div>
                     </td>
                     <td className="px-2.5 py-2.5">
                         <span className="block h-2.5 w-20 animate-pulse rounded bg-slate-800/70" />
+                    </td>
+                    <td className="px-2.5 py-2.5">
+                        <span className="block h-3.5 w-20 animate-pulse rounded-full bg-slate-800/70" />
                     </td>
                     <td className="px-2.5 py-2.5">
                         <span className="block h-3.5 w-14 animate-pulse rounded-full bg-slate-800/70" />
