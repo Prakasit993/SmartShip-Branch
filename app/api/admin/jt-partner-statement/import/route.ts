@@ -4,10 +4,11 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 /** คอลัมน์ที่คาดหวังจากไฟล์ statement J&T — รองรับหลายชื่อหัวตาราง */
 const COLUMN_ALIASES = {
-    franchise_code: ['รหัสเจ้าสำรอง', 'franchise_code', 'franchisecode', 'franchise code'],
+    franchise_code: ['รหัสเงินสำรอง', 'รหัสเจ้าสำรอง', 'franchise_code', 'franchisecode', 'franchise code'],
     awb_number: ['หมายเลข awb', 'หมายเลขawb', 'awb_number', 'awb number', 'awb', 'เลขพัสดุ', 'tracking number'],
     branch_code: ['รหัสสาขา', 'branch_code', 'branch code', 'branchcode'],
     charge_type: [
+        'ประเภทย่อยของค่าใช้จ่าย',
         'ประเภทของยอดค่าใช้จ่าย',
         'charge_type',
         'charge type',
