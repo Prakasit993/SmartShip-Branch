@@ -13,6 +13,10 @@ import FaqSection from '@app/components/home/FaqSection';
 import NyxelCard from '@app/components/ui/NyxelCard';
 import { HOME_DEFAULTS } from '@/lib/home-defaults';
 import { HOME_FAQ } from '@app/lib/home-faq';
+import GlitchText from '@app/components/home/GlitchText';
+import GhostWatermark from '@app/components/home/GhostWatermark';
+import InfiniteTicker from '@app/components/home/InfiniteTicker';
+import HolographicCard from '@app/components/home/HolographicCard';
 
 const BusinessPackingSection = dynamic(() => import('@app/components/home/BusinessPackingSection'), {
   loading: () => <section className="py-16" aria-hidden="true" />,
@@ -253,9 +257,10 @@ export default async function Home() {
                   {HOME_DEFAULTS.heroBadge}
                 </div>
                 <h1 className="home-type-display font-black text-zinc-900 dark:text-white text-balance animate-home-fade-up home-delay-1">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500">
-                    {heroTitleFirst}
-                  </span>
+                  <GlitchText
+                    text={heroTitleFirst}
+                    className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500"
+                  />
                   {heroTitleRest ? (
                     <>
                       {' '}
@@ -296,12 +301,16 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* Infinite Ticker — brand features strip */}
+        <InfiniteTicker />
+
         {/* Best Sellers Section */}
         <section className="relative home-section-y-lg overflow-hidden">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-zinc-50 via-white to-zinc-50 dark:from-zinc-950 dark:via-black dark:to-zinc-950" />
           <div className="hidden md:block absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl animate-pulse" />
           <div className="hidden md:block absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <GhostWatermark text="BEST" />
 
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 relative z-10">
             <HomeReveal className="text-center mb-10 sm:mb-14 lg:mb-16">
@@ -321,8 +330,9 @@ export default async function Home() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {featuredBundles?.map((bundle, index) => (
                 <HomeReveal key={bundle.id} delayMs={index * 50} className="min-h-0 h-full">
+                  <HolographicCard className="h-full rounded-3xl">
                   <Link href={`/shop/bundle/${bundle.slug}`} className="group block h-full">
-                  <div className="relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border-2 border-transparent hover:border-cyan-400 shadow-lg hover:shadow-2xl hover:shadow-cyan-500/25 hover:-translate-y-2 hover:ring-2 hover:ring-cyan-400/20 transition-all duration-300 h-full flex flex-col">
+                  <div className="relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border-2 border-transparent hover:border-cyan-400 shadow-lg hover:shadow-2xl hover:shadow-cyan-500/25 transition-all duration-300 h-full flex flex-col">
                     {/* Ranking Badge */}
                     <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20">
                       <div className={`w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm rounded-full flex items-center justify-center font-black text-white shadow-lg ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' :
@@ -376,6 +386,7 @@ export default async function Home() {
                     </div>
                   </div>
                 </Link>
+                </HolographicCard>
                 </HomeReveal>
               ))}
               {(!featuredBundles || featuredBundles.length === 0) && (
@@ -455,8 +466,9 @@ export default async function Home() {
         </HomeReveal>
 
         {/* Customer Reviews Section */}
-        <section className="bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-900 dark:to-black home-section-y px-4 sm:px-6">
-          <div className="max-w-7xl mx-auto w-full">
+        <section className="relative bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-900 dark:to-black home-section-y px-4 sm:px-6 overflow-hidden">
+          <GhostWatermark text="REVIEW" />
+          <div className="max-w-7xl mx-auto w-full relative z-10">
             <HomeReveal className="text-center mb-10 sm:mb-14 lg:mb-16">
               <div className="inline-block px-4 py-1.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 font-semibold text-xs tracking-wider uppercase mb-4 ring-1 ring-yellow-500/20">
                 ⭐ รีวิวจากลูกค้า

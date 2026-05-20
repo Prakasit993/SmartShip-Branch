@@ -349,3 +349,130 @@ body {
   width: 0;
   height: 0;
 }
+
+/* ============================================================
+   NYXEL CREATIVE EFFECTS
+   ============================================================ */
+
+/* --- Ghost Watermark --- */
+.nyxel-ghost-watermark {
+  font-size: clamp(6rem, 22vw, 22rem);
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(34, 211, 238, 0.07);
+  letter-spacing: -0.06em;
+  line-height: 1;
+  animation: ghost-drift 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+html.dark .nyxel-ghost-watermark {
+  -webkit-text-stroke: 1.5px rgba(34, 211, 238, 0.10);
+}
+
+@keyframes ghost-drift {
+  0%   { transform: translate3d(-1%, 0, 0) rotate(-1deg); }
+  100% { transform: translate3d(1%, 1%, 0) rotate(0.5deg); }
+}
+
+/* --- Glitch Text --- */
+.nyxel-glitch::before,
+.nyxel-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.nyxel-glitch::before {
+  color: #22d3ee;
+  clip-path: polygon(0 30%, 100% 30%, 100% 50%, 0 50%);
+  animation: glitch-top 4s steps(1) infinite;
+  will-change: transform, clip-path;
+}
+
+.nyxel-glitch::after {
+  color: #3b82f6;
+  clip-path: polygon(0 60%, 100% 60%, 100% 75%, 0 75%);
+  animation: glitch-bot 4s steps(1) infinite;
+  will-change: transform, clip-path;
+}
+
+@keyframes glitch-top {
+  0%, 89%  { transform: translate(0); opacity: 0; }
+  90%      { transform: translate(-3px, -1px); opacity: 0.85; }
+  92%      { transform: translate(3px, 0); opacity: 0.85; clip-path: polygon(0 20%, 100% 20%, 100% 45%, 0 45%); }
+  94%      { transform: translate(0); opacity: 0; }
+  96%      { transform: translate(2px, -2px); opacity: 0.6; }
+  98%, 100%{ transform: translate(0); opacity: 0; }
+}
+
+@keyframes glitch-bot {
+  0%, 91%  { transform: translate(0); opacity: 0; }
+  92%      { transform: translate(3px, 1px); opacity: 0.7; }
+  94%      { transform: translate(-2px, 0); opacity: 0.7; clip-path: polygon(0 55%, 100% 55%, 100% 80%, 0 80%); }
+  96%      { transform: translate(0); opacity: 0; }
+  98%      { transform: translate(-3px, 2px); opacity: 0.5; }
+  100%     { transform: translate(0); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nyxel-glitch::before,
+  .nyxel-glitch::after {
+    display: none;
+  }
+  .nyxel-ghost-watermark {
+    animation: none;
+  }
+}
+
+/* --- Infinite Ticker --- */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.nyxel-ticker-track {
+  animation: ticker-scroll 28s linear infinite;
+  will-change: transform;
+}
+
+.nyxel-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nyxel-ticker-track {
+    animation: none;
+  }
+}
+
+/* --- Holographic foil edge --- */
+.nyxel-holo-foil {
+  background: linear-gradient(
+    105deg,
+    rgba(255,0,128,0) 0%,
+    rgba(255,0,128,0.06) 15%,
+    rgba(34,211,238,0.10) 30%,
+    rgba(59,130,246,0.08) 45%,
+    rgba(139,92,246,0.10) 60%,
+    rgba(34,211,238,0.06) 75%,
+    rgba(255,200,0,0.05) 90%,
+    rgba(255,0,128,0) 100%
+  );
+  mix-blend-mode: screen;
+  animation: holo-shift 3s linear infinite;
+  will-change: background-position;
+  background-size: 200% 200%;
+}
+
+@keyframes holo-shift {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nyxel-holo-foil {
+    animation: none;
+  }
+}
