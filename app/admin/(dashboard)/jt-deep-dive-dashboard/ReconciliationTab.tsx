@@ -131,6 +131,7 @@ export function ReconciliationTab() {
     const [loadState, setLoadState] = useState<LoadState>({ status: 'idle', data: null });
     const [dailyData, setDailyData] = useState<DailyReconciliationRow[]>([]);
     const [dailyLoadState, setDailyLoadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [dailyError, setDailyError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'awb' | 'daily'>('daily');
     const [showDetail, setShowDetail] = useState(true);
 
@@ -163,6 +164,7 @@ export function ReconciliationTab() {
 
     const loadDaily = useCallback(async (range: { from: string; to: string }, signal?: AbortSignal) => {
         setDailyLoadState('loading');
+        setDailyError(null);
         try {
             const params = new URLSearchParams({ date_from: range.from, date_to: range.to });
             const res = await fetch(`/api/admin/jt-partner-statement/reconciliation/daily?${params}`, {
@@ -175,6 +177,7 @@ export function ReconciliationTab() {
             setDailyLoadState('success');
         } catch (e) {
             if ((e as { name?: string }).name === 'AbortError') return;
+            setDailyError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ');
             setDailyLoadState('error');
         }
     }, []);
@@ -349,7 +352,20 @@ export function ReconciliationTab() {
                         <h2 className="text-sm font-semibold text-white">ยอดสรุปรายวัน</h2>
                         <p className="mt-0.5 text-xs text-slate-500">เปรียบเทียบต้นทุนรวมของแต่ละวัน</p>
                     </div>
-                    <DailyReconciliationTable rows={dailyData} isLoading={dailyLoadState === 'loading'} />
+                    {dailyLoadState === 'error' ? (
+                        <div className="flex gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                            <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
+                            <div>
+                                <p className="font-semibold">โหลดข้อมูลรายวันไม่สำเร็จ</p>
+                                {dailyError && <p className="mt-1 text-rose-200/80">{dailyError}</p>}
+                                <p className="mt-1 text-xs text-rose-200/60">
+                                    ตรวจสอบว่าสร้าง function <code className="font-mono">jt_reconciliation_daily_summary</code> ใน Supabase แล้ว (SQL Editor → วาง SQL ที่ให้ไว้ → Run)
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <DailyReconciliationTable rows={dailyData} isLoading={dailyLoadState === 'loading'} />
+                    )}
                 </section>
             )}
 
@@ -551,7 +567,7 @@ function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliati
                         <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-purple-300">J&T เรียกเก็บ (ค่าส่ง)</th>
                         <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-rose-300">J&T (พื้นที่ห่างไกล)</th>
                         <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-amber-300">J&T (อื่นๆ)</th>
-                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-white">ผลต่าง (ระบบ - ค่าส่ง)</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-white">ผลต่าง (J&amp;T - ระบบ)</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-900/50 text-slate-300">
