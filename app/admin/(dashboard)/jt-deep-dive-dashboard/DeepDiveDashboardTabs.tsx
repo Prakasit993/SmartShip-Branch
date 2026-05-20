@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { BarChart3, Clock3 } from 'lucide-react';
+import { BarChart3, Clock3, GitCompareArrows } from 'lucide-react';
 import { useState } from 'react';
 
 const FinancialTab = dynamic(
@@ -18,7 +18,14 @@ const SLATab = dynamic(
     },
 );
 
-type DeepDiveTabKey = 'financial' | 'sla';
+const ReconciliationTab = dynamic(
+    () => import('./ReconciliationTab').then((mod) => mod.ReconciliationTab),
+    {
+        loading: () => <TabLoading label="กำลังโหลดแท็บกระทบยอด..." />,
+    },
+);
+
+type DeepDiveTabKey = 'financial' | 'sla' | 'reconciliation';
 
 const TABS: Array<{
     key: DeepDiveTabKey;
@@ -38,6 +45,12 @@ const TABS: Array<{
         description: 'เคสล่าช้า COD ผิดปกติ และงานปฏิบัติการ',
         icon: <Clock3 className="h-4 w-4" aria-hidden />,
     },
+    {
+        key: 'reconciliation',
+        label: 'กระทบยอด',
+        description: 'เปรียบเทียบต้นทุนเราคำนวณ vs ยอด J\u0026T เรียกเก็บจริง',
+        icon: <GitCompareArrows className="h-4 w-4" aria-hidden />,
+    },
 ];
 
 export function DeepDiveDashboardTabs() {
@@ -48,7 +61,7 @@ export function DeepDiveDashboardTabs() {
             <div
                 role="tablist"
                 aria-label="แท็บแดชบอร์ดวิเคราะห์เชิงลึก"
-                className="grid gap-2 md:grid-cols-2"
+                className="grid gap-2 md:grid-cols-3"
             >
                 {TABS.map((tab) => {
                     const active = activeTab === tab.key;
@@ -99,6 +112,16 @@ export function DeepDiveDashboardTabs() {
                         aria-labelledby="deep-dive-tab-sla"
                     >
                         <SLATab />
+                    </div>
+                ) : null}
+
+                {activeTab === 'reconciliation' ? (
+                    <div
+                        role="tabpanel"
+                        id="deep-dive-panel-reconciliation"
+                        aria-labelledby="deep-dive-tab-reconciliation"
+                    >
+                        <ReconciliationTab />
                     </div>
                 ) : null}
             </div>
