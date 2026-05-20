@@ -41,11 +41,20 @@ export async function GET(req: Request) {
             date_to: dateTo,
             data: rows.map((r) => ({
                 transactionDate: String(r.transaction_date ?? '').slice(0, 10),
-                systemShippingCost: Number(r.system_shipping_cost ?? 0),
-                statementTotalCost: Number(r.statement_total_cost ?? 0),
+                // ฝั่งระบบประเมิน
+                systemBaseShipping: Number(r.system_base_shipping ?? 0),
+                systemRemoteAreaFee: Number(r.system_remote_area_fee ?? 0),
+                systemCodFee: Number(r.system_cod_fee ?? 0),
+                systemOtherFee: Number(r.system_other_fee ?? 0),
+                systemInsuranceFee: Number(r.system_insurance_fee ?? 0),
+                systemReturnFee: Number(r.system_return_fee ?? 0),
+                systemTotalCost: Number(r.system_total_cost ?? 0),
+                // ฝั่ง J&T เรียกเก็บ
                 statementShippingCost: Number(r.statement_shipping_cost ?? 0),
+                statementAdjustmentCost: Number(r.statement_adjustment_cost ?? 0),
                 statementRemoteAreaFee: Number(r.statement_remote_area_fee ?? 0),
                 statementOtherFees: Number(r.statement_other_fees ?? 0),
+                statementTotalCost: Number(r.statement_total_cost ?? 0),
                 chargeBreakdown: r.charge_breakdown ?? {},
                 diff: Number(r.diff ?? 0),
             })),

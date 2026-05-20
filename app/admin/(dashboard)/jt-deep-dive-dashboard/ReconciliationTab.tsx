@@ -1,6 +1,7 @@
 'use client';
 
 import {
+    Fragment,
     useCallback,
     useEffect,
     useMemo,
@@ -65,11 +66,20 @@ type ReconciliationDetailRow = {
 
 type DailyReconciliationRow = {
     transactionDate: string;
-    systemShippingCost: number;
-    statementTotalCost: number;
+    // ฝั่งระบบประเมิน
+    systemBaseShipping: number;
+    systemRemoteAreaFee: number;
+    systemCodFee: number;
+    systemOtherFee: number;
+    systemInsuranceFee: number;
+    systemReturnFee: number;
+    systemTotalCost: number;
+    // ฝั่ง J&T เรียกเก็บ
     statementShippingCost: number;
+    statementAdjustmentCost: number;
     statementRemoteAreaFee: number;
     statementOtherFees: number;
+    statementTotalCost: number;
     chargeBreakdown: Record<string, number>;
     diff: number;
 };
@@ -525,6 +535,16 @@ function SummarySection({
 // ─── Daily Reconciliation Table ────────────────────────────────────────────────
 
 function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliationRow[]; isLoading: boolean }) {
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+    const toggle = (date: string) =>
+        setExpanded((prev) => {
+            const next = new Set(prev);
+            if (next.has(date)) next.delete(date);
+            else next.add(date);
+            return next;
+        });
+
     if (isLoading && rows.length === 0) {
         return (
             <div className="space-y-2">
@@ -544,16 +564,11 @@ function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliati
     }
 
     let sumSystem = 0;
-    let sumJtShipping = 0;
-    let sumJtRemote = 0;
-    let sumJtOther = 0;
+    let sumStatement = 0;
     let sumDiff = 0;
-
-    rows.forEach(r => {
-        sumSystem += r.systemShippingCost;
-        sumJtShipping += r.statementShippingCost;
-        sumJtRemote += r.statementRemoteAreaFee;
-        sumJtOther += r.statementOtherFees;
+    rows.forEach((r) => {
+        sumSystem += r.systemTotalCost;
+        sumStatement += r.statementTotalCost;
         sumDiff += r.diff;
     });
 
@@ -562,78 +577,143 @@ function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliati
             <table className="min-w-full text-left text-xs">
                 <thead className="text-slate-500">
                     <tr className="border-b border-slate-800 bg-slate-900/30">
+                        <th className="w-8 px-3 py-3" />
                         <th className="whitespace-nowrap px-3 py-3 font-semibold">วันที่</th>
-                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-sky-300">ระบบประเมิน (ค่าส่ง)</th>
-                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-purple-300">J&T เรียกเก็บ (ค่าส่ง)</th>
-                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-rose-300">J&T (พื้นที่ห่างไกล)</th>
-                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-amber-300">J&T (อื่นๆ)</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-sky-300">ระบบประเมิน (รวม)</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-purple-300">J&T เรียกเก็บ (รวม)</th>
                         <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-white">ผลต่าง (J&amp;T - ระบบ)</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-900/50 text-slate-300">
-                    {rows.map((row, i) => {
+                    {rows.map((row) => {
                         const gapPos = row.diff > 0;
                         const gapNeg = row.diff < 0;
+                        const isOpen = expanded.has(row.transactionDate);
                         return (
-                            <tr key={i} className="hover:bg-slate-900/50">
-                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-200">
-                                    {row.transactionDate || '—'}
-                                </td>
-                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-sky-200">
-                                    {row.systemShippingCost > 0 ? formatThb(row.systemShippingCost) : '—'}
-                                </td>
-                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-purple-200">
-                                    {row.statementShippingCost !== 0 ? formatThb(row.statementShippingCost) : '—'}
-                                </td>
-                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-rose-200">
-                                    {row.statementRemoteAreaFee !== 0 ? formatThb(row.statementRemoteAreaFee) : '—'}
-                                </td>
-                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-amber-200 group relative">
-                                    {row.statementOtherFees !== 0 ? (
-                                        <>
-                                            <span className="cursor-help border-b border-dashed border-amber-500/50">{formatThb(row.statementOtherFees)}</span>
-                                            {/* Tooltip for breakdown */}
-                                            {Object.keys(row.chargeBreakdown).length > 0 && (
-                                                <div className="absolute bottom-full right-0 mb-1 hidden w-max max-w-xs rounded-md border border-slate-700 bg-slate-800 p-2 text-xs shadow-xl group-hover:block z-10">
-                                                    {Object.entries(row.chargeBreakdown).map(([k, v]) => {
-                                                        if (k.includes('ต้นทุนค่าขนส่ง') && !k.includes('ปรับปรุง')) return null;
-                                                        if (k.includes('ค่าพื้นที่ห่างไกล')) return null;
-                                                        return (
-                                                            <div key={k} className="flex justify-between gap-4">
-                                                                <span className="text-slate-300">{k}:</span>
-                                                                <span className="font-mono text-amber-200">{formatThb(v as number)}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : '—'}
-                                </td>
-                                <td className={`whitespace-nowrap px-3 py-2.5 text-right font-bold tabular-nums ${
-                                    gapPos ? 'text-rose-300' : gapNeg ? 'text-emerald-300' : 'text-slate-500'
-                                }`}>
-                                    {row.diff !== 0
-                                        ? `${gapPos ? '+' : ''}${formatThb(row.diff)}`
-                                        : '—'}
-                                </td>
-                            </tr>
+                            <Fragment key={row.transactionDate}>
+                                <tr
+                                    className="cursor-pointer hover:bg-slate-900/50"
+                                    onClick={() => toggle(row.transactionDate)}
+                                >
+                                    <td className="px-3 py-2.5 text-slate-500">
+                                        <ChevronDown className={`h-3.5 w-3.5 transition ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
+                                    </td>
+                                    <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-200">
+                                        {row.transactionDate || '—'}
+                                    </td>
+                                    <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-sky-200">
+                                        {row.systemTotalCost > 0 ? formatThb(row.systemTotalCost) : '—'}
+                                    </td>
+                                    <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-purple-200">
+                                        {row.statementTotalCost !== 0 ? formatThb(row.statementTotalCost) : '—'}
+                                    </td>
+                                    <td className={`whitespace-nowrap px-3 py-2.5 text-right font-bold tabular-nums ${
+                                        gapPos ? 'text-rose-300' : gapNeg ? 'text-emerald-300' : 'text-slate-500'
+                                    }`}>
+                                        {row.diff !== 0 ? `${gapPos ? '+' : ''}${formatThb(row.diff)}` : '—'}
+                                    </td>
+                                </tr>
+                                {isOpen && (
+                                    <tr className="bg-slate-950/60">
+                                        <td colSpan={5} className="px-4 py-3">
+                                            <DailyBreakdownDetail row={row} />
+                                        </td>
+                                    </tr>
+                                )}
+                            </Fragment>
                         );
                     })}
                 </tbody>
                 <tfoot className="border-t-2 border-slate-800 bg-slate-900/60 font-semibold text-white">
                     <tr>
+                        <td className="px-3 py-3" />
                         <td className="whitespace-nowrap px-3 py-3">รวมทั้งหมด</td>
                         <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-sky-300">{formatThb(sumSystem)}</td>
-                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-purple-300">{formatThb(sumJtShipping)}</td>
-                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-rose-300">{formatThb(sumJtRemote)}</td>
-                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-amber-300">{formatThb(sumJtOther)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-purple-300">{formatThb(sumStatement)}</td>
                         <td className={`whitespace-nowrap px-3 py-3 text-right tabular-nums ${sumDiff > 0 ? 'text-rose-300' : sumDiff < 0 ? 'text-emerald-300' : 'text-white'}`}>
                             {sumDiff !== 0 ? `${sumDiff > 0 ? '+' : ''}${formatThb(sumDiff)}` : '0.00'}
                         </td>
                     </tr>
                 </tfoot>
             </table>
+        </div>
+    );
+}
+
+// ─── Daily Breakdown (expandable detail) ────────────────────────────────────────
+
+function DailyBreakdownDetail({ row }: { row: DailyReconciliationRow }) {
+    const systemRows: Array<{ label: string; value: number }> = [
+        { label: 'ค่าส่งฐาน', value: row.systemBaseShipping },
+        { label: 'พื้นที่ห่างไกล', value: row.systemRemoteAreaFee },
+        { label: 'COD fee', value: row.systemCodFee },
+        { label: 'ค่าอื่นๆ', value: row.systemOtherFee },
+        { label: 'ประกัน', value: row.systemInsuranceFee },
+        { label: 'ตีกลับ', value: row.systemReturnFee },
+    ];
+    const statementRows: Array<{ label: string; value: number }> = [
+        { label: 'ค่าส่ง', value: row.statementShippingCost },
+        { label: 'ปรับปรุงต้นทุน', value: row.statementAdjustmentCost },
+        { label: 'พื้นที่ห่างไกล', value: row.statementRemoteAreaFee },
+        { label: 'อื่นๆ', value: row.statementOtherFees },
+    ];
+
+    return (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {/* ฝั่งระบบ */}
+            <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.04] p-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-sky-300/80">ระบบประเมิน</p>
+                <dl className="space-y-1">
+                    {systemRows.map((r) => (
+                        <div key={r.label} className="flex justify-between gap-4 text-xs">
+                            <dt className="text-slate-400">{r.label}</dt>
+                            <dd className={`tabular-nums ${r.value !== 0 ? 'text-sky-200' : 'text-slate-600'}`}>
+                                {r.value !== 0 ? formatThb(r.value) : '—'}
+                            </dd>
+                        </div>
+                    ))}
+                    <div className="mt-1 flex justify-between gap-4 border-t border-slate-800 pt-1.5 text-xs font-semibold">
+                        <dt className="text-slate-300">รวม</dt>
+                        <dd className="tabular-nums text-sky-300">{formatThb(row.systemTotalCost)}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            {/* ฝั่ง J&T */}
+            <div className="rounded-lg border border-purple-500/20 bg-purple-500/[0.04] p-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-purple-300/80">J&T เรียกเก็บจริง</p>
+                <dl className="space-y-1">
+                    {statementRows.map((r) => (
+                        <div key={r.label} className="flex justify-between gap-4 text-xs">
+                            <dt className="text-slate-400">{r.label}</dt>
+                            <dd className={`tabular-nums ${r.value !== 0 ? 'text-purple-200' : 'text-slate-600'}`}>
+                                {r.value !== 0 ? formatThb(r.value) : '—'}
+                            </dd>
+                        </div>
+                    ))}
+                    <div className="mt-1 flex justify-between gap-4 border-t border-slate-800 pt-1.5 text-xs font-semibold">
+                        <dt className="text-slate-300">รวม</dt>
+                        <dd className="tabular-nums text-purple-300">{formatThb(row.statementTotalCost)}</dd>
+                    </div>
+                </dl>
+
+                {/* charge_type ดิบจาก statement */}
+                {Object.keys(row.chargeBreakdown).length > 0 && (
+                    <details className="mt-2">
+                        <summary className="cursor-pointer text-[11px] text-slate-500 hover:text-slate-300">
+                            ดู charge_type ดิบ ({Object.keys(row.chargeBreakdown).length})
+                        </summary>
+                        <ul className="mt-1 space-y-0.5">
+                            {Object.entries(row.chargeBreakdown).map(([k, v]) => (
+                                <li key={k} className="flex justify-between gap-4 text-[11px]">
+                                    <span className="text-slate-500">{k}</span>
+                                    <span className="tabular-nums text-slate-400">{formatThb(v as number)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </details>
+                )}
+            </div>
         </div>
     );
 }
