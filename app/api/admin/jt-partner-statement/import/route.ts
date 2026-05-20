@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import * as XLSX from 'xlsx';
 
 /** คอลัมน์ที่คาดหวังจากไฟล์ statement J&T — รองรับหลายชื่อหัวตาราง */
 const COLUMN_ALIASES = {
@@ -140,18 +141,28 @@ export async function POST(req: Request) {
         const filename = file.name;
         const ext = filename.split('.').pop()?.toLowerCase() ?? '';
 
-        if (!['csv', 'txt'].includes(ext)) {
+        if (!['csv', 'txt', 'xlsx', 'xls'].includes(ext)) {
             return NextResponse.json(
                 {
-                    error: 'รองรับเฉพาะไฟล์ CSV (.csv) เท่านั้น สำหรับ Excel ให้ Export เป็น CSV ก่อนนำเข้า',
-                    hint: 'เปิดไฟล์ Excel แล้วเลือก File → Save As → CSV (UTF-8 with BOM หรือ UTF-8)',
+                    error: 'รองรับไฟล์ CSV (.csv) และ Excel (.xlsx, .xls)',
                 },
                 { status: 415 },
             );
         }
 
-        const rawText = await file.text();
-        const rows = parseCsvRows(rawText);
+        let rows: string[][];
+
+        if (ext === 'xlsx' || ext === 'xls') {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
+            rows = jsonRows.map((row) => row.map((cell) => String(cell)));
+        } else {
+            const rawText = await file.text();
+            rows = parseCsvRows(rawText);
+        }
 
         if (rows.length < 2) {
             return NextResponse.json({ error: 'ไฟล์ว่างหรือมีแค่ header — ไม่มีข้อมูลให้นำเข้า' }, { status: 400 });

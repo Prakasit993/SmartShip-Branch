@@ -589,7 +589,7 @@ function StatementImportPanel({ onImportSuccess }: { onImportSuccess: () => void
                         นำเข้า Statement จาก J&T
                     </h2>
                     <p className="mt-0.5 text-xs text-slate-500">
-                        Export Excel เป็น CSV แล้วอัปโหลดที่นี่ — รองรับหัวตาราง ภาษาไทย/จีน/อังกฤษ
+                        รองรับไฟล์ Excel (.xlsx, .xls) หรือ CSV — ระบบจะดึงข้อมูลให้อัตโนมัติแม้จะมี Pivot Table ติดมา
                     </p>
                 </div>
                 <button
@@ -627,7 +627,7 @@ function StatementImportPanel({ onImportSuccess }: { onImportSuccess: () => void
                                     id="recon-file-input"
                                     ref={inputRef}
                                     type="file"
-                                    accept=".csv,.txt"
+                                    accept=".csv,.txt,.xlsx,.xls"
                                     onChange={(e) => { setFile(e.target.files?.[0] ?? null); setImportState({ status: 'idle' }); }}
                                     disabled={importState.status === 'uploading'}
                                     className="sr-only"
