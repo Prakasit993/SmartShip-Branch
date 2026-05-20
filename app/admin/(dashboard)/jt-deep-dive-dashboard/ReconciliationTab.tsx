@@ -541,6 +541,19 @@ function StatementImportPanel({ onImportSuccess }: { onImportSuccess: () => void
         if (inputRef.current) inputRef.current.value = '';
     };
 
+    const downloadTemplate = () => {
+        const headers = ['รหัสเงินสำรอง', 'หมายเลข AWB', 'รหัสสาขา', 'ประเภทย่อยของค่าใช้จ่าย', 'จำนวนเงิน', 'วันที่ทำธุรกรรม', 'หมายเหตุ'];
+        const bom = '\uFEFF';
+        const csv = bom + headers.map(h => `"${h}"`).join(',');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'jt_statement_template.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     const submit = async () => {
         if (!file) return;
         setImportState({ status: 'uploading' });
@@ -701,12 +714,23 @@ function StatementImportPanel({ onImportSuccess }: { onImportSuccess: () => void
                         </div>
                     )}
 
-                    {/* Help */}
-                    <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/30 p-3 text-xs text-slate-500">
-                        <p className="font-semibold text-slate-400">วิธี Export จาก Excel เป็น CSV:</p>
-                        <p className="mt-1">เปิดไฟล์ Excel → File → Save As → เลือก CSV UTF-8 (Comma delimited) (.csv)</p>
-                        <p className="mt-1">คอลัมน์ที่ต้องมี: หมายเลข AWB, จำนวนเงิน</p>
-                        <p className="mt-1">คอลัมน์เพิ่มเติม: ประเภทของยอดค่าใช้จ่าย, วันที่ทำธุรกรรม, รหัสสาขา, หมายเหตุ</p>
+                    {/* Help & Template */}
+                    <div className="flex flex-col sm:flex-row gap-3 rounded-lg border border-dashed border-slate-700 bg-slate-900/30 p-3 text-xs text-slate-500">
+                        <div className="flex-1">
+                            <p className="font-semibold text-slate-400">ข้อมูลที่ต้องกรอก:</p>
+                            <p className="mt-1">คอลัมน์ที่บังคับ: หมายเลข AWB, จำนวนเงิน</p>
+                            <p className="mt-1">คอลัมน์เพิ่มเติม: ประเภทย่อยของค่าใช้จ่าย, วันที่ทำธุรกรรม, รหัสสาขา, หมายเหตุ</p>
+                        </div>
+                        <div className="shrink-0 flex items-center justify-center sm:border-l border-slate-700 sm:pl-4">
+                            <button
+                                type="button"
+                                onClick={downloadTemplate}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 font-semibold text-sky-300 transition hover:border-sky-500/50 hover:bg-sky-500/20"
+                            >
+                                <Download className="h-3.5 w-3.5" aria-hidden />
+                                โหลดไฟล์ CSV นำเข้า
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
