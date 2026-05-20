@@ -1,12 +1,39 @@
 'use client';
 
-import Link from 'next/link';
 import { COOKIES_LIST } from '@app/types/cookies';
 import { useState } from 'react';
 import CookiePreferencesModal from '@app/components/ui/CookiePreferencesModal';
+import PolicyLayout from '@app/components/ui/PolicyLayout';
 
 export default function CookiePolicyPage() {
     const [showModal, setShowModal] = useState(false);
+
+    const cookieGroups = [
+        {
+            key: 'essential',
+            label: 'Essential',
+            title: 'Essential Cookies',
+            badge: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-500/30',
+            border: 'border-cyan-300/40 dark:border-cyan-700/40 bg-cyan-50/40 dark:bg-cyan-950/15',
+            desc: 'These cookies are necessary for the website to function and cannot be switched off.',
+        },
+        {
+            key: 'analytics',
+            label: 'Analytics',
+            title: 'Analytics Cookies',
+            badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/30',
+            border: 'border-blue-300/40 dark:border-blue-700/40 bg-blue-50/40 dark:bg-blue-950/15',
+            desc: 'These cookies allow us to count visits and traffic sources so we can measure and improve the performance of our site.',
+        },
+        {
+            key: 'marketing',
+            label: 'Marketing',
+            title: 'Marketing Cookies',
+            badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30',
+            border: 'border-amber-300/40 dark:border-amber-700/40 bg-amber-50/40 dark:bg-amber-950/15',
+            desc: 'These cookies may be set through our site by our advertising partners.',
+        },
+    ] as const;
 
     return (
         <>
@@ -15,11 +42,15 @@ export default function CookiePolicyPage() {
                 onClose={() => setShowModal(false)}
             />
 
-            <div className="container mx-auto px-4 py-12 max-w-4xl font-sans">
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-8 md:p-12">
-                    <h1 className="text-4xl font-black text-zinc-900 dark:text-white mb-2">Cookie Policy</h1>
-                    <p className="text-sm text-zinc-500 mb-8">Last updated: January 12, 2026</p>
-
+            <PolicyLayout
+                breadcrumb="Cookie Policy"
+                labTag="// COOKIE.POLICY"
+                title="Cookie Policy"
+                lastUpdated="Last updated: January 12, 2026"
+                lead="How NYXEL uses cookies — what we store, why, and how to manage your preferences."
+                versionMark="V.1 · 2026.01"
+            >
+                <div className="prose prose-zinc dark:prose-invert max-w-none">
                     {/* Introduction */}
                     <section className="mb-10">
                         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4">What Are Cookies?</h2>
@@ -46,107 +77,54 @@ export default function CookiePolicyPage() {
                     <section className="mb-10">
                         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">Types of Cookies We Use</h2>
 
-                        {/* Essential Cookies */}
-                        <div className="mb-8 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 bg-green-50/50 dark:bg-green-900/10">
-                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2">
-                                <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">Essential</span>
-                                Essential Cookies
-                            </h3>
-                            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
-                                These cookies are necessary for the website to function and cannot be switched off.
-                            </p>
-                            <details className="mt-4">
-                                <summary className="cursor-pointer text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
-                                    View Essential Cookies ({COOKIES_LIST.filter(c => c.category === 'essential').length})
-                                </summary>
-                                <table className="w-full mt-4 text-sm">
-                                    <thead>
-                                        <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Name</th>
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Purpose</th>
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Duration</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {COOKIES_LIST.filter(c => c.category === 'essential').map((cookie, idx) => (
-                                            <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800">
-                                                <td className="py-3 font-mono text-zinc-900 dark:text-white">{cookie.name}</td>
-                                                <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.purpose}</td>
-                                                <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.duration}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </details>
-                        </div>
-
-                        {/* Analytics Cookies */}
-                        <div className="mb-8 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 bg-blue-50/50 dark:bg-blue-900/10">
-                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2">
-                                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">Analytics</span>
-                                Analytics Cookies
-                            </h3>
-                            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
-                                These cookies allow us to count visits and traffic sources so we can measure and improve the performance of our site.
-                            </p>
-                            <details className="mt-4">
-                                <summary className="cursor-pointer text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
-                                    View Analytics Cookies ({COOKIES_LIST.filter(c => c.category === 'analytics').length})
-                                </summary>
-                                <table className="w-full mt-4 text-sm">
-                                    <thead>
-                                        <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Name</th>
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Purpose</th>
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Duration</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {COOKIES_LIST.filter(c => c.category === 'analytics').map((cookie, idx) => (
-                                            <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800">
-                                                <td className="py-3 font-mono text-zinc-900 dark:text-white">{cookie.name}</td>
-                                                <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.purpose}</td>
-                                                <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.duration}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </details>
-                        </div>
-
-                        {/* Marketing Cookies */}
-                        <div className="mb-8 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 bg-purple-50/50 dark:bg-purple-900/10">
-                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2">
-                                <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">Marketing</span>
-                                Marketing Cookies
-                            </h3>
-                            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
-                                These cookies may be set through our site by our advertising partners.
-                            </p>
-                            <details className="mt-4">
-                                <summary className="cursor-pointer text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
-                                    View Marketing Cookies ({COOKIES_LIST.filter(c => c.category === 'marketing').length})
-                                </summary>
-                                <table className="w-full mt-4 text-sm">
-                                    <thead>
-                                        <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Name</th>
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Purpose</th>
-                                            <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Duration</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {COOKIES_LIST.filter(c => c.category === 'marketing').map((cookie, idx) => (
-                                            <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800">
-                                                <td className="py-3 font-mono text-zinc-900 dark:text-white">{cookie.name}</td>
-                                                <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.purpose}</td>
-                                                <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.duration}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </details>
-                        </div>
+                        {cookieGroups.map((group) => {
+                            const items = COOKIES_LIST.filter((c) => c.category === group.key);
+                            return (
+                                <div
+                                    key={group.key}
+                                    className={`mb-6 border rounded-xl p-6 ${group.border}`}
+                                >
+                                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2">
+                                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${group.badge}`}>
+                                            {group.label}
+                                        </span>
+                                        {group.title}
+                                    </h3>
+                                    <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
+                                        {group.desc}
+                                    </p>
+                                    <details className="mt-4 group">
+                                        <summary className="cursor-pointer text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors list-none [&::-webkit-details-marker]:hidden">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <span className="font-mono text-cyan-600 dark:text-cyan-400">{'>'}</span>
+                                                View {group.label} Cookies ({items.length})
+                                                <span className="font-mono text-zinc-400 group-open:rotate-90 transition-transform inline-block">›</span>
+                                            </span>
+                                        </summary>
+                                        <div className="overflow-x-auto mt-4">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                                                        <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Name</th>
+                                                        <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Purpose</th>
+                                                        <th className="text-left py-2 text-zinc-700 dark:text-zinc-300">Duration</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {items.map((cookie, idx) => (
+                                                        <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800">
+                                                            <td className="py-3 font-mono text-zinc-900 dark:text-white">{cookie.name}</td>
+                                                            <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.purpose}</td>
+                                                            <td className="py-3 text-zinc-600 dark:text-zinc-400">{cookie.duration}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                </div>
+                            );
+                        })}
                     </section>
 
                     {/* Managing Cookies */}
@@ -157,7 +135,7 @@ export default function CookiePolicyPage() {
                         </p>
                         <button
                             onClick={() => setShowModal(true)}
-                            className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/40 hover:-translate-y-0.5 transition-all"
                         >
                             Manage Cookie Preferences
                         </button>
@@ -167,29 +145,14 @@ export default function CookiePolicyPage() {
                     </section>
 
                     {/* Contact & Updates */}
-                    <section className="mb-10">
+                    <section className="mb-4">
                         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4">Updates to This Policy</h2>
                         <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
                             We may update this Cookie Policy from time to time to reflect changes in our practices or for other operational, legal, or regulatory reasons.
                         </p>
                     </section>
-
-                    {/* Footer Links */}
-                    <div className="pt-8 border-t border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                        <Link
-                            href="/"
-                            className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-medium transition-colors"
-                        >
-                            ← Back to Home
-                        </Link>
-                        <div className="flex gap-4 text-sm">
-                            <Link href="/contact" className="text-blue-600 hover:underline">
-                                Contact Us
-                            </Link>
-                        </div>
-                    </div>
                 </div>
-            </div>
+            </PolicyLayout>
         </>
     );
 }

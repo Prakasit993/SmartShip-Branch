@@ -55,12 +55,12 @@ export default function AboutPage() {
             <section className="py-16 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-zinc-900 dark:to-zinc-950">
                 <div className="container mx-auto max-w-4xl text-center">
                     <h1 className="text-3xl md:text-5xl font-bold text-zinc-900 dark:text-white mb-6">
-                        {language === 'th' ? 'เกี่ยวกับ Express Shop' : 'About Express Shop'}
+                        {language === 'th' ? 'เกี่ยวกับ NYXEL' : 'About NYXEL'}
                     </h1>
                     <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
                         {language === 'th'
-                            ? 'เราคือผู้เชี่ยวชาญด้านอุปกรณ์แพ็คกิ้งและบริการจัดส่ง ให้บริการธุรกิจและบุคคลทั่วไปด้วยสินค้าคุณภาพและบริการที่เป็นเลิศ'
-                            : 'We are experts in packing supplies and shipping services, serving businesses and individuals with quality products and excellent service.'}
+                            ? 'NYXEL — สินค้า IT พรีเมียมและบริการจัดส่งทั่วไทย คัดสรร Notebook · GPU · RAM · accessories ของแท้พร้อมรับประกัน'
+                            : 'NYXEL — premium IT gear and nationwide express shipping. Curated notebooks, GPUs, RAM, and accessories with manufacturer warranty.'}
                     </p>
                 </div>
             </section>
@@ -76,8 +76,8 @@ export default function AboutPage() {
                             <div className="space-y-4 text-zinc-600 dark:text-zinc-400 leading-relaxed">
                                 <p>
                                     {language === 'th'
-                                        ? 'Express Shop ก่อตั้งขึ้นในปี 2567 ด้วยเป้าหมายเดียว - ทำให้การแพ็คและจัดส่งเป็นเรื่องง่ายสำหรับทุกคน'
-                                        : 'Express Shop was founded in 2024 with one goal - to make packing and shipping easy for everyone.'}
+                                        ? 'NYXEL ก่อตั้งขึ้นด้วยเป้าหมายเดียว — ทำให้การหาสินค้า IT พรีเมียมและส่งถึงมือลูกค้าเป็นเรื่องง่ายและน่าเชื่อถือสำหรับทุกคน'
+                                        : 'NYXEL was founded with one goal — to make sourcing premium IT gear and getting it delivered easy and trustworthy for everyone.'}
                                 </p>
                                 <p>
                                     {language === 'th'

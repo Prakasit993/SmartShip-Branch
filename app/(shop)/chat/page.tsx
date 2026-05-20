@@ -38,7 +38,7 @@ export default function ChatPage() {
                             🤖
                         </div>
                         <div>
-                            <h1 className="font-bold text-lg">Express Shop Assistant</h1>
+                            <h1 className="font-bold text-lg">NYXEL Assistant</h1>
                             <p className="text-xs text-zinc-500 flex items-center gap-1">
                                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                                 Online

@@ -17,8 +17,8 @@ export default function Footer({ settings = {} }: FooterProps) {
     const getVal = (key: string, fallback: string) => settings[key] || fallback;
 
     const contactPhone = getVal('contact_phone', '02-XXX-XXXX');
-    const contactLine = getVal('contact_line', '@expressshop');
-    const contactEmail = getVal('contact_email', 'contact@expressshop.com');
+    const contactLine = getVal('contact_line', '@nyxel');
+    const contactEmail = getVal('contact_email', 'contact@nyxel.com');
     const contactAddress = getVal('contact_address', 'กรุงเทพมหานคร, ประเทศไทย');
     const contactLineUrl = getVal('contact_line_url', 'https://line.me');
     const mapLink = getVal('map_link', 'https://maps.app.goo.gl/u8xZxi6XjyWpgm54A');

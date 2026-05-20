@@ -204,24 +204,36 @@ export default async function Home() {
         <Header />
 
         <main id="main-content" className="home-typography flex flex-col flex-1 outline-none" tabIndex={-1}>
-        {/* Announcement Banner - Premium Animated Design */}
+        {/* Announcement Banner — P-C hybrid (dark zinc + cyan accent + amber promo dot) */}
         {announcement && (
-          <div className="relative overflow-hidden bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-400 text-black text-center py-2.5 sm:py-3 px-3 font-bold text-xs sm:text-sm tracking-wide shadow-lg z-20">
-            {/* Animated shimmer effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-shimmer"
-              style={{ animation: 'shimmer 3s ease-in-out infinite' }} />
+          <div className="relative overflow-hidden bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 text-white text-center py-2.5 sm:py-3 px-3 border-y border-zinc-800/80 z-20">
+            {/* Top scan-line (cyan) — sweeps L→R */}
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-70 animate-shimmer" />
+            {/* Bottom faint cyan trail */}
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" aria-hidden />
+            {/* Side bars — gradient cyan↔amber↔cyan signals "tech + promo" */}
+            <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-cyan-500 via-amber-400 to-cyan-500" aria-hidden />
+            <div className="absolute inset-y-0 right-0 w-[2px] bg-gradient-to-b from-cyan-500 via-amber-400 to-cyan-500" aria-hidden />
 
-            <div className="relative flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 sm:gap-3 max-w-4xl mx-auto">
-              <span className="inline-flex items-center gap-1 shrink-0">
-                <span className="text-base sm:text-lg animate-bounce">🔥</span>
-                <span className="hidden sm:inline text-orange-800">โปรโมชั่นพิเศษ!</span>
+            <div className="relative flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 sm:gap-x-4 max-w-4xl mx-auto">
+              {/* Amber pulse dot + PROMO label */}
+              <span className="inline-flex items-center gap-2 shrink-0">
+                <span className="relative inline-flex w-2 h-2">
+                  <span className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-75" />
+                  <span className="relative inline-block w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgb(251,191,36)]" />
+                </span>
+                <span className="font-mono text-[10px] sm:text-[11px] tracking-[0.25em] uppercase font-bold text-amber-300">
+                  PROMO
+                </span>
               </span>
-              <span className="hidden sm:block border-l border-orange-500/50 h-4 shrink-0" aria-hidden />
-              <span className="font-extrabold tracking-wide text-balance px-1 min-w-0">
+              <span className="hidden sm:inline-block h-3 w-px bg-zinc-700 shrink-0" aria-hidden />
+              <span className="font-semibold text-xs sm:text-sm tracking-wide text-zinc-100 text-balance px-1 min-w-0">
                 {announcement}
               </span>
-              <span className="hidden sm:block border-l border-orange-500/50 h-4 shrink-0" aria-hidden />
-              <span className="text-base sm:text-lg animate-bounce delay-100 shrink-0">🎁</span>
+              <span className="hidden sm:inline-block h-3 w-px bg-zinc-700 shrink-0" aria-hidden />
+              <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-cyan-400 shrink-0">
+                NYXEL
+              </span>
             </div>
           </div>
         )}
