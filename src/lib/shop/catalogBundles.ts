@@ -43,17 +43,14 @@ async function fetchCatalogBundlesFromDb(params: {
 }): Promise<{ bundles: any[]; totalItems: number }> {
   const { name, brand, pmin, pmax, page, pageSize } = params;
 
-  const buildBase = () => {
-    let q = supabase.from('bundles').select('*', { count: 'exact', head: false }).eq('is_active', true);
-    q = applyNameOrFilter(q, name);
-    q = applyBrandFilter(q, brand);
-    if (pmin && !isNaN(Number(pmin))) q = q.gte('price', Number(pmin));
-    if (pmax && !isNaN(Number(pmax))) q = q.lte('price', Number(pmax));
-    return q;
-  };
+  // Count query
+  let countQ = supabase.from('bundles').select('*', { count: 'exact', head: true }).eq('is_active', true);
+  countQ = applyNameOrFilter(countQ, name);
+  countQ = applyBrandFilter(countQ, brand);
+  if (pmin && !isNaN(Number(pmin))) countQ = countQ.gte('price', Number(pmin));
+  if (pmax && !isNaN(Number(pmax))) countQ = countQ.lte('price', Number(pmax));
 
-  const { count: totalCount, error: countErr } = await buildBase()
-    .select('*', { count: 'exact', head: true });
+  const { count: totalCount, error: countErr } = await countQ;
   if (countErr) {
     console.error('[catalogBundles] count:', countErr.message);
     return { bundles: [], totalItems: 0 };
