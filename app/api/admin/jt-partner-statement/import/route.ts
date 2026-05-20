@@ -33,7 +33,7 @@ type ColumnKey = keyof typeof COLUMN_ALIASES;
 /** แมป header จริงในไฟล์ → field key */
 function buildHeaderMap(headers: string[]): Map<string, ColumnKey> {
     const map = new Map<string, ColumnKey>();
-    for (const [field, aliases] of Object.entries(COLUMN_ALIASES) as [ColumnKey, string[]][]) {
+    for (const [field, aliases] of Object.entries(COLUMN_ALIASES) as [ColumnKey, readonly string[]][]) {
         for (const header of headers) {
             const normalized = header.trim().toLowerCase();
             if (aliases.some((a) => a.toLowerCase() === normalized)) {
