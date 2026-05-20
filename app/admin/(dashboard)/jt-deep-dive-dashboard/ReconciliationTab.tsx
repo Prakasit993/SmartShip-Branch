@@ -12,6 +12,7 @@ import {
     AlertCircle,
     ArrowDownCircle,
     ArrowUpCircle,
+    CalendarDays,
     CheckCircle2,
     ChevronDown,
     Download,
@@ -144,8 +145,10 @@ export function ReconciliationTab() {
     const [dailyError, setDailyError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'awb' | 'daily'>('daily');
     const [showDetail, setShowDetail] = useState(true);
+    const [activePreset, setActivePreset] = useState<string>('30d');
 
     const canApply = YMD.test(dateFrom) && YMD.test(dateTo) && dateFrom <= dateTo;
+    const rangeDays = canApply ? daysBetween(dateFrom, dateTo) : 0;
 
     const load = useCallback(async (range: { from: string; to: string }, sf: StatusFilter, signal?: AbortSignal) => {
         setLoadState((prev) => ({ status: 'loading', data: prev.data ?? null }));
@@ -218,10 +221,17 @@ export function ReconciliationTab() {
         setAppliedRange({ from: dateFrom, to: dateTo });
     };
 
+    const onManualDate = (which: 'from' | 'to', value: string) => {
+        setActivePreset('custom');
+        if (which === 'from') setDateFrom(value);
+        else setDateTo(value);
+    };
+
     // Quick presets
-    const applyPreset = (days: number) => {
+    const applyPreset = (key: string, days: number) => {
         const from = toYmd(addDays(new Date(), -(days - 1)));
         const to = toYmd(new Date());
+        setActivePreset(key);
         setDateFrom(from);
         setDateTo(to);
         setAppliedRange({ from, to });
@@ -229,6 +239,7 @@ export function ReconciliationTab() {
     const applyLastMonth = () => {
         const from = toYmd(addMonths(new Date(), -1));
         const to = toYmd(new Date());
+        setActivePreset('lastmonth');
         setDateFrom(from);
         setDateTo(to);
         setAppliedRange({ from, to });
@@ -241,64 +252,104 @@ export function ReconciliationTab() {
 
             {/* Date Range Controls */}
             <div className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    เลือกช่วงวันที่สำหรับกระทบยอด
-                </p>
-                <div className="flex flex-wrap items-end gap-2">
-                    {/* Presets */}
-                    {[
-                        { label: '7 วัน', days: 7 },
-                        { label: '30 วัน', days: 30 },
-                        { label: '3 เดือน', days: 90 },
-                    ].map((p) => (
-                        <button
-                            key={p.days}
-                            type="button"
-                            onClick={() => applyPreset(p.days)}
-                            disabled={isLoading}
-                            className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-slate-600 hover:text-slate-100 disabled:opacity-50"
-                        >
-                            {p.label}
-                        </button>
-                    ))}
-                    <button
-                        type="button"
-                        onClick={applyLastMonth}
-                        disabled={isLoading}
-                        className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-400 transition hover:border-slate-600 hover:text-slate-100 disabled:opacity-50"
-                    >
-                        เดือนที่แล้ว
-                    </button>
+                <div className="mb-3 flex items-center justify-between">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+                        เลือกช่วงวันที่สำหรับกระทบยอด
+                    </p>
+                    {rangeDays > 0 && (
+                        <span className="rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-sky-300 ring-1 ring-sky-500/25">
+                            {rangeDays.toLocaleString('th-TH')} วัน
+                        </span>
+                    )}
+                </div>
 
-                    {/* Date inputs */}
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={dateFrom}
-                            max={dateTo || today}
-                            onChange={(e) => setDateFrom(e.target.value)}
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white transition focus:border-sky-500 focus:outline-none"
-                        />
-                        <span className="text-xs text-slate-500">ถึง</span>
-                        <input
-                            type="date"
-                            value={dateTo}
-                            min={dateFrom}
-                            max={today}
-                            onChange={(e) => setDateTo(e.target.value)}
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white transition focus:border-sky-500 focus:outline-none"
-                        />
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    {/* Presets */}
+                    <div>
+                        <span className="mb-1.5 block text-[11px] font-medium text-slate-500">ช่วงด่วน</span>
+                        <div className="flex flex-wrap gap-1.5">
+                            {[
+                                { key: '7d', label: '7 วัน', days: 7 },
+                                { key: '30d', label: '30 วัน', days: 30 },
+                                { key: '3m', label: '3 เดือน', days: 90 },
+                            ].map((p) => {
+                                const active = activePreset === p.key;
+                                return (
+                                    <button
+                                        key={p.key}
+                                        type="button"
+                                        onClick={() => applyPreset(p.key, p.days)}
+                                        disabled={isLoading}
+                                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                                            active
+                                                ? 'border-sky-500/50 bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/25'
+                                                : 'border-slate-700 bg-slate-950/70 text-slate-400 hover:border-slate-600 hover:text-slate-100'
+                                        }`}
+                                    >
+                                        {p.label}
+                                    </button>
+                                );
+                            })}
+                            <button
+                                type="button"
+                                onClick={applyLastMonth}
+                                disabled={isLoading}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                                    activePreset === 'lastmonth'
+                                        ? 'border-sky-500/50 bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/25'
+                                        : 'border-slate-700 bg-slate-950/70 text-slate-400 hover:border-slate-600 hover:text-slate-100'
+                                }`}
+                            >
+                                เดือนที่แล้ว
+                            </button>
+                        </div>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={applyRange}
-                        disabled={!canApply || isLoading}
-                        className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} aria-hidden />
-                        โหลดข้อมูล
-                    </button>
+                    {/* Date inputs + load */}
+                    <div className="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label htmlFor="recon-date-from" className="mb-1.5 block text-[11px] font-medium text-slate-500">
+                                ตั้งแต่
+                            </label>
+                            <input
+                                id="recon-date-from"
+                                type="date"
+                                value={dateFrom}
+                                max={dateTo || today}
+                                onChange={(e) => onManualDate('from', e.target.value)}
+                                className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm text-white transition focus:outline-none ${
+                                    activePreset === 'custom' ? 'border-sky-500/50' : 'border-slate-700 focus:border-sky-500'
+                                }`}
+                            />
+                        </div>
+                        <span className="pb-2.5 text-xs text-slate-500">ถึง</span>
+                        <div>
+                            <label htmlFor="recon-date-to" className="mb-1.5 block text-[11px] font-medium text-slate-500">
+                                ถึงวันที่
+                            </label>
+                            <input
+                                id="recon-date-to"
+                                type="date"
+                                value={dateTo}
+                                min={dateFrom}
+                                max={today}
+                                onChange={(e) => onManualDate('to', e.target.value)}
+                                className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm text-white transition focus:outline-none ${
+                                    activePreset === 'custom' ? 'border-sky-500/50' : 'border-slate-700 focus:border-sky-500'
+                                }`}
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={applyRange}
+                            disabled={!canApply || isLoading}
+                            className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} aria-hidden />
+                            โหลดข้อมูล
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -353,6 +404,11 @@ export function ReconciliationTab() {
             {/* Summary Cards (Only AWB mode for now) */}
             {viewMode === 'awb' && (summary || isLoading) && (
                 <SummarySection summary={summary} isLoading={isLoading} range={appliedRange} />
+            )}
+
+            {/* Daily Summary Cards */}
+            {viewMode === 'daily' && dailyLoadState !== 'error' && (
+                <DailySummaryCards rows={dailyData} isLoading={dailyLoadState === 'loading'} range={appliedRange} />
             )}
 
             {/* Daily View */}
@@ -527,6 +583,73 @@ function SummarySection({
                         {gapPositive ? '+ = J&T เก็บเกินกว่าที่เราคำนวณ' : '− = J&T เก็บน้อยกว่าที่เราคำนวณ'}
                     </p>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Daily Summary Cards ────────────────────────────────────────────────────────
+
+function DailySummaryCards({
+    rows,
+    isLoading,
+    range,
+}: {
+    rows: DailyReconciliationRow[];
+    isLoading: boolean;
+    range: { from: string; to: string };
+}) {
+    const totals = useMemo(() => {
+        let system = 0;
+        let statement = 0;
+        let diff = 0;
+        let daysWithGap = 0;
+        for (const r of rows) {
+            system += r.systemTotalCost;
+            statement += r.statementTotalCost;
+            diff += r.diff;
+            if (Math.abs(r.diff) >= 1) daysWithGap += 1;
+        }
+        const diffPct = system !== 0 ? (diff / system) * 100 : 0;
+        return { system, statement, diff, diffPct, daysWithGap };
+    }, [rows]);
+
+    const hasData = rows.length > 0;
+    const gapPositive = totals.diff >= 0;
+    const dash = isLoading ? '…' : '-';
+
+    return (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-300/80">ระบบประเมิน (รวม)</p>
+                <p className="mt-1 text-lg font-bold tabular-nums text-white">
+                    {hasData ? formatThb(totals.system) : dash}
+                </p>
+                <p className="mt-0.5 text-[11px] text-sky-300/50">{range.from} – {range.to}</p>
+            </div>
+
+            <div className="rounded-xl border border-purple-500/20 bg-purple-500/[0.06] p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-purple-300/80">J&T เรียกเก็บ (รวม)</p>
+                <p className="mt-1 text-lg font-bold tabular-nums text-white">
+                    {hasData ? formatThb(totals.statement) : dash}
+                </p>
+                <p className="mt-0.5 text-[11px] text-purple-300/50">
+                    {hasData ? `${totals.daysWithGap.toLocaleString('th-TH')} วันที่ยอดต่างกัน` : ''}
+                </p>
+            </div>
+
+            <div className={`rounded-xl border p-3 ${gapPositive ? 'border-rose-500/25 bg-rose-500/[0.06]' : 'border-emerald-500/25 bg-emerald-500/[0.06]'}`}>
+                <p className={`text-[11px] font-semibold uppercase tracking-wide ${gapPositive ? 'text-rose-300/80' : 'text-emerald-300/80'}`}>
+                    ผลต่างรวม (J&T − ระบบ)
+                </p>
+                <p className={`mt-1 text-lg font-bold tabular-nums ${gapPositive ? 'text-rose-200' : 'text-emerald-200'}`}>
+                    {hasData ? `${gapPositive ? '+' : ''}${formatThb(totals.diff)}` : dash}
+                </p>
+                <p className={`mt-0.5 text-[11px] ${gapPositive ? 'text-rose-300/50' : 'text-emerald-300/50'}`}>
+                    {hasData
+                        ? `${gapPositive ? '+' : ''}${totals.diffPct.toFixed(1)}% · ${gapPositive ? 'J&T เก็บเกิน' : 'J&T เก็บน้อยกว่า'}`
+                        : ''}
+                </p>
             </div>
         </div>
     );
@@ -1113,6 +1236,13 @@ function ReconcileCard({
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function daysBetween(from: string, to: string): number {
+    const a = new Date(`${from}T00:00:00`).getTime();
+    const b = new Date(`${to}T00:00:00`).getTime();
+    if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+    return Math.round((b - a) / 86_400_000) + 1; // inclusive
+}
 
 function emptySummary(): ReconciliationSummary {
     return {
