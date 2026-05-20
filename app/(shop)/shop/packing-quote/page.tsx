@@ -1,8 +1,8 @@
 import QuoteForm from './QuoteForm';
 
 export const metadata = {
-    title: 'Request Packing Quote | Express Shop',
-    description: 'Get a professional packing quote for your business.',
+    title: 'ขอใบเสนอราคาธุรกิจ | NYXEL B2B',
+    description: 'ใบเสนอราคา IT สำหรับธุรกิจ — ทีม NYXEL B2B พร้อมช่วยจัดสเปก ราคาพิเศษสำหรับจำนวนมาก และประสานงานรับประกัน',
 };
 
 export default function PackingQuotePage() {

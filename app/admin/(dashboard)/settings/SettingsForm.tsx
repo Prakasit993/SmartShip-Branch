@@ -255,20 +255,20 @@ export default function SettingsForm({ initialSettings, saved, error }: Settings
                         <InputField
                             name="contact_line"
                             label="LINE ID"
-                            defaultValue={getSetting('contact_line', '@expressshop')}
+                            defaultValue={getSetting('contact_line', '@nyxel')}
                             placeholder="@yourshop"
                         />
                         <InputField
                             name="contact_email"
                             label="Email"
                             type="email"
-                            defaultValue={getSetting('contact_email', 'info@expressshop.com')}
+                            defaultValue={getSetting('contact_email', 'info@nyxel.com')}
                             placeholder="info@yourshop.com"
                         />
                         <InputField
                             name="contact_line_url"
                             label="LINE URL (ลิงก์เพิ่มเพื่อน)"
-                            defaultValue={getSetting('contact_line_url', 'https://line.me/ti/p/@expressshop')}
+                            defaultValue={getSetting('contact_line_url', 'https://line.me/ti/p/@nyxel')}
                             placeholder="https://line.me/ti/p/@yourshop"
                         />
                     </div>

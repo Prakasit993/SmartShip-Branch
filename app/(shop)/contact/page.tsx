@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
     title: 'ติดต่อเรา',
     description:
-        'ช่องทางติดต่อ Express Shop — โทรศัพท์ LINE อีเมล ที่อยู่ร้าน และแผนที่ Google Maps',
+        'ช่องทางติดต่อ NYXEL — โทรศัพท์ LINE อีเมล ที่อยู่ร้าน และแผนที่ Google Maps',
 };
 
 export default async function ContactPage() {
@@ -23,9 +23,9 @@ export default async function ContactPage() {
     };
 
     const contactPhone = getSetting('contact_phone', '081-234-5678');
-    const contactLine = getSetting('contact_line', '@expressshop');
-    const contactLineUrl = getSetting('contact_line_url', 'https://line.me/ti/p/@expressshop');
-    const contactEmail = getSetting('contact_email', 'info@expressshop.com');
+    const contactLine = getSetting('contact_line', '@nyxel');
+    const contactLineUrl = getSetting('contact_line_url', 'https://line.me/ti/p/@nyxel');
+    const contactEmail = getSetting('contact_email', 'info@nyxel.com');
     const contactAddress = getSetting('contact_address', '123 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110');
     const mapEmbedUrl = getSetting('map_embed_url', '');
     const mapLink = getSetting('map_link', 'https://maps.app.goo.gl/u8xZxi6XjyWpgm54A');

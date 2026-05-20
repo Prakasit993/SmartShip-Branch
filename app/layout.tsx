@@ -24,21 +24,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: {
-    default: "Express Shop — อุปกรณ์แพ็คและชุดบริการจัดส่ง",
-    template: "%s | Express Shop",
+    default: "NYXEL — สินค้า IT พรีเมียม ส่งไวทั่วไทย",
+    template: "%s | NYXEL",
   },
   description:
-    "เลือกซื้อชุดกล่อง อุปกรณ์แพ็ค และของเสริมคุณภาพ สั่งล่วงหน้าและรับที่ร้าน หรือให้เราเตรียมพร้อมให้คุณ",
-  applicationName: "Express Shop",
-  authors: [{ name: "Express Shop" }],
-  creator: "Express Shop",
+    "NYXEL — Notebook · การ์ดจอ · RAM · หูฟัง · คีย์บอร์ด คัดสรรของแท้พร้อมรับประกัน จัดส่งด่วนทั่วไทยผ่าน J&T Express",
+  applicationName: "NYXEL",
+  authors: [{ name: "NYXEL" }],
+  creator: "NYXEL",
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
     locale: "th_TH",
-    siteName: "Express Shop",
+    siteName: "NYXEL",
   },
 };
 
