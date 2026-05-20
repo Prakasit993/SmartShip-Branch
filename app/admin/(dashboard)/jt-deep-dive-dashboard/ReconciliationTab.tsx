@@ -63,6 +63,17 @@ type ReconciliationDetailRow = {
     chargeTypes: string;
 };
 
+type DailyReconciliationRow = {
+    transactionDate: string;
+    systemShippingCost: number;
+    statementTotalCost: number;
+    statementShippingCost: number;
+    statementRemoteAreaFee: number;
+    statementOtherFees: number;
+    chargeBreakdown: Record<string, number>;
+    diff: number;
+};
+
 type ReconciliationData = {
     date_from: string;
     date_to: string;
@@ -118,7 +129,10 @@ export function ReconciliationTab() {
     const [appliedRange, setAppliedRange] = useState({ from: defaultFrom, to: today });
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [loadState, setLoadState] = useState<LoadState>({ status: 'idle', data: null });
-    const [showDetail, setShowDetail] = useState(false);
+    const [dailyData, setDailyData] = useState<DailyReconciliationRow[]>([]);
+    const [dailyLoadState, setDailyLoadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [viewMode, setViewMode] = useState<'awb' | 'daily'>('daily');
+    const [showDetail, setShowDetail] = useState(true);
 
     const canApply = YMD.test(dateFrom) && YMD.test(dateTo) && dateFrom <= dateTo;
 
@@ -147,18 +161,40 @@ export function ReconciliationTab() {
         });
     }, []);
 
+    const loadDaily = useCallback(async (range: { from: string; to: string }, signal?: AbortSignal) => {
+        setDailyLoadState('loading');
+        try {
+            const params = new URLSearchParams({ date_from: range.from, date_to: range.to });
+            const res = await fetch(`/api/admin/jt-partner-statement/reconciliation/daily?${params}`, {
+                credentials: 'same-origin',
+                signal,
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error ?? 'โหลดข้อมูลรายวันไม่สำเร็จ');
+            setDailyData(json.data ?? []);
+            setDailyLoadState('success');
+        } catch (e) {
+            if ((e as { name?: string }).name === 'AbortError') return;
+            setDailyLoadState('error');
+        }
+    }, []);
+
     useEffect(() => {
         const ctrl = new AbortController();
-        load(appliedRange, statusFilter, ctrl.signal).catch((e: unknown) => {
-            if ((e as { name?: string }).name === 'AbortError') return;
-            setLoadState((prev) => ({
-                status: 'error',
-                data: prev.data ?? null,
-                error: e instanceof Error ? e.message : 'โหลดไม่สำเร็จ',
-            }));
-        });
+        if (viewMode === 'awb') {
+            load(appliedRange, statusFilter, ctrl.signal).catch((e: unknown) => {
+                if ((e as { name?: string }).name === 'AbortError') return;
+                setLoadState((prev) => ({
+                    status: 'error',
+                    data: prev.data ?? null,
+                    error: e instanceof Error ? e.message : 'โหลดไม่สำเร็จ',
+                }));
+            });
+        } else {
+            loadDaily(appliedRange, ctrl.signal);
+        }
         return () => ctrl.abort();
-    }, [appliedRange, statusFilter, load]);
+    }, [appliedRange, statusFilter, load, loadDaily, viewMode]);
 
     const isLoading = loadState.status === 'loading';
     const data = loadState.status === 'success' || loadState.status === 'loading' ? loadState.data : null;
@@ -275,13 +311,50 @@ export function ReconciliationTab() {
                 </div>
             )}
 
-            {/* Summary Cards */}
-            {(summary || isLoading) && (
+            {/* View Mode Toggle */}
+            <div className="flex justify-center mb-4">
+                <div className="inline-flex rounded-lg bg-slate-900/80 p-1">
+                    <button
+                        onClick={() => setViewMode('daily')}
+                        className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                            viewMode === 'daily'
+                                ? 'bg-sky-500 text-white shadow'
+                                : 'text-slate-400 hover:text-white'
+                        }`}
+                    >
+                        สรุปรายวัน
+                    </button>
+                    <button
+                        onClick={() => setViewMode('awb')}
+                        className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                            viewMode === 'awb'
+                                ? 'bg-sky-500 text-white shadow'
+                                : 'text-slate-400 hover:text-white'
+                        }`}
+                    >
+                        ราย AWB
+                    </button>
+                </div>
+            </div>
+
+            {/* Summary Cards (Only AWB mode for now) */}
+            {viewMode === 'awb' && (summary || isLoading) && (
                 <SummarySection summary={summary} isLoading={isLoading} range={appliedRange} />
             )}
 
-            {/* Status Filter + Detail Table */}
-            {(summary || isLoading) && (
+            {/* Daily View */}
+            {viewMode === 'daily' && (
+                <section className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4">
+                    <div className="mb-3">
+                        <h2 className="text-sm font-semibold text-white">ยอดสรุปรายวัน</h2>
+                        <p className="mt-0.5 text-xs text-slate-500">เปรียบเทียบต้นทุนรวมของแต่ละวัน</p>
+                    </div>
+                    <DailyReconciliationTable rows={dailyData} isLoading={dailyLoadState === 'loading'} />
+                </section>
+            )}
+
+            {/* Status Filter + Detail Table (AWB Mode) */}
+            {viewMode === 'awb' && (summary || isLoading) && (
                 <section className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
@@ -429,6 +502,122 @@ function SummarySection({
                     </p>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// ─── Daily Reconciliation Table ────────────────────────────────────────────────
+
+function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliationRow[]; isLoading: boolean }) {
+    if (isLoading && rows.length === 0) {
+        return (
+            <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-9 w-full animate-pulse rounded-lg bg-slate-800/50" />
+                ))}
+            </div>
+        );
+    }
+
+    if (rows.length === 0) {
+        return (
+            <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/35 p-5 text-center text-sm text-slate-500">
+                ไม่มีข้อมูลในช่วงวันที่นี้
+            </div>
+        );
+    }
+
+    let sumSystem = 0;
+    let sumJtShipping = 0;
+    let sumJtRemote = 0;
+    let sumJtOther = 0;
+    let sumDiff = 0;
+
+    rows.forEach(r => {
+        sumSystem += r.systemShippingCost;
+        sumJtShipping += r.statementShippingCost;
+        sumJtRemote += r.statementRemoteAreaFee;
+        sumJtOther += r.statementOtherFees;
+        sumDiff += r.diff;
+    });
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-xs">
+                <thead className="text-slate-500">
+                    <tr className="border-b border-slate-800 bg-slate-900/30">
+                        <th className="whitespace-nowrap px-3 py-3 font-semibold">วันที่</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-sky-300">ระบบประเมิน (ค่าส่ง)</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-purple-300">J&T เรียกเก็บ (ค่าส่ง)</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-rose-300">J&T (พื้นที่ห่างไกล)</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-amber-300">J&T (อื่นๆ)</th>
+                        <th className="whitespace-nowrap px-3 py-3 text-right font-semibold text-white">ผลต่าง (ระบบ - ค่าส่ง)</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-900/50 text-slate-300">
+                    {rows.map((row, i) => {
+                        const gapPos = row.diff > 0;
+                        const gapNeg = row.diff < 0;
+                        return (
+                            <tr key={i} className="hover:bg-slate-900/50">
+                                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-200">
+                                    {row.transactionDate || '—'}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-sky-200">
+                                    {row.systemShippingCost > 0 ? formatThb(row.systemShippingCost) : '—'}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-purple-200">
+                                    {row.statementShippingCost !== 0 ? formatThb(row.statementShippingCost) : '—'}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-rose-200">
+                                    {row.statementRemoteAreaFee !== 0 ? formatThb(row.statementRemoteAreaFee) : '—'}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-amber-200 group relative">
+                                    {row.statementOtherFees !== 0 ? (
+                                        <>
+                                            <span className="cursor-help border-b border-dashed border-amber-500/50">{formatThb(row.statementOtherFees)}</span>
+                                            {/* Tooltip for breakdown */}
+                                            {Object.keys(row.chargeBreakdown).length > 0 && (
+                                                <div className="absolute bottom-full right-0 mb-1 hidden w-max max-w-xs rounded-md border border-slate-700 bg-slate-800 p-2 text-xs shadow-xl group-hover:block z-10">
+                                                    {Object.entries(row.chargeBreakdown).map(([k, v]) => {
+                                                        if (k.includes('ต้นทุนค่าขนส่ง') && !k.includes('ปรับปรุง')) return null;
+                                                        if (k.includes('ค่าพื้นที่ห่างไกล')) return null;
+                                                        return (
+                                                            <div key={k} className="flex justify-between gap-4">
+                                                                <span className="text-slate-300">{k}:</span>
+                                                                <span className="font-mono text-amber-200">{formatThb(v as number)}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : '—'}
+                                </td>
+                                <td className={`whitespace-nowrap px-3 py-2.5 text-right font-bold tabular-nums ${
+                                    gapPos ? 'text-rose-300' : gapNeg ? 'text-emerald-300' : 'text-slate-500'
+                                }`}>
+                                    {row.diff !== 0
+                                        ? `${gapPos ? '+' : ''}${formatThb(row.diff)}`
+                                        : '—'}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+                <tfoot className="border-t-2 border-slate-800 bg-slate-900/60 font-semibold text-white">
+                    <tr>
+                        <td className="whitespace-nowrap px-3 py-3">รวมทั้งหมด</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-sky-300">{formatThb(sumSystem)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-purple-300">{formatThb(sumJtShipping)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-rose-300">{formatThb(sumJtRemote)}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-amber-300">{formatThb(sumJtOther)}</td>
+                        <td className={`whitespace-nowrap px-3 py-3 text-right tabular-nums ${sumDiff > 0 ? 'text-rose-300' : sumDiff < 0 ? 'text-emerald-300' : 'text-white'}`}>
+                            {sumDiff !== 0 ? `${sumDiff > 0 ? '+' : ''}${formatThb(sumDiff)}` : '0.00'}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
     );
 }
