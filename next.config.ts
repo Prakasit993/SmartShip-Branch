@@ -8,7 +8,7 @@ function contentSecurityPolicy(): string {
     "object-src 'none'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://accounts.google.com https://apis.google.com",
     "style-src 'self' 'unsafe-inline' https://accounts.google.com",
-    "img-src 'self' data: blob: https://*.supabase.co https://placehold.co https://*.googleusercontent.com",
+    "img-src 'self' data: blob: https://*.supabase.co https://placehold.co https://picsum.photos https://*.googleusercontent.com",
     "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://accounts.google.com",
     "frame-src 'self' https://www.google.com https://maps.google.com https://challenges.cloudflare.com https://accounts.google.com",
@@ -65,6 +65,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "placehold.co",
+      },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
       },
     ],
   },
