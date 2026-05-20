@@ -4,6 +4,7 @@ import Link from 'next/link';
 import CookieSettingsButton from '@app/components/ui/CookieSettingsButton';
 import { useLanguage } from '@app/context/LanguageContext';
 import NyxelMark from '@app/components/brand/NyxelMark';
+import { Phone, Mail, MapPin, Clock } from 'lucide-react';
 
 interface FooterProps {
     settings?: Record<string, string>;
@@ -13,11 +14,9 @@ export default function Footer({ settings = {} }: FooterProps) {
     const currentYear = new Date().getFullYear();
     const { t } = useLanguage();
 
-    // Helper to get setting with fallback
     const getVal = (key: string, fallback: string) => settings[key] || fallback;
 
     const contactPhone = getVal('contact_phone', '02-XXX-XXXX');
-    const contactLine = getVal('contact_line', '@nyxel');
     const contactEmail = getVal('contact_email', 'contact@nyxel.com');
     const contactAddress = getVal('contact_address', 'กรุงเทพมหานคร, ประเทศไทย');
     const contactLineUrl = getVal('contact_line_url', 'https://line.me');
@@ -26,37 +25,52 @@ export default function Footer({ settings = {} }: FooterProps) {
 
     return (
         <footer className="bg-gradient-to-b from-zinc-900 to-black text-white py-16 px-4 relative overflow-hidden">
-            {/* Decorative Elements */}
-            <div className="absolute top-0 left-0 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-0 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+            {/* Ambient blobs — cyan, matching Contact */}
+            <div className="absolute top-0 left-0 w-80 h-80 bg-cyan-500/8 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" aria-hidden />
+            <div className="absolute bottom-0 right-0 w-80 h-80 bg-cyan-500/6 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" aria-hidden />
+
+            {/* Top scan-line edge */}
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" aria-hidden />
 
             <div className="container mx-auto max-w-6xl relative z-10">
-                {/* Main Footer Content */}
+                {/* Lab-style section marker */}
+                <div className="flex items-center gap-3 mb-12">
+                    <span className="h-px w-12 bg-cyan-500/40" />
+                    <span className="font-mono text-[10px] tracking-[0.3em] text-cyan-500/70 uppercase select-none">
+                        NYXEL // FOOTER
+                    </span>
+                    <span className="h-px flex-1 bg-cyan-500/10" />
+                </div>
+
+                {/* Main grid */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-                    {/* Brand Section */}
+
+                    {/* Brand */}
                     <div className="md:col-span-1">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-cyan-900/40">
+                            <div className="w-12 h-12 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-cyan-900/40 ring-1 ring-cyan-500/30">
                                 <NyxelMark className="w-8 h-8" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-xl">
+                                <h3 className="font-black text-xl tracking-tight">
                                     N<span style={{ color: 'var(--nyxel-accent)' }}>Y</span>XEL
                                 </h3>
-                                <p className="text-xs text-zinc-400">Premium IT</p>
+                                <p className="font-mono text-[10px] tracking-widest text-zinc-400 uppercase">
+                                    Premium IT
+                                </p>
                             </div>
                         </div>
                         <p className="text-sm text-zinc-400 leading-relaxed mb-6">
                             {t('footer.description')}
                         </p>
 
-                        {/* Social Links */}
+                        {/* Social links */}
                         <div className="flex gap-3">
                             <a
                                 href="https://facebook.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-10 h-10 rounded-xl bg-white/10 hover:bg-blue-600 flex items-center justify-center text-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-600/30"
+                                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/50 flex items-center justify-center text-zinc-400 hover:text-cyan-400 transition-all duration-300 hover:scale-110"
                                 aria-label="Facebook"
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -67,7 +81,7 @@ export default function Footer({ settings = {} }: FooterProps) {
                                 href={contactLineUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-10 h-10 rounded-xl bg-white/10 hover:bg-green-500 flex items-center justify-center text-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-green-500/30"
+                                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/50 flex items-center justify-center text-zinc-400 hover:text-cyan-400 transition-all duration-300 hover:scale-110"
                                 aria-label="Line"
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -78,7 +92,7 @@ export default function Footer({ settings = {} }: FooterProps) {
                                 href={mapLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-10 h-10 rounded-xl bg-white/10 hover:bg-red-500 flex items-center justify-center text-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-red-500/30"
+                                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/50 flex items-center justify-center text-zinc-400 hover:text-cyan-400 transition-all duration-300 hover:scale-110"
                                 aria-label="Google Maps"
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -90,21 +104,30 @@ export default function Footer({ settings = {} }: FooterProps) {
 
                     {/* Quick Links */}
                     <div>
-                        <h4 className="font-bold text-white mb-5 flex items-center gap-2">
-                            <span className="w-8 h-0.5 bg-gradient-to-r from-blue-500 to-transparent rounded" />
-                            ลิงก์ด่วน
-                        </h4>
+                        <h4 className="sr-only">ลิงก์ด่วน</h4>
+                        <div className="flex items-center gap-2 mb-3" aria-hidden>
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" aria-hidden />
+                            <span className="font-mono text-[10px] tracking-[0.25em] text-cyan-400 font-bold uppercase">
+                                Quick Links
+                            </span>
+                        </div>
+                        <div className="h-px w-10 bg-cyan-500/30 mb-5" aria-hidden />
                         <ul className="space-y-3">
                             <li>
-                                <Link href="/shop" className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Link
+                                    href="/shop"
+                                    className="text-sm text-zinc-400 hover:text-cyan-300 transition-colors flex items-center gap-2 group"
+                                >
+                                    <span className="w-1 h-1 rounded-full bg-cyan-500/50 group-hover:bg-cyan-400 transition-colors shrink-0" />
                                     สินค้า
                                 </Link>
                             </li>
-
                             <li>
-                                <Link href="/contact" className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Link
+                                    href="/contact"
+                                    className="text-sm text-zinc-400 hover:text-cyan-300 transition-colors flex items-center gap-2 group"
+                                >
+                                    <span className="w-1 h-1 rounded-full bg-cyan-500/50 group-hover:bg-cyan-400 transition-colors shrink-0" />
                                     ติดต่อเรา
                                 </Link>
                             </li>
@@ -113,26 +136,43 @@ export default function Footer({ settings = {} }: FooterProps) {
 
                     {/* Legal */}
                     <div>
-                        <h4 className="font-bold text-white mb-5 flex items-center gap-2">
-                            <span className="w-8 h-0.5 bg-gradient-to-r from-purple-500 to-transparent rounded" />
-                            กฎหมาย
-                        </h4>
+                        <h4 className="sr-only">กฎหมาย</h4>
+                        <div className="flex items-center gap-2 mb-3" aria-hidden>
+                            <span
+                                className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400/70 animate-pulse"
+                                style={{ animationDelay: '0.4s' }}
+                                aria-hidden
+                            />
+                            <span className="font-mono text-[10px] tracking-[0.25em] text-cyan-400 font-bold uppercase">
+                                Legal
+                            </span>
+                        </div>
+                        <div className="h-px w-10 bg-cyan-500/30 mb-5" aria-hidden />
                         <ul className="space-y-3">
                             <li>
-                                <Link href="/cookie-policy" className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Link
+                                    href="/cookie-policy"
+                                    className="text-sm text-zinc-400 hover:text-cyan-300 transition-colors flex items-center gap-2 group"
+                                >
+                                    <span className="w-1 h-1 rounded-full bg-cyan-500/50 group-hover:bg-cyan-400 transition-colors shrink-0" />
                                     นโยบายคุกกี้
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/privacy-policy" className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Link
+                                    href="/privacy-policy"
+                                    className="text-sm text-zinc-400 hover:text-cyan-300 transition-colors flex items-center gap-2 group"
+                                >
+                                    <span className="w-1 h-1 rounded-full bg-cyan-500/50 group-hover:bg-cyan-400 transition-colors shrink-0" />
                                     ความเป็นส่วนตัว
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/terms" className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 group">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <Link
+                                    href="/terms"
+                                    className="text-sm text-zinc-400 hover:text-cyan-300 transition-colors flex items-center gap-2 group"
+                                >
+                                    <span className="w-1 h-1 rounded-full bg-cyan-500/50 group-hover:bg-cyan-400 transition-colors shrink-0" />
                                     ข้อกำหนด
                                 </Link>
                             </li>
@@ -144,40 +184,64 @@ export default function Footer({ settings = {} }: FooterProps) {
 
                     {/* Contact Info */}
                     <div>
-                        <h4 className="font-bold text-white mb-5 flex items-center gap-2">
-                            <span className="w-8 h-0.5 bg-gradient-to-r from-green-500 to-transparent rounded" />
-                            ติดต่อ
-                        </h4>
-                        <ul className="space-y-4 text-sm">
+                        <h4 className="sr-only">ข้อมูลติดต่อ</h4>
+                        <div className="flex items-center gap-2 mb-3" aria-hidden>
+                            <span
+                                className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400/50 animate-pulse"
+                                style={{ animationDelay: '0.8s' }}
+                                aria-hidden
+                            />
+                            <span className="font-mono text-[10px] tracking-[0.25em] text-cyan-400 font-bold uppercase">
+                                Contact
+                            </span>
+                        </div>
+                        <div className="h-px w-10 bg-cyan-500/30 mb-5" aria-hidden />
+                        <ul className="space-y-3 text-sm">
                             <li className="flex items-start gap-3 text-zinc-400">
-                                <span className="text-lg">📍</span>
-                                <span>{contactAddress}</span>
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 ring-1 ring-cyan-500/20 text-cyan-500 mt-0.5">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                </div>
+                                <span className="leading-relaxed">{contactAddress}</span>
                             </li>
                             <li className="flex items-center gap-3 text-zinc-400">
-                                <span className="text-lg">📞</span>
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 ring-1 ring-cyan-500/20 text-cyan-500">
+                                    <Phone className="h-3.5 w-3.5" />
+                                </div>
                                 <span>{contactPhone}</span>
                             </li>
                             <li className="flex items-center gap-3 text-zinc-400">
-                                <span className="text-lg">✉️</span>
-                                <span>{contactEmail}</span>
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 ring-1 ring-cyan-500/20 text-cyan-500">
+                                    <Mail className="h-3.5 w-3.5" />
+                                </div>
+                                <span className="break-all">{contactEmail}</span>
                             </li>
                             <li className="flex items-center gap-3 text-zinc-400">
-                                <span className="text-lg">🕐</span>
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 ring-1 ring-cyan-500/20 text-cyan-500">
+                                    <Clock className="h-3.5 w-3.5" />
+                                </div>
                                 <span>{openingHours}</span>
                             </li>
                         </ul>
                     </div>
                 </div>
 
-                {/* Bottom Bar */}
-                <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-sm text-zinc-500">
+                {/* Bottom divider with cyan glow */}
+                <div className="relative mb-8">
+                    <div className="h-px bg-white/10" />
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+                </div>
+
+                {/* Bottom bar */}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p className="font-mono text-xs text-zinc-500 tracking-wider">
                         © {currentYear} NYXEL. {t('footer.rights')}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-zinc-600">
+                    <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-600 tracking-widest uppercase">
+                        <span className="h-px w-6 bg-cyan-500/30" aria-hidden />
                         <span>Made with</span>
-                        <span className="text-red-500 animate-pulse">❤️</span>
+                        <span className="text-red-500 animate-pulse" aria-hidden>♥</span>
                         <span>in Thailand</span>
+                        <span className="h-px w-6 bg-cyan-500/30" aria-hidden />
                     </div>
                 </div>
             </div>
