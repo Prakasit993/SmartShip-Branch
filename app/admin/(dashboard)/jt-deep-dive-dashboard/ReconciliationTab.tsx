@@ -16,6 +16,8 @@ import {
     CheckCircle2,
     ChevronDown,
     Download,
+    Eye,
+    EyeOff,
     FileSpreadsheet,
     GitCompareArrows,
     Loader2,
@@ -133,7 +135,7 @@ const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
 export function ReconciliationTab() {
     const today = useMemo(() => toYmd(new Date()), []);
-    const defaultFrom = useMemo(() => toYmd(addDays(new Date(), -29)), []);
+    const defaultFrom = useMemo(() => toYmd(addDays(new Date(), -9)), []);
 
     const [dateFrom, setDateFrom] = useState(defaultFrom);
     const [dateTo, setDateTo] = useState(today);
@@ -145,7 +147,8 @@ export function ReconciliationTab() {
     const [dailyError, setDailyError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'awb' | 'daily'>('daily');
     const [showDetail, setShowDetail] = useState(true);
-    const [activePreset, setActivePreset] = useState<string>('30d');
+    const [showDaily, setShowDaily] = useState(false);
+    const [activePreset, setActivePreset] = useState<string>('custom');
 
     const canApply = YMD.test(dateFrom) && YMD.test(dateTo) && dateFrom <= dateTo;
     const rangeDays = canApply ? daysBetween(dateFrom, dateTo) : 0;
@@ -206,11 +209,11 @@ export function ReconciliationTab() {
                     error: e instanceof Error ? e.message : 'โหลดไม่สำเร็จ',
                 }));
             });
-        } else {
+        } else if (showDaily) {
             loadDaily(appliedRange, ctrl.signal);
         }
         return () => ctrl.abort();
-    }, [appliedRange, statusFilter, load, loadDaily, viewMode]);
+    }, [appliedRange, statusFilter, load, loadDaily, viewMode, showDaily]);
 
     const isLoading = loadState.status === 'loading';
     const data = loadState.status === 'success' || loadState.status === 'loading' ? loadState.data : null;
@@ -367,14 +370,6 @@ export function ReconciliationTab() {
                 </div>
             )}
 
-            {/* Empty state — no data yet */}
-            {!summary && loadState.status === 'idle' && (
-                <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/40 p-8 text-center text-sm text-slate-500">
-                    <GitCompareArrows className="mx-auto mb-3 h-8 w-8 opacity-30" aria-hidden />
-                    <p>กดปุ่ม <strong className="text-slate-300">โหลดข้อมูล</strong> เพื่อเริ่มกระทบยอด</p>
-                </div>
-            )}
-
             {/* View Mode Toggle */}
             <div className="flex justify-center mb-4">
                 <div className="inline-flex rounded-lg bg-slate-900/80 p-1">
@@ -406,33 +401,58 @@ export function ReconciliationTab() {
                 <SummarySection summary={summary} isLoading={isLoading} range={appliedRange} />
             )}
 
-            {/* Daily Summary Cards */}
-            {viewMode === 'daily' && dailyLoadState !== 'error' && (
-                <DailySummaryCards rows={dailyData} isLoading={dailyLoadState === 'loading'} range={appliedRange} />
+            {/* Daily View — ซ่อนไว้ก่อน กดเพื่อแสดง */}
+            {viewMode === 'daily' && !showDaily && (
+                <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8 text-center">
+                    <GitCompareArrows className="mx-auto mb-3 h-8 w-8 text-slate-600" aria-hidden />
+                    <p className="mb-3 text-sm text-slate-400">ยอดสรุปรายวันถูกซ่อนไว้</p>
+                    <button
+                        type="button"
+                        onClick={() => setShowDaily(true)}
+                        className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-400"
+                    >
+                        <Eye className="h-4 w-4" aria-hidden />
+                        แสดงยอดสรุปรายวัน
+                    </button>
+                </div>
             )}
 
-            {/* Daily View */}
-            {viewMode === 'daily' && (
-                <section className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4">
-                    <div className="mb-3">
-                        <h2 className="text-sm font-semibold text-white">ยอดสรุปรายวัน</h2>
-                        <p className="mt-0.5 text-xs text-slate-500">เปรียบเทียบต้นทุนรวมของแต่ละวัน</p>
-                    </div>
-                    {dailyLoadState === 'error' ? (
-                        <div className="flex gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
-                            <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
-                            <div>
-                                <p className="font-semibold">โหลดข้อมูลรายวันไม่สำเร็จ</p>
-                                {dailyError && <p className="mt-1 text-rose-200/80">{dailyError}</p>}
-                                <p className="mt-1 text-xs text-rose-200/60">
-                                    ตรวจสอบว่าสร้าง function <code className="font-mono">jt_reconciliation_daily_summary</code> ใน Supabase แล้ว (SQL Editor → วาง SQL ที่ให้ไว้ → Run)
-                                </p>
-                            </div>
-                        </div>
-                    ) : (
-                        <DailyReconciliationTable rows={dailyData} isLoading={dailyLoadState === 'loading'} />
+            {viewMode === 'daily' && showDaily && (
+                <>
+                    {dailyLoadState !== 'error' && (
+                        <DailySummaryCards rows={dailyData} isLoading={dailyLoadState === 'loading'} range={appliedRange} />
                     )}
-                </section>
+                    <section className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4">
+                        <div className="mb-3 flex items-start justify-between gap-2">
+                            <div>
+                                <h2 className="text-sm font-semibold text-white">ยอดสรุปรายวัน</h2>
+                                <p className="mt-0.5 text-xs text-slate-500">เปรียบเทียบต้นทุนรวมของแต่ละวัน</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowDaily(false)}
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white"
+                            >
+                                <EyeOff className="h-3.5 w-3.5" aria-hidden />
+                                ซ่อน
+                            </button>
+                        </div>
+                        {dailyLoadState === 'error' ? (
+                            <div className="flex gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                                <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
+                                <div>
+                                    <p className="font-semibold">โหลดข้อมูลรายวันไม่สำเร็จ</p>
+                                    {dailyError && <p className="mt-1 text-rose-200/80">{dailyError}</p>}
+                                    <p className="mt-1 text-xs text-rose-200/60">
+                                        ตรวจสอบว่าสร้าง function <code className="font-mono">jt_reconciliation_daily_summary</code> ใน Supabase แล้ว (SQL Editor → วาง SQL ที่ให้ไว้ → Run)
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <DailyReconciliationTable rows={dailyData} isLoading={dailyLoadState === 'loading'} />
+                        )}
+                    </section>
+                </>
             )}
 
             {/* Status Filter + Detail Table (AWB Mode) */}
