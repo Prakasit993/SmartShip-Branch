@@ -38,6 +38,19 @@ export type JtDashboardMetrics = {
     codPendingAmount: number;
     codNoCollectionCount: number;  // cod_amount = 0 (ส่งแบบไม่เก็บเงินปลายทาง)
     exceptionCount: number;        // จำนวนเคสที่มี exception_reason และ sign_branch_code เป็น NULL
+    stagnantCount: number;         // พัสดุที่ latest_scan_time ค้าง >= 2 วัน (หรือ NULL) และยังไม่ปิดงาน
+    stagnantCases: Array<{
+        awb_number: string;
+        booking_date: string;
+        sender_name: string;
+        sender_phone: string;
+        gateway_width: string;
+        gateway_height: string;
+        gateway_length: string;
+        gateway_weight: string;
+        gateway_vol_weight: string;
+        latest_scan_time: string;
+    }>;
     topExceptionReasons: Array<{ reason: string; count: number }>;
     topExceptionCases: Array<{
         awb_number: string;

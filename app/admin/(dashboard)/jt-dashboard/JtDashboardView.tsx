@@ -74,6 +74,8 @@ export type JtDashboardViewProps = {
     chartsLoading?: boolean;
     /** COD cards ยังโหลดอยู่ (Phase C) — โหลดจาก /cod-summary แยก */
     codLoading?: boolean;
+    /** Stagnant parcels ยังโหลดอยู่ (Phase D) */
+    stagnantLoading?: boolean;
 };
 
 /** Compare current vs previous. `inverseGood = true` flips color (e.g. returnCount: ▼ = good). */
@@ -346,10 +348,12 @@ export function JtDashboardView({
     lastRefreshed,
     chartsLoading,
     codLoading,
+    stagnantLoading,
 }: JtDashboardViewProps) {
     const [showAllIssues, setShowAllIssues] = useState(false);
     const [showAllReturns, setShowAllReturns] = useState(false);
-    const [activeDrilldown, setActiveDrilldown] = useState<'exception' | 'return' | null>(null);
+    const [showAllStagnant, setShowAllStagnant] = useState(false);
+    const [activeDrilldown, setActiveDrilldown] = useState<'exception' | 'return' | 'stagnant' | null>(null);
     const [detailModalOpen, setDetailModalOpen] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
@@ -1045,7 +1049,7 @@ export function JtDashboardView({
                         </div>
                         )}
 
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:items-stretch">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4 xl:items-stretch">
                             <AnimatedKpiCard
                                 index={8}
                                 className="h-full"
@@ -1107,6 +1111,28 @@ export function JtDashboardView({
                                 }
                                 isActive={activeDrilldown === 'exception'}
                             />
+
+                            {stagnantLoading ? (
+                                <SummaryCardSkeleton />
+                            ) : (
+                                <AnimatedKpiCard
+                                    index={10}
+                                    className="h-full"
+                                    icon={<Hourglass className="h-5 w-5" aria-hidden />}
+                                    iconBg="bg-amber-500/15"
+                                    iconRing="ring-amber-500/25"
+                                    iconFg="text-amber-400"
+                                    glowColor="bg-amber-500/40"
+                                    label="พัสดุตกค้างไม่เคลื่อนไหว"
+                                    value={metrics.stagnantCount}
+                                    showDelta={false}
+                                    hint="ไม่มี scan ≥ 2 วัน · ยังไม่ปิดงาน"
+                                    onClick={() =>
+                                        setActiveDrilldown((prev) => (prev === 'stagnant' ? null : 'stagnant'))
+                                    }
+                                    isActive={activeDrilldown === 'stagnant'}
+                                />
+                            )}
 
                             <article
                                 className="group relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 via-slate-900/50 to-slate-950/80 p-4 sm:p-5 shadow-lg shadow-black/20 ring-1 ring-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:border-slate-600/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5"
@@ -1239,6 +1265,100 @@ export function JtDashboardView({
                                 ) : (
                                     <p className="mt-2 text-xs text-slate-500">
                                         ยังไม่พบรายการที่มีเหตุผลปัญหาและยังไม่มีรหัสสาขาปลายทางในช่วงนี้
+                                    </p>
+                                )}
+                            </div>
+                        ) : null}
+                        {activeDrilldown === 'stagnant' ? (
+                            <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                        พัสดุตกค้างไม่เคลื่อนไหว (ไม่มี scan ≥ 2 วัน · ยังไม่ปิดงาน)
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void copyAwbList(
+                                                (showAllStagnant ? metrics.stagnantCases : metrics.stagnantCases.slice(0, 3)).map(
+                                                    (r) => r.awb_number,
+                                                ),
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white"
+                                    >
+                                        <Copy className="h-3.5 w-3.5" aria-hidden />
+                                        คัดลอก AWB ทั้งชุด
+                                    </button>
+                                </div>
+                                {metrics.stagnantCases.length > 0 ? (
+                                    <>
+                                        <div className="mt-2 space-y-1.5 overflow-x-auto">
+                                            <div className="grid min-w-[1100px] grid-cols-[1.6rem_1fr_0.9fr_1fr_1fr_4.5rem_4.5rem_4.5rem_5rem_5.5rem_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                                <span>#</span>
+                                                <span>เลขพัสดุ</span>
+                                                <span>วันคีย์</span>
+                                                <span>ผู้ส่ง</span>
+                                                <span>เบอร์ผู้ส่ง</span>
+                                                <span className="text-right">กว้าง</span>
+                                                <span className="text-right">สูง</span>
+                                                <span className="text-right">ยาว</span>
+                                                <span className="text-right">น้ำหนัก</span>
+                                                <span className="text-right">น้ำหนักปริมาตร</span>
+                                                <span className="text-right">scan ล่าสุด</span>
+                                            </div>
+                                            {(showAllStagnant ? metrics.stagnantCases : metrics.stagnantCases.slice(0, 5)).map((r, idx) => (
+                                                <div
+                                                    key={`${r.awb_number}-${idx}`}
+                                                    className="grid min-w-[1100px] grid-cols-[1.6rem_1fr_0.9fr_1fr_1fr_4.5rem_4.5rem_4.5rem_5rem_5.5rem_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                >
+                                                    <span className="tabular-nums text-slate-500">{idx + 1}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void copyAwb(r.awb_number)}
+                                                        onDoubleClick={() => void openShipmentDetail(r.awb_number)}
+                                                        className="inline-flex min-w-0 items-center gap-1 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                        title={`คลิกเพื่อคัดลอก • ดับเบิลคลิกเพื่อเปิดรายละเอียด ${r.awb_number}`}
+                                                    >
+                                                        {r.awb_number}
+                                                        {copiedAwb === r.awb_number ? (
+                                                            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+                                                        ) : (
+                                                            <Copy className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                                                        )}
+                                                    </button>
+                                                    <span className="min-w-0 truncate tabular-nums text-slate-400">
+                                                        {r.booking_date !== '-' ? r.booking_date.slice(0, 10) : '-'}
+                                                    </span>
+                                                    <span className="min-w-0 truncate text-slate-300" title={r.sender_name}>
+                                                        {r.sender_name}
+                                                    </span>
+                                                    <span className="min-w-0 truncate tabular-nums text-slate-400">
+                                                        {r.sender_phone}
+                                                    </span>
+                                                    <span className="text-right tabular-nums text-slate-400">{r.gateway_width}</span>
+                                                    <span className="text-right tabular-nums text-slate-400">{r.gateway_height}</span>
+                                                    <span className="text-right tabular-nums text-slate-400">{r.gateway_length}</span>
+                                                    <span className="text-right tabular-nums text-slate-300">{r.gateway_weight}</span>
+                                                    <span className="text-right tabular-nums text-amber-300">{r.gateway_vol_weight}</span>
+                                                    <span className="min-w-0 truncate text-right tabular-nums text-slate-500">
+                                                        {r.latest_scan_time !== '-' ? r.latest_scan_time.slice(0, 16) : '(ไม่มี scan)'}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {metrics.stagnantCases.length > 5 ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAllStagnant(!showAllStagnant)}
+                                                className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
+                                            >
+                                                {showAllStagnant ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${metrics.stagnantCases.length - 5} รายการ`}
+                                            </button>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        ไม่พบพัสดุที่ตกค้างไม่เคลื่อนไหว ≥ 2 วันในขณะนี้
                                     </p>
                                 )}
                             </div>

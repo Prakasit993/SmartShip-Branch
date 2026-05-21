@@ -22,6 +22,19 @@ import type {
 import type { JtTopProductRow, JtTopSenderCountRow, JtTopSenderRow } from './JtTopSendersPanel';
 import { DEFAULT_JT_SHIPMENT_DETAIL_FIELDS } from '@/lib/jtShipmentDetailFields';
 
+type StagnantCase = {
+    awb_number: string;
+    booking_date: string;
+    sender_name: string;
+    sender_phone: string;
+    gateway_width: string;
+    gateway_height: string;
+    gateway_length: string;
+    gateway_weight: string;
+    gateway_vol_weight: string;
+    latest_scan_time: string;
+};
+
 type CustomMetricRow = {
     id: string;
     title: string;
@@ -78,6 +91,7 @@ export function JtDashboardPageClient() {
     const [chartsLoading, setChartsLoading] = useState(true);
     const [codLoading, setCodLoading] = useState(true);
     const [showKpiPercentDelta, setShowKpiPercentDelta] = useState(false);
+    const [stagnantLoading, setStagnantLoading] = useState(true);
     const [parcelDateFrom, setParcelDateFrom] = useState(initialDateRange.from);
     const [parcelDateTo, setParcelDateTo] = useState(initialDateRange.to);
     const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
@@ -101,6 +115,7 @@ export function JtDashboardPageClient() {
         }
         setChartsLoading(true);
         setCodLoading(true);
+        setStagnantLoading(true);
 
         const params = new URLSearchParams();
         if (from.trim()) params.set('date_from', from.trim());
@@ -131,6 +146,11 @@ export function JtDashboardPageClient() {
             signal: controller.signal,
         });
         const codFetch = fetch(codUrl, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+        });
+        const stagnantFetch = fetch('/api/admin/jt-shipments/stagnant-parcels', {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
             signal: controller.signal,
@@ -251,6 +271,8 @@ export function JtDashboardPageClient() {
                 codCollectionRate: cacheRef.current?.metrics.codCollectionRate ?? 0,
                 sumCod: cacheRef.current?.metrics.sumCod ?? 0,
                 exceptionCount: json.exceptionCount ?? 0,
+                stagnantCount: cacheRef.current?.metrics.stagnantCount ?? 0,
+                stagnantCases: cacheRef.current?.metrics.stagnantCases ?? [],
                 topExceptionReasons: Array.isArray(json.topExceptionReasons)
                     ? json.topExceptionReasons
                           .filter(
@@ -461,6 +483,51 @@ export function JtDashboardPageClient() {
         }
 
         setCodLoading(false);
+
+        // ── Phase D: Stagnant Parcels → โหลดพัสดุตกค้างไม่เคลื่อนไหว (global, ไม่ผูกกับ date range) ──
+        try {
+            const stagnantRes = await stagnantFetch;
+            if (controller.signal.aborted) return;
+
+            const stagnantRaw = await stagnantRes.text();
+            let stagnantJson: {
+                error?: string;
+                total?: number;
+                cases?: StagnantCase[];
+            };
+            try {
+                stagnantJson = JSON.parse(stagnantRaw) as typeof stagnantJson;
+            } catch {
+                stagnantJson = {};
+            }
+
+            if (stagnantRes.ok) {
+                const latest = cacheRef.current ?? fullData;
+                const isValidCase = (r: unknown): r is StagnantCase =>
+                    r != null &&
+                    typeof (r as StagnantCase).awb_number === 'string' &&
+                    typeof (r as StagnantCase).booking_date === 'string' &&
+                    typeof (r as StagnantCase).sender_name === 'string' &&
+                    typeof (r as StagnantCase).sender_phone === 'string';
+                const withStagnant = {
+                    ...latest,
+                    metrics: {
+                        ...latest.metrics,
+                        stagnantCount: stagnantJson.total ?? 0,
+                        stagnantCases: Array.isArray(stagnantJson.cases)
+                            ? stagnantJson.cases.filter(isValidCase)
+                            : [],
+                    },
+                };
+                cacheRef.current = withStagnant;
+                setState({ status: 'success', ...withStagnant });
+            }
+        } catch (e) {
+            if (controller.signal.aborted) return;
+            console.warn('[dashboard] stagnant-parcels fetch error:', e instanceof Error ? e.message : e);
+        }
+
+        setStagnantLoading(false);
     }, []);
 
     useEffect(() => {
@@ -502,6 +569,8 @@ export function JtDashboardPageClient() {
         codPendingAmount: 0,
         codNoCollectionCount: 0,
         exceptionCount: 0,
+        stagnantCount: 0,
+        stagnantCases: [],
         topExceptionReasons: [],
         topExceptionCases: [],
         topReturnTypeCases: [],
@@ -619,6 +688,7 @@ export function JtDashboardPageClient() {
             appliedRange={appliedRange}
             mockMode={false}
             lastRefreshed={lastRefreshed}
+            stagnantLoading={stagnantLoading}
         />
     );
 }
