@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, InboxIcon } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { TiktokN8nUpload } from './TiktokN8nUpload';
+import { TiktokTopSendersPanel, TiktokTopProductsPanel } from './TiktokTopPanels';
 
 type Stats = { total: number; closedCount: number };
 type SenderRow = { sender: string; shop: string; count: number };
@@ -142,65 +143,11 @@ export function TiktokDashboardClient() {
                 </div>
             )}
 
-            {/* สรุป: ผู้ส่งบ่อยสุด + สินค้าขายดี */}
+            {/* สรุป: ผู้ส่งมากสุด + สินค้าในระบบ (pattern เดียวกับ jt-dashboard) */}
             {topLists && !isEmpty && (topLists.topSenders.length > 0 || topLists.topProducts.length > 0) && (
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {/* Top Senders */}
-                    <div className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/45 ring-1 ring-white/[0.03]">
-                        <div className="flex items-center justify-between border-b border-slate-800/80 px-4 py-3">
-                            <h2 className="text-sm font-bold text-white">👤 ผู้ส่งบ่อยสุด 10 อันดับ</h2>
-                            <span className="text-[11px] text-slate-500">sender · shop</span>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <tbody className="divide-y divide-slate-800/60">
-                                    {topLists.topSenders.map((s, i) => (
-                                        <tr key={`${s.sender}-${s.shop}-${i}`} className="transition hover:bg-slate-800/30">
-                                            <td className="w-10 py-2.5 pl-4 pr-2 text-xs font-bold tabular-nums text-slate-600">{i + 1}</td>
-                                            <td className="py-2.5 pr-3">
-                                                <p className="truncate font-medium text-slate-200" title={s.sender || '—'}>{s.sender || '—'}</p>
-                                                {s.shop ? <p className="truncate text-[11px] text-slate-500" title={s.shop}>{s.shop}</p> : null}
-                                            </td>
-                                            <td className="py-2.5 pr-4 text-right font-mono font-semibold tabular-nums text-sky-300">
-                                                {s.count.toLocaleString('th-TH')}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {topLists.topSenders.length === 0 && (
-                                        <tr><td className="px-4 py-8 text-center text-slate-500">ไม่มีข้อมูลผู้ส่ง</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* Top Products */}
-                    <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/45 ring-1 ring-white/[0.03]">
-                        <div className="flex items-center justify-between border-b border-slate-800/80 px-4 py-3">
-                            <h2 className="text-sm font-bold text-white">🛒 สินค้าขายดี 50 อันดับ</h2>
-                            <span className="text-[11px] text-slate-500">product · จำนวนออเดอร์</span>
-                        </div>
-                        <div className="max-h-[420px] overflow-y-auto">
-                            <table className="w-full text-sm">
-                                <tbody className="divide-y divide-slate-800/60">
-                                    {topLists.topProducts.map((p, i) => (
-                                        <tr key={`${p.name}-${i}`} className="transition hover:bg-slate-800/30">
-                                            <td className="w-10 py-2.5 pl-4 pr-2 text-xs font-bold tabular-nums text-slate-600">{i + 1}</td>
-                                            <td className="max-w-0 py-2.5 pr-3">
-                                                <p className="truncate text-slate-200" title={p.name}>{p.name}</p>
-                                            </td>
-                                            <td className="py-2.5 pr-4 text-right font-mono font-semibold tabular-nums text-emerald-300">
-                                                {p.count.toLocaleString('th-TH')}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {topLists.topProducts.length === 0 && (
-                                        <tr><td className="px-4 py-8 text-center text-slate-500">ไม่มีข้อมูลสินค้า</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                    <TiktokTopSendersPanel rows={topLists.topSenders} />
+                    <TiktokTopProductsPanel rows={topLists.topProducts} />
                 </div>
             )}
         </div>
