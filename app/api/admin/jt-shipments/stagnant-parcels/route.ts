@@ -57,6 +57,8 @@ export async function GET(req: Request) {
                 'awb_number,booking_date,sender_name,sender_phone,gateway_width,gateway_height,gateway_length,gateway_weight,gateway_vol_weight,latest_scan_time,signer_name',
             )
             .or('signer_name.is.null,signer_name.eq.,signer_name.eq.NULL')
+            // ดึงแบบ scan เก่าสุด/NULL ขึ้นก่อน เพื่อให้พัสดุตกค้างจริงติดมาในลิมิตเสมอ
+            // (display order จัดใหม่หลังกรอง — ดูการ sort ด้านล่าง)
             .order('latest_scan_time', { ascending: true, nullsFirst: true })
             .range(0, MAX_LIMIT - 1);
 
@@ -98,6 +100,15 @@ export async function GET(req: Request) {
                 latest_scan_time: safe(r.latest_scan_time),
             });
         }
+
+        // Display order: scan ล่าสุด มาก→น้อย, ตัวที่ไม่มี scan ('-') ไว้ท้ายสุด
+        cases.sort((a, b) => {
+            const aNull = a.latest_scan_time === '-';
+            const bNull = b.latest_scan_time === '-';
+            if (aNull !== bNull) return aNull ? 1 : -1;
+            if (aNull) return 0;
+            return b.latest_scan_time.localeCompare(a.latest_scan_time);
+        });
 
         return NextResponse.json({
             total: cases.length,
