@@ -5,6 +5,7 @@ import { RefreshCw, InboxIcon } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { TiktokN8nUpload } from './TiktokN8nUpload';
 import { TiktokTopSendersPanel, TiktokTopProductsPanel } from './TiktokTopPanels';
+import { ThailandChoropleth } from './ThailandChoropleth';
 
 type Stats = { total: number; closedCount: number };
 type SenderRow = { sender: string; shop: string; count: number };
@@ -15,6 +16,7 @@ export function TiktokDashboardClient() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [topLists, setTopLists] = useState<TopLists | null>(null);
     const [topLoading, setTopLoading] = useState(false);
+    const [provinceCounts, setProvinceCounts] = useState<Record<string, number> | null>(null);
 
     const loadStats = useCallback(async () => {
         try {
@@ -44,19 +46,33 @@ export function TiktokDashboardClient() {
         }
     }, []);
 
+    const loadProvinces = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/tiktok-shipments/by-province', { credentials: 'include' });
+            if (!res.ok) return;
+            const json = (await res.json()) as { counts: Record<string, number> };
+            setProvinceCounts(json.counts ?? {});
+        } catch {
+            /* คงค่าเดิม */
+        }
+    }, []);
+
     useEffect(() => {
         loadStats();
         loadTopLists();
-    }, [loadStats, loadTopLists]);
+        loadProvinces();
+    }, [loadStats, loadTopLists, loadProvinces]);
 
     const refreshAll = () => {
         loadStats();
         loadTopLists();
+        loadProvinces();
     };
 
     const handleUploadSuccess = () => {
         loadStats();
         loadTopLists();
+        loadProvinces();
     };
 
     const closedPct = stats && stats.total > 0 ? (stats.closedCount / stats.total) * 100 : 0;
@@ -149,6 +165,11 @@ export function TiktokDashboardClient() {
                     <TiktokTopSendersPanel rows={topLists.topSenders} />
                     <TiktokTopProductsPanel rows={topLists.topProducts} />
                 </div>
+            )}
+
+            {/* แผนที่ปลายทางรายจังหวัด */}
+            {provinceCounts && !isEmpty && Object.keys(provinceCounts).length > 0 && (
+                <ThailandChoropleth counts={provinceCounts} />
             )}
         </div>
     );
