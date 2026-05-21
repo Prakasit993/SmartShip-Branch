@@ -175,9 +175,18 @@ BEGIN
             (p.signer_name IS NOT NULL
                 AND trim(p.signer_name) <> ''
                 AND upper(trim(p.signer_name)) <> 'NULL')        AS is_closed,
-            CASE WHEN p.booking_date ~ '^\d{4}-\d{2}-\d{2}$'
-                 THEN (CURRENT_DATE - p.booking_date::date)
-                 ELSE NULL END                                   AS days_pending
+            -- ระยะเวลาปิดงาน (unified):
+            --   ปิดแล้ว + มี last_scan → last_scan - booking (ใช้เวลาจริงกว่าจะปิด)
+            --   ยังไม่ปิด/ไม่มี last_scan → วันนี้ - booking (อายุที่ค้าง)
+            CASE
+                WHEN p.booking_date !~ '^\d{4}-\d{2}-\d{2}$' THEN NULL
+                WHEN (p.signer_name IS NOT NULL
+                      AND trim(p.signer_name) <> ''
+                      AND upper(trim(p.signer_name)) <> 'NULL')
+                     AND left(p.latest_scan_time, 10) ~ '^\d{4}-\d{2}-\d{2}$'
+                THEN GREATEST(left(p.latest_scan_time, 10)::date - p.booking_date::date, 0)
+                ELSE (CURRENT_DATE - p.booking_date::date)
+            END                                                  AS days_pending
         FROM priced p
     )
     SELECT
@@ -207,8 +216,8 @@ BEGIN
             ELSE TRUE
         END
     ORDER BY
-        (CASE WHEN filter_mode = 'anomaly'    THEN f.anomaly_ratio END) DESC NULLS LAST,
-        (CASE WHEN filter_mode = 'not_closed' THEN f.days_pending  END) DESC NULLS LAST,
+        (CASE WHEN filter_mode = 'anomaly'              THEN f.anomaly_ratio END) DESC NULLS LAST,
+        (CASE WHEN filter_mode IN ('all', 'not_closed') THEN f.days_pending  END) DESC NULLS LAST,
         f.our_cost DESC,
         f.awb_number
     LIMIT row_limit OFFSET row_offset;

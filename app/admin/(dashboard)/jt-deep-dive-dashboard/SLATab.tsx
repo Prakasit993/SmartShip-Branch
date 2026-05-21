@@ -1105,7 +1105,7 @@ function CostAreaInspectionSection({ range }: { range: { from: string; to: strin
     const [page, setPage] = useState(0);
     const [openAddr, setOpenAddr] = useState<Set<string>>(new Set());
 
-    const filterMode = viewMode === 'cost' ? 'anomaly' : 'not_closed';
+    const filterMode = viewMode === 'cost' ? 'anomaly' : 'all';
 
     useEffect(() => {
         if (!show) return;
@@ -1230,7 +1230,7 @@ function CostAreaInspectionSection({ range }: { range: { from: string; to: strin
                         </div>
                     ) : rows.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/35 p-5 text-center text-sm text-slate-500">
-                            {viewMode === 'cost' ? 'ไม่พบชิ้นที่ปรับน้ำหนักผิดปกติในช่วงนี้' : 'ไม่พบงานที่ยังไม่ปิดในช่วงนี้'}
+                            {viewMode === 'cost' ? 'ไม่พบชิ้นที่ปรับน้ำหนักผิดปกติในช่วงนี้' : 'ไม่พบรายการในช่วงนี้'}
                         </div>
                     ) : (
                         <>
@@ -1275,7 +1275,7 @@ function CostAreaInspectionSection({ range }: { range: { from: string; to: strin
                                                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ตำบล</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">อำเภอ</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">จังหวัด</th>
-                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-300">ค้าง (วัน)</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-300">ใช้เวลาปิด (วัน)</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">สถานะ</th>
                                             </tr>
                                         </thead>
