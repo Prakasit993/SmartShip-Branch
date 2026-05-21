@@ -53,10 +53,24 @@ function sortColumns(keys: string[]): string[] {
     return [...priority, ...rest, ...hidden];
 }
 
+type Stats = { total: number; closedCount: number };
+
 export function TiktokDashboardClient() {
     const [state, setState] = useState<FetchState>({ status: 'idle' });
     const [page, setPage] = useState(1);
     const [columns, setColumns] = useState<string[]>([]);
+    const [stats, setStats] = useState<Stats | null>(null);
+
+    const loadStats = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/tiktok-shipments/stats', { credentials: 'include' });
+            if (!res.ok) return;
+            const json = (await res.json()) as Stats;
+            setStats({ total: json.total ?? 0, closedCount: json.closedCount ?? 0 });
+        } catch {
+            /* การ์ดจะคงค่าเดิมไว้ ไม่ขัดจังหวะตาราง */
+        }
+    }, []);
 
     const load = useCallback(async (p: number) => {
         setState({ status: 'loading' });
@@ -83,12 +97,24 @@ export function TiktokDashboardClient() {
         load(page);
     }, [load, page]);
 
+    useEffect(() => {
+        loadStats();
+    }, [loadStats]);
+
     const totalPages = state.status === 'ok' ? Math.max(1, Math.ceil(state.total / PAGE_SIZE)) : 1;
+
+    const refreshAll = () => {
+        load(page);
+        loadStats();
+    };
 
     const handleUploadSuccess = () => {
         setPage(1);
         load(1);
+        loadStats();
     };
+
+    const closedPct = stats && stats.total > 0 ? (stats.closedCount / stats.total) * 100 : 0;
 
     return (
         <div className="space-y-6 pb-20">
@@ -108,7 +134,7 @@ export function TiktokDashboardClient() {
                 <div className="absolute right-0 top-0 z-10 flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => load(page)}
+                        onClick={refreshAll}
                         title="รีเฟรชข้อมูล"
                         aria-label="รีเฟรชข้อมูล"
                         className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 text-slate-400 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
@@ -119,20 +145,23 @@ export function TiktokDashboardClient() {
                 </div>
             </div>
 
-            {/* Summary bar */}
-            {state.status === 'ok' && (
-                <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-800/70 bg-slate-900/45 p-4 ring-1 ring-white/[0.03]">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">ทั้งหมด</span>
-                        <span className="text-2xl font-black text-white tabular-nums">{state.total.toLocaleString('th-TH')}</span>
-                        <span className="text-xs text-slate-500">รายการ</span>
-                    </div>
-                    <div className="h-10 w-px bg-slate-800" />
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">หน้าที่</span>
-                        <span className="text-2xl font-black text-white tabular-nums">{page} / {totalPages}</span>
-                        <span className="text-xs text-slate-500">หน้าละ {PAGE_SIZE} รายการ</span>
-                    </div>
+            {/* การ์ดสรุป */}
+            {stats && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                        label="จำนวนพัสดุ"
+                        value={stats.total.toLocaleString('th-TH')}
+                        icon="📦"
+                        accent="from-sky-500 to-blue-700"
+                        hint="พัสดุ TikTok ทั้งหมดในฐานข้อมูล"
+                    />
+                    <StatCard
+                        label="ปิดงานแล้ว"
+                        value={stats.closedCount.toLocaleString('th-TH')}
+                        icon="✅"
+                        accent="from-emerald-500 to-teal-700"
+                        hint={`มีผู้เซ็นรับ (${closedPct.toFixed(1)}% ของทั้งหมด)`}
+                    />
                 </div>
             )}
 
@@ -257,6 +286,30 @@ export function TiktokDashboardClient() {
                     )}
                 </div>
             )}
+        </div>
+    );
+}
+
+function StatCard({
+    label,
+    value,
+    icon,
+    accent,
+    hint,
+}: {
+    label: string;
+    value: string;
+    icon: string;
+    accent: string;
+    hint: string;
+}) {
+    return (
+        <div className="relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-5 shadow-inner">
+            <div className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${accent} opacity-20 blur-2xl`} />
+            <p className="mb-2 text-2xl drop-shadow-sm">{icon}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+            <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-white">{value}</p>
+            <p className="mt-1 text-[10px] leading-snug text-zinc-600">{hint}</p>
         </div>
     );
 }
