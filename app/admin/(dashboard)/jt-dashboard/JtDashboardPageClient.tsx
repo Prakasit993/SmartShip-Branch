@@ -464,9 +464,12 @@ export function JtDashboardPageClient() {
     }, []);
 
     useEffect(() => {
-        void load(initialDateRange.from, initialDateRange.to);
+        load(initialDateRange.from, initialDateRange.to).catch((e: unknown) => {
+            if (e instanceof Error && e.name === 'AbortError') return;
+            console.error('[jt-dashboard] unhandled load error:', e);
+        });
         return () => {
-            if (abortRef.current) abortRef.current.abort();
+            abortRef.current?.abort();
         };
     }, [initialDateRange, load]);
 
