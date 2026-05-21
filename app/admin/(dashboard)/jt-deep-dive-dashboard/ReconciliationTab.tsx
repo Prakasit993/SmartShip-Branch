@@ -677,8 +677,16 @@ function DailySummaryCards({
 
 // ─── Daily Reconciliation Table ────────────────────────────────────────────────
 
+const DAILY_PAGE_SIZE = 10;
+
 function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliationRow[]; isLoading: boolean }) {
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const [page, setPage] = useState(0);
+
+    // กลับไปหน้าแรกเมื่อข้อมูลเปลี่ยน (โหลดช่วงวันใหม่)
+    useEffect(() => {
+        setPage(0);
+    }, [rows]);
 
     const toggle = (date: string) =>
         setExpanded((prev) => {
@@ -715,8 +723,14 @@ function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliati
         sumDiff += r.diff;
     });
 
+    const totalPages = Math.max(1, Math.ceil(rows.length / DAILY_PAGE_SIZE));
+    const safePage = Math.min(page, totalPages - 1);
+    const start = safePage * DAILY_PAGE_SIZE;
+    const pageRows = rows.slice(start, start + DAILY_PAGE_SIZE);
+
     return (
-        <div className="overflow-x-auto">
+        <div className="space-y-3">
+            <div className="overflow-x-auto">
             <table className="min-w-full text-left text-xs">
                 <thead className="text-slate-500">
                     <tr className="border-b border-slate-800 bg-slate-900/30">
@@ -728,7 +742,7 @@ function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliati
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-900/50 text-slate-300">
-                    {rows.map((row) => {
+                    {pageRows.map((row) => {
                         const gapPos = row.diff > 0;
                         const gapNeg = row.diff < 0;
                         const isOpen = expanded.has(row.transactionDate);
@@ -779,6 +793,34 @@ function DailyReconciliationTable({ rows, isLoading }: { rows: DailyReconciliati
                     </tr>
                 </tfoot>
             </table>
+            </div>
+
+            {rows.length > DAILY_PAGE_SIZE && (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                    <span>
+                        แสดง {start + 1}–{Math.min(start + DAILY_PAGE_SIZE, rows.length)} จาก {rows.length.toLocaleString('th-TH')} วัน
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setPage((p) => Math.max(0, p - 1))}
+                            disabled={safePage === 0}
+                            className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            ก่อนหน้า
+                        </button>
+                        <span className="tabular-nums text-slate-300">หน้า {safePage + 1}/{totalPages}</span>
+                        <button
+                            type="button"
+                            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                            disabled={safePage >= totalPages - 1}
+                            className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            ถัดไป
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
