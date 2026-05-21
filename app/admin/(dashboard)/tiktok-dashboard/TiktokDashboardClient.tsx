@@ -5,7 +5,7 @@ import { RefreshCw, InboxIcon } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { TiktokN8nUpload } from './TiktokN8nUpload';
 import { TiktokTopSendersPanel, TiktokTopProductsPanel } from './TiktokTopPanels';
-import { ThailandChoropleth } from './ThailandChoropleth';
+import { ThailandChoropleth, type MapMetrics } from './ThailandChoropleth';
 
 type Stats = { total: number; closedCount: number };
 type SenderRow = { sender: string; shop: string; count: number };
@@ -17,6 +17,7 @@ export function TiktokDashboardClient() {
     const [topLists, setTopLists] = useState<TopLists | null>(null);
     const [topLoading, setTopLoading] = useState(false);
     const [provinceCounts, setProvinceCounts] = useState<Record<string, number> | null>(null);
+    const [mapMetrics, setMapMetrics] = useState<MapMetrics | null>(null);
 
     const loadStats = useCallback(async () => {
         try {
@@ -57,22 +58,36 @@ export function TiktokDashboardClient() {
         }
     }, []);
 
+    const loadMapMetrics = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/tiktok-shipments/map-metrics', { credentials: 'include' });
+            if (!res.ok) return; // ยังไม่รัน migration → แผนที่ใช้โหมด total อย่างเดียว
+            const json = (await res.json()) as MapMetrics;
+            setMapMetrics(json);
+        } catch {
+            /* คงค่าเดิม */
+        }
+    }, []);
+
     useEffect(() => {
         loadStats();
         loadTopLists();
         loadProvinces();
-    }, [loadStats, loadTopLists, loadProvinces]);
+        loadMapMetrics();
+    }, [loadStats, loadTopLists, loadProvinces, loadMapMetrics]);
 
     const refreshAll = () => {
         loadStats();
         loadTopLists();
         loadProvinces();
+        loadMapMetrics();
     };
 
     const handleUploadSuccess = () => {
         loadStats();
         loadTopLists();
         loadProvinces();
+        loadMapMetrics();
     };
 
     const closedPct = stats && stats.total > 0 ? (stats.closedCount / stats.total) * 100 : 0;
@@ -169,7 +184,7 @@ export function TiktokDashboardClient() {
 
             {/* แผนที่ปลายทางรายจังหวัด */}
             {provinceCounts && !isEmpty && Object.keys(provinceCounts).length > 0 && (
-                <ThailandChoropleth counts={provinceCounts} />
+                <ThailandChoropleth data={mapMetrics} fallbackTotals={provinceCounts} />
             )}
         </div>
     );
