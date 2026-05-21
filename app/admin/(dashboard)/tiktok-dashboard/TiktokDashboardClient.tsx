@@ -54,12 +54,17 @@ function sortColumns(keys: string[]): string[] {
 }
 
 type Stats = { total: number; closedCount: number };
+type SenderRow = { sender: string; shop: string; count: number };
+type ProductRow = { name: string; count: number };
+type TopLists = { topSenders: SenderRow[]; topProducts: ProductRow[] };
 
 export function TiktokDashboardClient() {
     const [state, setState] = useState<FetchState>({ status: 'idle' });
     const [page, setPage] = useState(1);
     const [columns, setColumns] = useState<string[]>([]);
     const [stats, setStats] = useState<Stats | null>(null);
+    const [topLists, setTopLists] = useState<TopLists | null>(null);
+    const [topLoading, setTopLoading] = useState(false);
 
     const loadStats = useCallback(async () => {
         try {
@@ -69,6 +74,23 @@ export function TiktokDashboardClient() {
             setStats({ total: json.total ?? 0, closedCount: json.closedCount ?? 0 });
         } catch {
             /* การ์ดจะคงค่าเดิมไว้ ไม่ขัดจังหวะตาราง */
+        }
+    }, []);
+
+    const loadTopLists = useCallback(async () => {
+        setTopLoading(true);
+        try {
+            const res = await fetch('/api/admin/tiktok-shipments/top-lists', { credentials: 'include' });
+            if (!res.ok) return;
+            const json = (await res.json()) as TopLists;
+            setTopLists({
+                topSenders: Array.isArray(json.topSenders) ? json.topSenders : [],
+                topProducts: Array.isArray(json.topProducts) ? json.topProducts : [],
+            });
+        } catch {
+            /* คงค่าเดิม */
+        } finally {
+            setTopLoading(false);
         }
     }, []);
 
@@ -99,19 +121,22 @@ export function TiktokDashboardClient() {
 
     useEffect(() => {
         loadStats();
-    }, [loadStats]);
+        loadTopLists();
+    }, [loadStats, loadTopLists]);
 
     const totalPages = state.status === 'ok' ? Math.max(1, Math.ceil(state.total / PAGE_SIZE)) : 1;
 
     const refreshAll = () => {
         load(page);
         loadStats();
+        loadTopLists();
     };
 
     const handleUploadSuccess = () => {
         setPage(1);
         load(1);
         loadStats();
+        loadTopLists();
     };
 
     const closedPct = stats && stats.total > 0 ? (stats.closedCount / stats.total) * 100 : 0;
@@ -162,6 +187,76 @@ export function TiktokDashboardClient() {
                         accent="from-emerald-500 to-teal-700"
                         hint={`มีผู้เซ็นรับ (${closedPct.toFixed(1)}% ของทั้งหมด)`}
                     />
+                </div>
+            )}
+
+            {/* สรุป: กำลังคำนวณครั้งแรก */}
+            {topLoading && !topLists && (
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-800/70 bg-slate-900/45 px-4 py-3 text-sm text-slate-400 ring-1 ring-white/[0.03]">
+                    <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
+                    กำลังสรุปผู้ส่ง / สินค้าขายดี…
+                </div>
+            )}
+
+            {/* สรุป: ผู้ส่งบ่อยสุด + สินค้าขายดี */}
+            {topLists && (topLists.topSenders.length > 0 || topLists.topProducts.length > 0) && (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {/* Top Senders */}
+                    <div className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/45 ring-1 ring-white/[0.03]">
+                        <div className="flex items-center justify-between border-b border-slate-800/80 px-4 py-3">
+                            <h2 className="text-sm font-bold text-white">👤 ผู้ส่งบ่อยสุด 10 อันดับ</h2>
+                            <span className="text-[11px] text-slate-500">sender · shop</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <tbody className="divide-y divide-slate-800/60">
+                                    {topLists.topSenders.map((s, i) => (
+                                        <tr key={`${s.sender}-${s.shop}-${i}`} className="transition hover:bg-slate-800/30">
+                                            <td className="w-10 py-2.5 pl-4 pr-2 text-xs font-bold tabular-nums text-slate-600">{i + 1}</td>
+                                            <td className="py-2.5 pr-3">
+                                                <p className="truncate font-medium text-slate-200" title={s.sender || '—'}>{s.sender || '—'}</p>
+                                                {s.shop ? <p className="truncate text-[11px] text-slate-500" title={s.shop}>{s.shop}</p> : null}
+                                            </td>
+                                            <td className="py-2.5 pr-4 text-right font-mono font-semibold tabular-nums text-sky-300">
+                                                {s.count.toLocaleString('th-TH')}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {topLists.topSenders.length === 0 && (
+                                        <tr><td className="px-4 py-8 text-center text-slate-500">ไม่มีข้อมูลผู้ส่ง</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Top Products */}
+                    <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/45 ring-1 ring-white/[0.03]">
+                        <div className="flex items-center justify-between border-b border-slate-800/80 px-4 py-3">
+                            <h2 className="text-sm font-bold text-white">🛒 สินค้าขายดี 50 อันดับ</h2>
+                            <span className="text-[11px] text-slate-500">product · จำนวนออเดอร์</span>
+                        </div>
+                        <div className="max-h-[420px] overflow-y-auto">
+                            <table className="w-full text-sm">
+                                <tbody className="divide-y divide-slate-800/60">
+                                    {topLists.topProducts.map((p, i) => (
+                                        <tr key={`${p.name}-${i}`} className="transition hover:bg-slate-800/30">
+                                            <td className="w-10 py-2.5 pl-4 pr-2 text-xs font-bold tabular-nums text-slate-600">{i + 1}</td>
+                                            <td className="max-w-0 py-2.5 pr-3">
+                                                <p className="truncate text-slate-200" title={p.name}>{p.name}</p>
+                                            </td>
+                                            <td className="py-2.5 pr-4 text-right font-mono font-semibold tabular-nums text-emerald-300">
+                                                {p.count.toLocaleString('th-TH')}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {topLists.topProducts.length === 0 && (
+                                        <tr><td className="px-4 py-8 text-center text-slate-500">ไม่มีข้อมูลสินค้า</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             )}
 
