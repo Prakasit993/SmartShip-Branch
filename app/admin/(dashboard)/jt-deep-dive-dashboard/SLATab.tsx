@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AlertTriangle, CalendarDays, ChevronDown, Clock3, PackageCheck, RefreshCw } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AlertTriangle, CalendarDays, ChevronDown, Clock3, Eye, EyeOff, MapPin, PackageCheck, RefreshCw, Scale } from 'lucide-react';
 import {
     toYmd as toLocalYmd,
     addDays as addLocalDays,
@@ -637,6 +637,8 @@ export function SLATab() {
                     ) : null}
                 </div>
             </section>
+
+            <CostAreaInspectionSection range={appliedRange} />
         </div>
     );
 }
@@ -1052,5 +1054,298 @@ function ProblemAwbCard({ item }: { item: SlaCardCase }) {
             </div>
             <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-slate-500">{item.detail}</p>
         </article>
+    );
+}
+
+// ─── Cost / Area Inspection (ราย AWB) ───────────────────────────────────────────
+
+type CostAreaRow = {
+    awbNumber: string;
+    bookingDate: string;
+    latestScanTime: string | null;
+    destSubdistrict: string | null;
+    destDistrict: string | null;
+    destProvince: string | null;
+    receiverAddress: string | null;
+    billableWeightKg: number | null;
+    adminBillable: number;
+    gatewayBillable: number;
+    anomalyRatio: number | null;
+    anomalyDiffKg: number;
+    isAnomaly: boolean;
+    ourCost: number;
+    signerName: string | null;
+    isClosed: boolean;
+    daysPending: number | null;
+};
+
+const COST_AREA_PAGE = 10;
+
+function ClosedBadge({ isClosed, signerName }: { isClosed: boolean; signerName?: string | null }) {
+    if (isClosed) {
+        return (
+            <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                ปิดงานแล้ว{signerName ? ` · ${signerName}` : ''}
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+            ยังไม่ปิด
+        </span>
+    );
+}
+
+function CostAreaInspectionSection({ range }: { range: { from: string; to: string } }) {
+    const [show, setShow] = useState(false);
+    const [viewMode, setViewMode] = useState<'cost' | 'area'>('cost');
+    const [rows, setRows] = useState<CostAreaRow[]>([]);
+    const [loadState, setLoadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(0);
+    const [openAddr, setOpenAddr] = useState<Set<string>>(new Set());
+
+    const filterMode = viewMode === 'cost' ? 'anomaly' : 'not_closed';
+
+    useEffect(() => {
+        if (!show) return;
+        const ctrl = new AbortController();
+        setLoadState('loading');
+        setError(null);
+        const params = new URLSearchParams({
+            date_from: range.from,
+            date_to: range.to,
+            filter: filterMode,
+            limit: '300',
+            offset: '0',
+        });
+        fetch(`/api/admin/jt-shipments/cost-area-detail?${params.toString()}`, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            signal: ctrl.signal,
+        })
+            .then(async (res) => {
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.error || 'โหลดข้อมูลไม่สำเร็จ');
+                setRows(Array.isArray(json.data) ? json.data : []);
+                setPage(0);
+                setLoadState('success');
+            })
+            .catch((e: unknown) => {
+                if ((e as { name?: string }).name === 'AbortError') return;
+                setError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ');
+                setLoadState('error');
+            });
+        return () => ctrl.abort();
+    }, [show, range.from, range.to, filterMode]);
+
+    const totalPages = Math.max(1, Math.ceil(rows.length / COST_AREA_PAGE));
+    const safePage = Math.min(page, totalPages - 1);
+    const start = safePage * COST_AREA_PAGE;
+    const pageRows = rows.slice(start, start + COST_AREA_PAGE);
+
+    const toggleAddr = (awb: string) =>
+        setOpenAddr((prev) => {
+            const next = new Set(prev);
+            if (next.has(awb)) next.delete(awb);
+            else next.add(awb);
+            return next;
+        });
+
+    return (
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                        <MapPin className="h-4 w-4 text-sky-400" aria-hidden />
+                        ตรวจต้นทุน / พื้นที่ปิดงานช้า
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                        ราย AWB ช่วง {range.from} – {range.to} · จับชิ้นที่ gateway ปรับน้ำหนักผิดปกติ และพื้นที่ที่ยังไม่ปิดงาน
+                    </p>
+                </div>
+                {show && (
+                    <button
+                        type="button"
+                        onClick={() => setShow(false)}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white"
+                    >
+                        <EyeOff className="h-3.5 w-3.5" aria-hidden />
+                        ซ่อน
+                    </button>
+                )}
+            </div>
+
+            {!show ? (
+                <div className="mt-4 rounded-xl border border-dashed border-slate-800 bg-slate-950/40 p-6 text-center">
+                    <p className="mb-3 text-sm text-slate-400">ข้อมูลถูกซ่อนไว้ กดเพื่อโหลด</p>
+                    <button
+                        type="button"
+                        onClick={() => setShow(true)}
+                        className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-400"
+                    >
+                        <Eye className="h-4 w-4" aria-hidden />
+                        แสดงข้อมูล
+                    </button>
+                </div>
+            ) : (
+                <div className="mt-4 space-y-3">
+                    {/* View toggle */}
+                    <div className="inline-flex rounded-lg bg-slate-950/70 p-1">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('cost')}
+                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                                viewMode === 'cost' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            <Scale className="h-3.5 w-3.5" aria-hidden />
+                            ต้นทุน / ปรับน้ำหนัก
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('area')}
+                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                                viewMode === 'area' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            <MapPin className="h-3.5 w-3.5" aria-hidden />
+                            พื้นที่ปิดงานช้า
+                        </button>
+                    </div>
+
+                    {loadState === 'error' ? (
+                        <div className="rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200">
+                            <p className="font-semibold">โหลดข้อมูลไม่สำเร็จ</p>
+                            {error && <p className="mt-1 text-red-200/80">{error}</p>}
+                            <p className="mt-1 text-xs text-red-200/60">
+                                ตรวจสอบว่ารัน migration <code className="font-mono">20260521_jt_shipment_cost_area_detail.sql</code> ใน Supabase แล้ว
+                            </p>
+                        </div>
+                    ) : loadState === 'loading' && rows.length === 0 ? (
+                        <div className="space-y-2">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="h-9 w-full animate-pulse rounded-lg bg-slate-800/50" />
+                            ))}
+                        </div>
+                    ) : rows.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/35 p-5 text-center text-sm text-slate-500">
+                            {viewMode === 'cost' ? 'ไม่พบชิ้นที่ปรับน้ำหนักผิดปกติในช่วงนี้' : 'ไม่พบงานที่ยังไม่ปิดในช่วงนี้'}
+                        </div>
+                    ) : (
+                        <>
+                            <div className="overflow-x-auto">
+                                {viewMode === 'cost' ? (
+                                    <table className="min-w-full text-left text-xs">
+                                        <thead className="text-slate-500">
+                                            <tr className="border-b border-slate-800 bg-slate-900/30">
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">AWB</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Booking</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ปลายทาง</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">admin (กก.)</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">gateway (กก.)</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-rose-300">ปรับเกิน</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-sky-300">ต้นทุนเรา</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">สถานะ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-900/50 text-slate-300">
+                                            {pageRows.map((r) => (
+                                                <tr key={r.awbNumber} className={r.isAnomaly ? 'bg-rose-500/[0.06] hover:bg-rose-500/10' : 'hover:bg-slate-900/50'}>
+                                                    <td className="whitespace-nowrap px-3 py-2 font-mono text-sky-300">{r.awbNumber}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-slate-400">{r.bookingDate || '—'}</td>
+                                                    <td className="max-w-[160px] truncate px-3 py-2">{[r.destDistrict, r.destProvince].filter(Boolean).join(' · ') || '—'}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.adminBillable.toFixed(2)}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.gatewayBillable.toFixed(2)}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-bold tabular-nums text-rose-300">{r.anomalyRatio != null ? `${r.anomalyRatio.toFixed(1)}×` : '—'}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-sky-200">{formatThb(r.ourCost)}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2"><ClosedBadge isClosed={r.isClosed} /></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <table className="min-w-full text-left text-xs">
+                                        <thead className="text-slate-500">
+                                            <tr className="border-b border-slate-800 bg-slate-900/30">
+                                                <th className="w-8 px-3 py-2.5" />
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">AWB</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Booking</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">สแกนล่าสุด</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ตำบล</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">อำเภอ</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">จังหวัด</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-300">ค้าง (วัน)</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">สถานะ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-900/50 text-slate-300">
+                                            {pageRows.map((r) => {
+                                                const open = openAddr.has(r.awbNumber);
+                                                return (
+                                                    <Fragment key={r.awbNumber}>
+                                                        <tr className="hover:bg-slate-900/50">
+                                                            <td className="px-3 py-2 text-slate-500">
+                                                                {r.receiverAddress ? (
+                                                                    <button type="button" onClick={() => toggleAddr(r.awbNumber)} aria-label="ดูที่อยู่">
+                                                                        <ChevronDown className={`h-3.5 w-3.5 transition ${open ? 'rotate-180' : ''}`} aria-hidden />
+                                                                    </button>
+                                                                ) : null}
+                                                            </td>
+                                                            <td className="whitespace-nowrap px-3 py-2 font-mono text-sky-300">{r.awbNumber}</td>
+                                                            <td className="whitespace-nowrap px-3 py-2 text-slate-400">{r.bookingDate || '—'}</td>
+                                                            <td className="whitespace-nowrap px-3 py-2 text-slate-400">{r.latestScanTime ? r.latestScanTime.slice(0, 16) : '—'}</td>
+                                                            <td className="whitespace-nowrap px-3 py-2">{r.destSubdistrict || '—'}</td>
+                                                            <td className="whitespace-nowrap px-3 py-2">{r.destDistrict || '—'}</td>
+                                                            <td className="whitespace-nowrap px-3 py-2">{r.destProvince || '—'}</td>
+                                                            <td className="whitespace-nowrap px-3 py-2 text-right font-bold tabular-nums text-amber-300">{r.daysPending ?? '—'}</td>
+                                                            <td className="whitespace-nowrap px-3 py-2"><ClosedBadge isClosed={r.isClosed} signerName={r.signerName} /></td>
+                                                        </tr>
+                                                        {open && r.receiverAddress && (
+                                                            <tr className="bg-slate-950/60">
+                                                                <td colSpan={9} className="px-4 py-2 text-xs leading-relaxed text-slate-400">
+                                                                    <span className="text-slate-500">ที่อยู่ผู้รับ:</span> {r.receiverAddress}
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </Fragment>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+
+                            {rows.length > COST_AREA_PAGE && (
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                                    <span>
+                                        แสดง {start + 1}–{Math.min(start + COST_AREA_PAGE, rows.length)} จาก {rows.length.toLocaleString('th-TH')} รายการ
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPage((p) => Math.max(0, p - 1))}
+                                            disabled={safePage === 0}
+                                            className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            ก่อนหน้า
+                                        </button>
+                                        <span className="tabular-nums text-slate-300">หน้า {safePage + 1}/{totalPages}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                                            disabled={safePage >= totalPages - 1}
+                                            className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            ถัดไป
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+        </section>
     );
 }
