@@ -288,14 +288,20 @@ export function FinancialTab() {
 
     const selectCalendarDate = (date: string) => {
         setActivePreset('custom');
+        let nextFrom = dateFrom;
+        let nextTo = dateTo;
         if (activeDatePicker === 'from') {
-            setDateFrom(date);
-            if (date > dateTo) setDateTo(date);
+            nextFrom = date;
+            if (date > dateTo) nextTo = date;
         } else if (activeDatePicker === 'to') {
-            setDateTo(date);
-            if (date < dateFrom) setDateFrom(date);
+            nextTo = date;
+            if (date < dateFrom) nextFrom = date;
         }
+        setDateFrom(nextFrom);
+        setDateTo(nextTo);
         setActiveDatePicker(null);
+        // กดวันแล้วโหลดข้อมูลทันที (apply เลย ไม่ต้องกดปุ่ม "ใช้ช่วงวันที่กำหนดเอง" ซ้ำ)
+        setAppliedRange({ from: nextFrom, to: nextTo });
     };
 
     return (
