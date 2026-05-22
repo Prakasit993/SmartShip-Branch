@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
+import { JT_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/jtReturnAcknowledgements';
 
 /**
  * GET /api/admin/customer-profile/list
@@ -100,10 +101,10 @@ export async function GET(req: Request) {
             const cutStr3 = cut3.toISOString().split('T')[0];
             const cutStr7 = cut7.toISOString().split('T')[0];
 
-            const [res3, res7, resAnomaly] = await Promise.allSettled([
+            const [res3, res7, resAnomaly, resAcks] = await Promise.allSettled([
                 supabaseAdmin
                     .from('jt_shipments')
-                    .select('sender_name')
+                    .select('sender_name, awb_number')
                     .or(senderOrFilter)
                     .or(openFilter)
                     .not('booking_date', 'is', null)
@@ -111,19 +112,36 @@ export async function GET(req: Request) {
                     .limit(5000),
                 supabaseAdmin
                     .from('jt_shipments')
-                    .select('sender_name')
+                    .select('sender_name, awb_number')
                     .or(senderOrFilter)
                     .or(openFilter)
                     .not('booking_date', 'is', null)
                     .lt('booking_date', cutStr7)
                     .limit(5000),
                 supabaseAdmin.rpc('customer_anomaly_counts', { p_sender_names: senderNames }),
+                // AWB ที่แอดมินรับทราบแล้ว (kind='overdue') — ตัดออกให้ตรงกับหน้า detail
+                supabaseAdmin
+                    .from(JT_RETURN_ACKNOWLEDGEMENTS_TABLE)
+                    .select('awb_number')
+                    .eq('status', 'active')
+                    .eq('kind', 'overdue'),
             ]);
+
+            const ackedOverdue = new Set<string>();
+            if (resAcks.status === 'fulfilled' && Array.isArray(resAcks.value.data)) {
+                for (const r of resAcks.value.data) {
+                    const awb = String((r as { awb_number?: string }).awb_number ?? '').trim();
+                    if (awb) ackedOverdue.add(awb);
+                }
+            }
 
             function tally(settled: (typeof res3), field: keyof KpiCounts) {
                 if (settled.status !== 'fulfilled' || !settled.value.data) return;
                 for (const row of settled.value.data) {
-                    const key = ((row as { sender_name?: string }).sender_name ?? '').toLowerCase();
+                    const r = row as { sender_name?: string; awb_number?: string };
+                    const awb = String(r.awb_number ?? '').trim();
+                    if (awb && ackedOverdue.has(awb)) continue; // ack แล้ว → ไม่นับ (ตรงกับ detail)
+                    const key = (r.sender_name ?? '').toLowerCase();
                     if (!key) continue;
                     if (!kpiMap[key]) kpiMap[key] = { overdue3: 0, overdue7: 0 };
                     kpiMap[key][field]++;
