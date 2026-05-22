@@ -1053,33 +1053,6 @@ export function JtDashboardView({
                             <AnimatedKpiCard
                                 index={8}
                                 className="h-full"
-                                icon={<RotateCcw className="h-5 w-5" aria-hidden />}
-                                iconBg="bg-rose-500/15"
-                                iconRing="ring-rose-500/25"
-                                iconFg="text-rose-400"
-                                glowColor="bg-rose-500/40"
-                                label="พัสดุถูกตีกลับ"
-                                value={metrics.returnCount}
-                                showDelta={showKpiPercentDelta}
-                                delta={
-                                    previousMetrics
-                                        ? {
-                                              previous: previousMetrics.returnCount,
-                                              previousRangeDays: previousMetrics.range.days,
-                                              inverseGood: true,
-                                          }
-                                        : undefined
-                                }
-                                hint={'นับจากรายการที่มีสถานะตีกลับ'}
-                                onClick={() =>
-                                    setActiveDrilldown((prev) => (prev === 'return' ? null : 'return'))
-                                }
-                                isActive={activeDrilldown === 'return'}
-                            />
-
-                            <AnimatedKpiCard
-                                index={9}
-                                className="h-full"
                                 icon={<AlertCircle className="h-5 w-5" aria-hidden />}
                                 iconBg="bg-rose-500/15"
                                 iconRing="ring-rose-500/25"
@@ -1116,7 +1089,7 @@ export function JtDashboardView({
                                 <SummaryCardSkeleton />
                             ) : (
                                 <AnimatedKpiCard
-                                    index={10}
+                                    index={9}
                                     className="h-full"
                                     icon={<Hourglass className="h-5 w-5" aria-hidden />}
                                     iconBg="bg-amber-500/15"
@@ -1133,6 +1106,33 @@ export function JtDashboardView({
                                     isActive={activeDrilldown === 'stagnant'}
                                 />
                             )}
+
+                            <AnimatedKpiCard
+                                index={10}
+                                className="h-full"
+                                icon={<RotateCcw className="h-5 w-5" aria-hidden />}
+                                iconBg="bg-rose-500/15"
+                                iconRing="ring-rose-500/25"
+                                iconFg="text-rose-400"
+                                glowColor="bg-rose-500/40"
+                                label="พัสดุถูกตีกลับ"
+                                value={metrics.returnCount}
+                                showDelta={showKpiPercentDelta}
+                                delta={
+                                    previousMetrics
+                                        ? {
+                                              previous: previousMetrics.returnCount,
+                                              previousRangeDays: previousMetrics.range.days,
+                                              inverseGood: true,
+                                          }
+                                        : undefined
+                                }
+                                hint={'นับจากรายการที่มีสถานะตีกลับ'}
+                                onClick={() =>
+                                    setActiveDrilldown((prev) => (prev === 'return' ? null : 'return'))
+                                }
+                                isActive={activeDrilldown === 'return'}
+                            />
 
                             <article
                                 className="group relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 via-slate-900/50 to-slate-950/80 p-4 sm:p-5 shadow-lg shadow-black/20 ring-1 ring-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:border-slate-600/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5"
