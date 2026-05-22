@@ -7,16 +7,13 @@ import { TiktokN8nUpload } from './TiktokN8nUpload';
 import { TiktokTopSendersPanel, TiktokTopProductsPanel } from './TiktokTopPanels';
 import { ThailandChoropleth, type MapMetrics } from './ThailandChoropleth';
 import { TiktokIssueTracking } from './TiktokIssueTracking';
+import { InlineInfoTooltip } from './TiktokIssueCards';
+import type { Stats, TopLists } from './tiktokDashboardTypes';
 import { CostAreaInspectionSection } from '@app/admin/(dashboard)/jt-dashboard/JtCostAreaInspection';
 
 function ymd(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
-type Stats = { total: number; closedCount: number };
-type SenderRow = { sender: string; shop: string; count: number };
-type ProductRow = { name: string; count: number };
-type TopLists = { topSenders: SenderRow[]; topProducts: ProductRow[] };
 
 export function TiktokDashboardClient() {
     const [stats, setStats] = useState<Stats | null>(null);
@@ -172,6 +169,7 @@ export function TiktokDashboardClient() {
                         icon="📦"
                         accent="from-sky-500 to-blue-700"
                         hint="พัสดุ TikTok ทั้งหมดในฐานข้อมูล"
+                        tooltip="นับพัสดุ TikTok ทั้งหมดในตาราง tiktok_shipments (นำเข้าผ่าน n8n webhook จากไฟล์ Excel/CSV)"
                     />
                     <StatCard
                         label="ปิดงานแล้ว"
@@ -179,6 +177,7 @@ export function TiktokDashboardClient() {
                         icon="✅"
                         accent="from-emerald-500 to-teal-700"
                         hint={`มีผู้เซ็นรับ (${closedPct.toFixed(1)}% ของทั้งหมด)`}
+                        tooltip="พัสดุที่ปิดงานแล้ว — มีผู้เซ็นรับ (signer_name มีค่า ไม่นับว่าง/'NULL')"
                     />
                 </div>
             )}
@@ -227,18 +226,23 @@ function StatCard({
     icon,
     accent,
     hint,
+    tooltip,
 }: {
     label: string;
     value: string;
     icon: string;
     accent: string;
     hint: string;
+    tooltip?: string;
 }) {
     return (
         <div className="relative overflow-hidden rounded-2xl border border-zinc-800/90 bg-zinc-950/50 p-5 shadow-inner">
             <div className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${accent} opacity-20 blur-2xl`} />
             <p className="mb-2 text-2xl drop-shadow-sm">{icon}</p>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+            <div className="flex items-center gap-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+                {tooltip ? <InlineInfoTooltip content={tooltip} /> : null}
+            </div>
             <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-white">{value}</p>
             <p className="mt-1 text-[10px] leading-snug text-zinc-600">{hint}</p>
         </div>
