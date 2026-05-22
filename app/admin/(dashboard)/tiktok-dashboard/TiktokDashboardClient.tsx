@@ -1,11 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, InboxIcon } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { TiktokN8nUpload } from './TiktokN8nUpload';
 import { TiktokTopSendersPanel, TiktokTopProductsPanel } from './TiktokTopPanels';
 import { ThailandChoropleth, type MapMetrics } from './ThailandChoropleth';
+import { CostAreaInspectionSection } from '@app/admin/(dashboard)/jt-dashboard/JtCostAreaInspection';
+
+function ymd(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 type Stats = { total: number; closedCount: number };
 type SenderRow = { sender: string; shop: string; count: number };
@@ -93,6 +98,14 @@ export function TiktokDashboardClient() {
     const closedPct = stats && stats.total > 0 ? (stats.closedCount / stats.total) * 100 : 0;
     const isEmpty = stats !== null && stats.total === 0;
     const initialLoading = stats === null;
+
+    // ช่วงวันที่สำหรับ "พื้นที่ปิดงานช้า" — tiktok ไม่มี date filter ใช้ย้อนหลัง 1 ปี
+    const areaRange = useMemo(() => {
+        const to = new Date();
+        const from = new Date();
+        from.setDate(from.getDate() - 365);
+        return { from: ymd(from), to: ymd(to) };
+    }, []);
 
     return (
         <div className="space-y-6 pb-20">
@@ -185,6 +198,17 @@ export function TiktokDashboardClient() {
             {/* แผนที่ปลายทางรายจังหวัด */}
             {provinceCounts && !isEmpty && Object.keys(provinceCounts).length > 0 && (
                 <ThailandChoropleth data={mapMetrics} fallbackTotals={provinceCounts} />
+            )}
+
+            {/* พื้นที่ปิดงานช้า (area-only — tiktok ไม่มีต้นทุน) */}
+            {stats && !isEmpty && (
+                <CostAreaInspectionSection
+                    range={areaRange}
+                    apiPath="/api/admin/tiktok-shipments/area-detail"
+                    showCostView={false}
+                    title="พื้นที่ปิดงานช้า"
+                    subtitle="พัสดุ TikTok ตามพื้นที่ปลายทาง + จำนวนวันที่ใช้ปิดงาน (ย้อนหลัง 1 ปี)"
+                />
             )}
         </div>
     );

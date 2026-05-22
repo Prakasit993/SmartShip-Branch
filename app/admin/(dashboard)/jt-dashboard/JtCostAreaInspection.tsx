@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
-import { ChevronDown, Eye, EyeOff, MapPin, Scale } from 'lucide-react';
+import { Check, ChevronDown, Copy, Eye, EyeOff, MapPin, Scale } from 'lucide-react';
 
 /**
  * ตรวจต้นทุน / พื้นที่ปิดงานช้า (ราย AWB)
@@ -22,6 +22,7 @@ function formatThb(value: number): string {
 
 type CostAreaRow = {
     awbNumber: string;
+    senderName: string | null;
     bookingDate: string;
     latestScanTime: string | null;
     destSubdistrict: string | null;
@@ -35,6 +36,7 @@ type CostAreaRow = {
     anomalyDiffKg: number;
     isAnomaly: boolean;
     ourCost: number;
+    adjustedCost: number;
     signerName: string | null;
     isClosed: boolean;
     daysPending: number | null;
@@ -57,16 +59,43 @@ function ClosedBadge({ isClosed, signerName }: { isClosed: boolean; signerName?:
     );
 }
 
-export function CostAreaInspectionSection({ range }: { range: { from: string; to: string } }) {
+export function CostAreaInspectionSection({
+    range,
+    apiPath = '/api/admin/jt-shipments/cost-area-detail',
+    showCostView = true,
+    title = 'ตรวจต้นทุน / พื้นที่ปิดงานช้า',
+    subtitle,
+}: {
+    range: { from: string; to: string };
+    /** endpoint ที่ดึงข้อมูล (default = jt) — tiktok ส่ง path ของ tiktok */
+    apiPath?: string;
+    /** แสดงมุมมอง "ต้นทุน/ปรับน้ำหนัก" ไหม — tiktok ไม่มีต้นทุน ส่ง false (เหลือเฉพาะพื้นที่) */
+    showCostView?: boolean;
+    title?: string;
+    subtitle?: string;
+}) {
     const [show, setShow] = useState(false);
-    const [viewMode, setViewMode] = useState<'cost' | 'area'>('cost');
+    const [viewMode, setViewMode] = useState<'cost' | 'area'>(showCostView ? 'cost' : 'area');
     const [rows, setRows] = useState<CostAreaRow[]>([]);
     const [loadState, setLoadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(0);
     const [openAddr, setOpenAddr] = useState<Set<string>>(new Set());
+    const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
 
     const filterMode = viewMode === 'cost' ? 'anomaly' : 'all';
+
+    const copyAwb = async (awb: string) => {
+        const v = awb.trim();
+        if (!v) return;
+        try {
+            await navigator.clipboard.writeText(v);
+            setCopiedAwb(v);
+            window.setTimeout(() => setCopiedAwb((cur) => (cur === v ? null : cur)), 1500);
+        } catch {
+            /* ignore clipboard errors */
+        }
+    };
 
     useEffect(() => {
         if (!show) return;
@@ -80,7 +109,7 @@ export function CostAreaInspectionSection({ range }: { range: { from: string; to
             limit: '300',
             offset: '0',
         });
-        fetch(`/api/admin/jt-shipments/cost-area-detail?${params.toString()}`, {
+        fetch(`${apiPath}?${params.toString()}`, {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
             signal: ctrl.signal,
@@ -98,7 +127,7 @@ export function CostAreaInspectionSection({ range }: { range: { from: string; to
                 setLoadState('error');
             });
         return () => ctrl.abort();
-    }, [show, range.from, range.to, filterMode]);
+    }, [show, range.from, range.to, filterMode, apiPath]);
 
     const totalPages = Math.max(1, Math.ceil(rows.length / COST_AREA_PAGE));
     const safePage = Math.min(page, totalPages - 1);
@@ -119,10 +148,15 @@ export function CostAreaInspectionSection({ range }: { range: { from: string; to
                 <div>
                     <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
                         <MapPin className="h-4 w-4 text-sky-400" aria-hidden />
-                        ตรวจต้นทุน / พื้นที่ปิดงานช้า
+                        {title}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                        ราย AWB ช่วง {range.from} – {range.to} · จับชิ้นที่ gateway ปรับน้ำหนักผิดปกติ และพื้นที่ที่ยังไม่ปิดงาน
+                        {subtitle ??
+                            `ราย AWB ช่วง ${range.from} – ${range.to} · ${
+                                showCostView
+                                    ? 'จับชิ้นที่ gateway ปรับน้ำหนักผิดปกติ และพื้นที่ที่ยังไม่ปิดงาน'
+                                    : 'พื้นที่ปลายทาง + จำนวนวันที่ใช้ปิดงาน'
+                            }`}
                     </p>
                 </div>
                 {show && (
@@ -151,36 +185,38 @@ export function CostAreaInspectionSection({ range }: { range: { from: string; to
                 </div>
             ) : (
                 <div className="mt-4 space-y-3">
-                    {/* View toggle */}
-                    <div className="inline-flex rounded-lg bg-slate-950/70 p-1">
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('cost')}
-                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                                viewMode === 'cost' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            <Scale className="h-3.5 w-3.5" aria-hidden />
-                            ต้นทุน / ปรับน้ำหนัก
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('area')}
-                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                                viewMode === 'area' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            <MapPin className="h-3.5 w-3.5" aria-hidden />
-                            พื้นที่ปิดงานช้า
-                        </button>
-                    </div>
+                    {/* View toggle — ซ่อนเมื่อไม่มีมุมมองต้นทุน (tiktok) */}
+                    {showCostView ? (
+                        <div className="inline-flex rounded-lg bg-slate-950/70 p-1">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('cost')}
+                                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                                    viewMode === 'cost' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                                }`}
+                            >
+                                <Scale className="h-3.5 w-3.5" aria-hidden />
+                                ต้นทุน / ปรับน้ำหนัก
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('area')}
+                                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                                    viewMode === 'area' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                                }`}
+                            >
+                                <MapPin className="h-3.5 w-3.5" aria-hidden />
+                                พื้นที่ปิดงานช้า
+                            </button>
+                        </div>
+                    ) : null}
 
                     {loadState === 'error' ? (
                         <div className="rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200">
                             <p className="font-semibold">โหลดข้อมูลไม่สำเร็จ</p>
                             {error && <p className="mt-1 text-red-200/80">{error}</p>}
                             <p className="mt-1 text-xs text-red-200/60">
-                                ตรวจสอบว่ารัน migration <code className="font-mono">20260521_jt_shipment_cost_area_detail.sql</code> ใน Supabase แล้ว
+                                ตรวจสอบว่ารัน migration ของฟังก์ชันรายละเอียดต้นทุน/พื้นที่ใน Supabase แล้ว
                             </p>
                         </div>
                     ) : loadState === 'loading' && rows.length === 0 ? (
@@ -202,24 +238,42 @@ export function CostAreaInspectionSection({ range }: { range: { from: string; to
                                             <tr className="border-b border-slate-800 bg-slate-900/30">
                                                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">AWB</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Booking</th>
-                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ปลายทาง</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">ผู้ส่ง</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">admin (กก.)</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">gateway (กก.)</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-rose-300">ปรับเกิน</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-sky-300">ต้นทุนเรา</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-amber-300">ต้นทุนที่ปรับปรุงแล้ว</th>
+                                                <th className="whitespace-nowrap px-3 py-2.5 font-semibold">SCAN ล่าสุด</th>
                                                 <th className="whitespace-nowrap px-3 py-2.5 font-semibold">สถานะ</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-900/50 text-slate-300">
                                             {pageRows.map((r) => (
                                                 <tr key={r.awbNumber} className={r.isAnomaly ? 'bg-rose-500/[0.06] hover:bg-rose-500/10' : 'hover:bg-slate-900/50'}>
-                                                    <td className="whitespace-nowrap px-3 py-2 font-mono text-sky-300">{r.awbNumber}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void copyAwb(r.awbNumber)}
+                                                            title={`คลิกเพื่อคัดลอก ${r.awbNumber}`}
+                                                            className="inline-flex items-center gap-1 font-mono text-sky-300 underline-offset-2 transition hover:text-sky-200 hover:underline"
+                                                        >
+                                                            {r.awbNumber}
+                                                            {copiedAwb === r.awbNumber ? (
+                                                                <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+                                                            ) : (
+                                                                <Copy className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                                                            )}
+                                                        </button>
+                                                    </td>
                                                     <td className="whitespace-nowrap px-3 py-2 text-slate-400">{r.bookingDate || '—'}</td>
-                                                    <td className="max-w-[160px] truncate px-3 py-2">{[r.destDistrict, r.destProvince].filter(Boolean).join(' · ') || '—'}</td>
+                                                    <td className="max-w-[160px] truncate px-3 py-2" title={r.senderName ?? undefined}>{r.senderName || '—'}</td>
                                                     <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.adminBillable.toFixed(2)}</td>
                                                     <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.gatewayBillable.toFixed(2)}</td>
                                                     <td className="whitespace-nowrap px-3 py-2 text-right font-bold tabular-nums text-rose-300">{r.anomalyRatio != null ? `${r.anomalyRatio.toFixed(1)}×` : '—'}</td>
                                                     <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-sky-200">{formatThb(r.ourCost)}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-amber-200">{formatThb(r.adjustedCost)}</td>
+                                                    <td className="whitespace-nowrap px-3 py-2 text-slate-400">{r.latestScanTime ? r.latestScanTime.slice(0, 16) : '—'}</td>
                                                     <td className="whitespace-nowrap px-3 py-2"><ClosedBadge isClosed={r.isClosed} /></td>
                                                 </tr>
                                             ))}
