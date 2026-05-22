@@ -55,6 +55,8 @@ export type JtDashboardViewProps = {
         reason: string,
         muteAging: boolean,
     ) => Promise<void>;
+    /** ดึงพัสดุตีกลับที่ซ่อนไว้กลับมา */
+    onRestoreReturn: (awbNumber: string) => Promise<void>;
     /** รับทราบพัสดุตกค้าง → ซ่อนจากการ์ด + AI tool */
     onAcknowledgeStagnant: (awbNumber: string, reason: string) => Promise<void>;
     /** ดึงพัสดุตกค้างที่ซ่อนไว้กลับมา */
@@ -347,6 +349,7 @@ export function JtDashboardView({
     onSaveCustomMetricCards,
     onSaveDetailFields,
     onAcknowledgeReturn,
+    onRestoreReturn,
     onAcknowledgeStagnant,
     onRestoreStagnant,
     showKpiPercentDelta,
@@ -388,6 +391,9 @@ export function JtDashboardView({
     const [ackError, setAckError] = useState<string | null>(null);
     const [showAllStagnantHidden, setShowAllStagnantHidden] = useState(false);
     const [showStagnantHidden, setShowStagnantHidden] = useState(false);
+    const [showReturnHidden, setShowReturnHidden] = useState(false);
+    const [showAllReturnHidden, setShowAllReturnHidden] = useState(false);
+    const [restoringReturnAwb, setRestoringReturnAwb] = useState<string | null>(null);
     const [stagnantAckAwb, setStagnantAckAwb] = useState('');
     const [stagnantAckPreset, setStagnantAckPreset] = useState<string>(STAGNANT_ACK_PRESETS[0]);
     const [stagnantAckReason, setStagnantAckReason] = useState('');
@@ -600,6 +606,19 @@ export function JtDashboardView({
             setCopyMessage(e instanceof Error ? e.message : 'ดึงกลับไม่สำเร็จ');
         } finally {
             setRestoringStagnantAwb(null);
+        }
+    }
+
+    async function handleRestoreReturn(awb: string) {
+        const value = awb.trim();
+        if (!value || restoringReturnAwb) return;
+        setRestoringReturnAwb(value);
+        try {
+            await onRestoreReturn(value);
+        } catch (e) {
+            setCopyMessage(e instanceof Error ? e.message : 'ดึงกลับไม่สำเร็จ');
+        } finally {
+            setRestoringReturnAwb(null);
         }
     }
 
@@ -1531,20 +1550,35 @@ export function JtDashboardView({
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                                         รายการพัสดุถูกตีกลับ (ตัดรายการที่รับทราบแล้ว)
                                     </p>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            void copyAwbList(
-                                                (showAllReturns ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map(
-                                                    (r) => r.awb_number,
-                                                ),
-                                            )
-                                        }
-                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white"
-                                    >
-                                        <Copy className="h-3.5 w-3.5" aria-hidden />
-                                        คัดลอก AWB ทั้งชุด
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowReturnHidden((v) => !v)}
+                                            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition ${
+                                                showReturnHidden
+                                                    ? 'border-sky-500/50 bg-sky-500/10 text-sky-200'
+                                                    : 'border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600 hover:text-white'
+                                            }`}
+                                        >
+                                            {showReturnHidden
+                                                ? 'ซ่อนรายการที่ซ่อนไว้'
+                                                : `ดูที่ซ่อนไว้ (${metrics.returnHiddenCases.length})`}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void copyAwbList(
+                                                    (showAllReturns ? metrics.topReturnTypeCases : metrics.topReturnTypeCases.slice(0, 3)).map(
+                                                        (r) => r.awb_number,
+                                                    ),
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white"
+                                        >
+                                            <Copy className="h-3.5 w-3.5" aria-hidden />
+                                            คัดลอก AWB ทั้งชุด
+                                        </button>
+                                    </div>
                                 </div>
                                 {metrics.topReturnTypeCases.length > 0 ? (
                                     <>
@@ -1615,6 +1649,74 @@ export function JtDashboardView({
                                         ยังไม่พบรายการพัสดุตีกลับที่ยังไม่ได้รับทราบในช่วงนี้
                                     </p>
                                 )}
+
+                                {showReturnHidden ? (
+                                    <div className="mt-3 rounded-lg border border-slate-800/70 bg-slate-900/30 p-2.5">
+                                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                            ที่ซ่อนไว้ ({metrics.returnHiddenCases.length}) — กด &quot;ดึงกลับ&quot; เพื่อนำกลับเข้ารายการ
+                                        </p>
+                                        {metrics.returnHiddenCases.length > 0 ? (
+                                            <>
+                                                <div className="space-y-1.5 overflow-x-auto">
+                                                    <div className="grid min-w-[720px] grid-cols-[1.6rem_1fr_1.7fr_1fr_5rem] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                                        <span>#</span>
+                                                        <span>เลขพัสดุ</span>
+                                                        <span>เหตุผล</span>
+                                                        <span>รับทราบเมื่อ</span>
+                                                        <span className="text-right">จัดการ</span>
+                                                    </div>
+                                                    {(showAllReturnHidden ? metrics.returnHiddenCases : metrics.returnHiddenCases.slice(0, 5)).map((h, idx) => (
+                                                        <div
+                                                            key={`${h.awb_number}-${idx}`}
+                                                            className="grid min-w-[720px] grid-cols-[1.6rem_1fr_1.7fr_1fr_5rem] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                        >
+                                                            <span className="tabular-nums text-slate-500">{idx + 1}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void copyAwb(h.awb_number)}
+                                                                onDoubleClick={() => void openShipmentDetail(h.awb_number)}
+                                                                className="inline-flex min-w-0 items-center gap-1 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                                title={`คลิกเพื่อคัดลอก • ดับเบิลคลิกเพื่อเปิดรายละเอียด ${h.awb_number}`}
+                                                            >
+                                                                {h.awb_number}
+                                                                {copiedAwb === h.awb_number ? (
+                                                                    <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+                                                                ) : (
+                                                                    <Copy className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                                                                )}
+                                                            </button>
+                                                            <span className="min-w-0 truncate text-slate-300" title={h.reason}>
+                                                                {h.reason}
+                                                            </span>
+                                                            <span className="min-w-0 truncate text-right tabular-nums text-slate-400">
+                                                                {h.acknowledged_at && h.acknowledged_at !== '-' ? h.acknowledged_at.slice(0, 16) : '—'}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                disabled={restoringReturnAwb === h.awb_number}
+                                                                onClick={() => void handleRestoreReturn(h.awb_number)}
+                                                                className="justify-self-end rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200 transition-colors hover:border-sky-400/50 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                {restoringReturnAwb === h.awb_number ? '...' : 'ดึงกลับ'}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {metrics.returnHiddenCases.length > 5 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowAllReturnHidden(!showAllReturnHidden)}
+                                                        className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
+                                                    >
+                                                        {showAllReturnHidden ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${metrics.returnHiddenCases.length - 5} รายการ`}
+                                                    </button>
+                                                ) : null}
+                                            </>
+                                        ) : (
+                                            <p className="text-xs text-slate-500">ยังไม่มีรายการที่ซ่อนไว้</p>
+                                        )}
+                                    </div>
+                                ) : null}
                             </div>
                         ) : null}
                     </div>

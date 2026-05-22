@@ -214,6 +214,12 @@ export function JtDashboardPageClient() {
                 return_branch_name: string;
                 issue_registered_time?: string;
             }>;
+            returnHiddenCases?: Array<{
+                awb_number: string;
+                reason: string;
+                acknowledged_at: string;
+                acknowledged_by: string;
+            }>;
             codCollectionRate?: number;
             recent?: JtDashboardShipmentRow[];
             custom_metric_definitions?: JtCustomMetricCardDefinition[];
@@ -332,6 +338,19 @@ export function JtDashboardPageClient() {
                                   typeof r.return_branch_name === 'string',
                           )
                           .slice(0, 100)
+                    : [],
+                returnHiddenCases: Array.isArray(json.returnHiddenCases)
+                    ? json.returnHiddenCases.filter(
+                          (r): r is {
+                              awb_number: string;
+                              reason: string;
+                              acknowledged_at: string;
+                              acknowledged_by: string;
+                          } =>
+                              r != null &&
+                              typeof r.awb_number === 'string' &&
+                              typeof r.reason === 'string',
+                      )
                     : [],
             },
             previousMetrics: json.previous ?? null,
@@ -591,6 +610,7 @@ export function JtDashboardPageClient() {
         topExceptionReasons: [],
         topExceptionCases: [],
         topReturnTypeCases: [],
+        returnHiddenCases: [],
         codCollectionRate: 0,
     };
 
@@ -653,6 +673,30 @@ export function JtDashboardPageClient() {
             const raw = await res.text();
             if (!res.ok) {
                 let msg = 'บันทึกการรับทราบไม่สำเร็จ';
+                try {
+                    const o = JSON.parse(raw) as { error?: string };
+                    if (o.error) msg = o.error;
+                } catch {
+                    /* ignore */
+                }
+                throw new Error(msg);
+            }
+            await load(parcelDateFrom, parcelDateTo);
+        },
+        [load, parcelDateFrom, parcelDateTo],
+    );
+
+    const restoreReturn = useCallback(
+        async (awbNumber: string) => {
+            const res = await fetch('/api/admin/jt-shipments/parcel-acknowledgements', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ awb_number: awbNumber, kind: 'return', action: 'restore' }),
+            });
+            const raw = await res.text();
+            if (!res.ok) {
+                let msg = 'ดึงกลับไม่สำเร็จ';
                 try {
                     const o = JSON.parse(raw) as { error?: string };
                     if (o.error) msg = o.error;
@@ -738,6 +782,7 @@ export function JtDashboardPageClient() {
             onSaveCustomMetricCards={saveCustomMetricCards}
             onSaveDetailFields={saveDetailFields}
             onAcknowledgeReturn={acknowledgeReturn}
+            onRestoreReturn={restoreReturn}
             onAcknowledgeStagnant={acknowledgeStagnant}
             onRestoreStagnant={restoreStagnant}
             showKpiPercentDelta={showKpiPercentDelta}

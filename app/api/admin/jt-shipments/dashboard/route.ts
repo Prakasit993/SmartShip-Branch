@@ -498,7 +498,7 @@ export async function GET(req: Request) {
                 .maybeSingle(),
             supabaseAdmin
                 .from(JT_RETURN_ACKNOWLEDGEMENTS_TABLE)
-                .select('awb_number')
+                .select('awb_number,reason,acknowledged_at,acknowledged_by,kind')
                 .eq('status', 'active'),
         ]);
         if (customMetricSettingsRes.error) {
@@ -510,11 +510,26 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: returnAcknowledgementsRes.error.message }, { status: 500 });
         }
         const customDefs = parseJtCustomMetricCardsFromSettingsValue(customMetricSettingsRes.data?.value);
+        const ackRows = (returnAcknowledgementsRes.data || []) as Array<{
+            awb_number: string | null;
+            reason: string | null;
+            acknowledged_at: string | null;
+            acknowledged_by: string | null;
+            kind: string | null;
+        }>;
         const acknowledgedReturnAwbs = new Set(
-            ((returnAcknowledgementsRes.data || []) as Array<{ awb_number: string | null }>)
-                .map((row) => String(row.awb_number ?? '').trim())
-                .filter(Boolean),
+            ackRows.map((row) => String(row.awb_number ?? '').trim()).filter(Boolean),
         );
+        // รายการที่รับทราบและซ่อนไว้ (kind='return') — สำหรับ "ดูที่ซ่อนไว้" + ดึงกลับ
+        const returnHiddenCases = ackRows
+            .filter((r) => String(r.kind ?? 'return').trim() === 'return')
+            .map((r) => ({
+                awb_number: String(r.awb_number ?? '-').trim() || '-',
+                reason: String(r.reason ?? '-').trim() || '-',
+                acknowledged_at: String(r.acknowledged_at ?? '-').trim() || '-',
+                acknowledged_by: String(r.acknowledged_by ?? '-').trim() || '-',
+            }))
+            .sort((a, b) => b.acknowledged_at.localeCompare(a.acknowledged_at));
 
         const [
             countResult,
@@ -705,6 +720,7 @@ export async function GET(req: Request) {
             topExceptionReasons: exceptionStats.topExceptionReasons,
             topExceptionCases: exceptionStats.topExceptionCases,
             topReturnTypeCases: returnTypeCases.topReturnTypeCases,
+            returnHiddenCases,
             recent: recent ?? [],
             date_from: dateFrom.trim() || null,
             date_to: dateTo.trim() || null,

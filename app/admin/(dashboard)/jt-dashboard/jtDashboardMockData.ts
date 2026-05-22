@@ -98,6 +98,14 @@ export const MOCK_METRICS: JtDashboardMetrics = {
             issue_registered_time: '2026-04-30 18:05',
         },
     ],
+    returnHiddenCases: [
+        {
+            awb_number: '8200011229001',
+            reason: 'เคลมแล้ว อนุมัติแล้ว',
+            acknowledged_at: '2026-05-20 14:10:00',
+            acknowledged_by: 'admin',
+        },
+    ],
     codCollectionRate: 45.59,
 };
 
