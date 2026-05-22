@@ -51,6 +51,13 @@ export type JtDashboardMetrics = {
         gateway_vol_weight: string;
         latest_scan_time: string;
     }>;
+    /** พัสดุตกค้างที่แอดมินรับทราบและซ่อนไว้ (active ack kind=stagnant) — สำหรับ "ดูที่ซ่อนไว้" + ดึงกลับ */
+    stagnantHiddenCases: Array<{
+        awb_number: string;
+        reason: string;
+        acknowledged_at: string;
+        acknowledged_by: string;
+    }>;
     topExceptionReasons: Array<{ reason: string; count: number }>;
     topExceptionCases: Array<{
         awb_number: string;

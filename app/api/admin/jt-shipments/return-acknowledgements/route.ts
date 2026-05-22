@@ -3,6 +3,9 @@ import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 import { JT_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/jtReturnAcknowledgements';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+// ตารางนี้ generic แล้ว (มีคอลัมน์ kind) — endpoint นี้ดูแลเฉพาะ kind='return'
+const ACK_KIND_RETURN = 'return';
+
 export async function POST(req: Request) {
     try {
         const denied = await requireAdminApiAuth('admin-or-staff', req);
@@ -30,6 +33,7 @@ export async function POST(req: Request) {
             .from(JT_RETURN_ACKNOWLEDGEMENTS_TABLE)
             .select('id')
             .eq('awb_number', awb)
+            .eq('kind', ACK_KIND_RETURN)
             .eq('status', 'active')
             .maybeSingle();
         if (readError) {
@@ -40,6 +44,7 @@ export async function POST(req: Request) {
         const payload = {
             awb_number: awb.slice(0, 80),
             reason: reason.slice(0, 500),
+            kind: ACK_KIND_RETURN,
             status: 'active',
             mute_aging: muteAging,
             acknowledged_by: acknowledgedBy,

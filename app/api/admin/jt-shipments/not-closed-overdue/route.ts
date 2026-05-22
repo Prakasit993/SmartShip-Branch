@@ -236,13 +236,14 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // ดึง AWB ที่ admin "รับทราบและปิดเรื่อง" (mute_aging=true) เพื่อตัดออกจากผลลัพธ์.
-        // AI ไม่ต้องรู้ว่าเคสเหล่านี้ถูก ack — ปล่อยให้ silent skip
+        // ดึง AWB ที่ admin "รับทราบและซ่อน" เพื่อตัดออกจากผลลัพธ์ (silent skip):
+        //   - return ack ที่ปิดเรื่องแล้ว (mute_aging=true)
+        //   - stagnant ack ทุกตัว (รับทราบจากการ์ดพัสดุตกค้าง = ซ่อนจาก AI tool ด้วย)
         const { data: mutedAcks, error: ackErr } = await supabaseAdmin
             .from('jt_return_acknowledgements')
             .select('awb_number')
             .eq('status', 'active')
-            .eq('mute_aging', true);
+            .or('kind.eq.stagnant,mute_aging.eq.true');
         if (ackErr) {
             // ไม่ block — log แล้วทำงานต่อ (ดีกว่าโดน 500 เมื่อ ack table มีปัญหา)
             console.warn('[jt-shipments/not-closed-overdue] muted ack fetch failed:', ackErr);
