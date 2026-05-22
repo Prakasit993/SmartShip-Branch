@@ -29,7 +29,7 @@ type CustomerRow = {
     shipment_count: number;
     overdue3: number;
     overdue7: number;
-    withIssue: number;
+    anomalyCount: number;
 };
 
 type ApiResponse = {
@@ -83,23 +83,6 @@ function initialOf(name: string | null): string {
     return code ? String.fromCodePoint(code).toUpperCase() : '?';
 }
 
-const ACK_KEY = 'smartship:ack:v1';
-
-function loadAck(): Set<string> {
-    try {
-        const raw = typeof window !== 'undefined' ? localStorage.getItem(ACK_KEY) : null;
-        return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-    } catch {
-        return new Set();
-    }
-}
-
-function saveAck(set: Set<string>) {
-    try {
-        localStorage.setItem(ACK_KEY, JSON.stringify([...set]));
-    } catch {}
-}
-
 export function CustomerProfileListClient() {
     const [tab, setTab] = useState<TabKey>('vip');
     const [q, setQ] = useState('');
@@ -109,21 +92,8 @@ export function CustomerProfileListClient() {
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
     const sentinelRef = useRef<HTMLDivElement | null>(null);
     const requestSeqRef = useRef(0);
-
-    useEffect(() => { setAcknowledged(loadAck()); }, []);
-
-    const toggleAck = useCallback((id: string) => {
-        setAcknowledged((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            saveAck(next);
-            return next;
-        });
-    }, []);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedQ(q.trim()), SEARCH_DEBOUNCE_MS);
@@ -315,20 +285,20 @@ export function CustomerProfileListClient() {
                             <EmptyState debouncedQ={debouncedQ} />
                         ) : (
                             rows.map((row, idx) => (
-                                <CustomerListCard key={row.id} row={row} animationIndex={idx} isAcknowledged={acknowledged.has(row.id)} onAcknowledge={toggleAck} />
+                                <CustomerListCard key={row.id} row={row} animationIndex={idx} />
                             ))
                         )}
                     </div>
 
                     {/* Desktop: table */}
                     <div className="mt-3 hidden overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-900/40 shadow-inner shadow-black/30 sm:block">
-                        <table className="w-full min-w-[640px] table-fixed text-left text-[13px]">
+                        <table className="w-full min-w-[760px] table-fixed text-left text-[13px]">
                             <thead className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 text-[10px] uppercase tracking-wider text-slate-400">
                                 <tr>
-                                    <th className="w-[28%] px-2.5 py-2 font-semibold">ชื่อลูกค้า</th>
-                                    <th className="w-[18%] px-2.5 py-2 font-semibold">เบอร์โทร</th>
-                                    <th className="w-[26%] px-2.5 py-2 font-semibold">แจ้งเตือน</th>
-                                    <th className="w-[16%] px-2.5 py-2 font-semibold">VIP</th>
+                                    <th className="w-[24%] px-2.5 py-2 font-semibold">ชื่อลูกค้า</th>
+                                    <th className="w-[16%] px-2.5 py-2 font-semibold">เบอร์โทร</th>
+                                    <th className="w-[36%] px-2.5 py-2 font-semibold">แจ้งเตือน (ค้าง / ปรับยอด)</th>
+                                    <th className="w-[12%] px-2.5 py-2 font-semibold">VIP</th>
                                     <th className="w-[12%] px-2.5 py-2 text-right font-semibold">พัสดุ</th>
                                 </tr>
                             </thead>
@@ -343,7 +313,7 @@ export function CustomerProfileListClient() {
                                     </tr>
                                 ) : (
                                     rows.map((row, idx) => (
-                                        <CustomerListRow key={row.id} row={row} animationIndex={idx} isAcknowledged={acknowledged.has(row.id)} onAcknowledge={toggleAck} />
+                                        <CustomerListRow key={row.id} row={row} animationIndex={idx} />
                                     ))
                                 )}
                             </tbody>
@@ -415,72 +385,51 @@ function CardSkeletonList() {
     );
 }
 
-function AlertBadges({ row, isAcknowledged, onAcknowledge, size = 'sm' }: {
+function AlertBadges({ row, size = 'sm' }: {
     row: CustomerRow;
-    isAcknowledged: boolean;
-    onAcknowledge: (id: string) => void;
     size?: 'sm' | 'xs';
 }) {
-    const hasAlert = row.overdue3 > 0 || row.overdue7 > 0 || row.withIssue > 0;
-    if (!hasAlert && !isAcknowledged) return null;
+    const hasAlert = row.overdue3 > 0 || row.overdue7 > 0 || row.anomalyCount > 0;
+    const txt = size === 'xs' ? 'text-[9px]' : 'text-[10px]';
+    if (!hasAlert) {
+        return <span className={`text-slate-600 ${txt}`}>—</span>;
+    }
 
     const px = size === 'xs' ? 'px-1 py-0' : 'px-1.5 py-0.5';
-    const txt = size === 'xs' ? 'text-[9px]' : 'text-[10px]';
-
-    if (isAcknowledged) {
-        return (
-            <span className="relative z-10 inline-flex items-center gap-1">
-                <span className={`inline-flex items-center gap-0.5 rounded-full bg-slate-700/40 ${px} ${txt} font-semibold text-slate-500 ring-1 ring-slate-700/50`}>
-                    ✓ รับทราบแล้ว
-                </span>
-                {hasAlert ? (
-                    <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); onAcknowledge(row.id); }}
-                        className="rounded p-0.5 text-slate-600 transition-colors hover:text-slate-300"
-                        aria-label="ยกเลิกรับทราบ"
-                    >
-                        <X className="h-2.5 w-2.5" aria-hidden />
-                    </button>
-                ) : null}
-            </span>
-        );
-    }
 
     return (
         <span className="relative z-10 inline-flex flex-wrap items-center gap-1">
             {row.overdue3 > 0 && (
-                <span className={`inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 ${px} ${txt} font-bold tabular-nums text-amber-200 ring-1 ring-amber-500/30`}>
-                    ⏰ {row.overdue3}
+                <span
+                    title="พัสดุค้างเกิน 3 วัน (ยังไม่ปิดงาน)"
+                    className={`inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 ${px} ${txt} font-bold tabular-nums text-amber-200 ring-1 ring-amber-500/30`}
+                >
+                    ⏰ ค้าง 3 วัน · {formatCount(row.overdue3)}
                 </span>
             )}
             {row.overdue7 > 0 && (
-                <span className={`inline-flex items-center gap-0.5 rounded-full bg-red-500/15 ${px} ${txt} font-bold tabular-nums text-red-200 ring-1 ring-red-500/30`}>
-                    🔴 {row.overdue7}
+                <span
+                    title="พัสดุค้างเกิน 7 วัน (ยังไม่ปิดงาน)"
+                    className={`inline-flex items-center gap-0.5 rounded-full bg-red-500/15 ${px} ${txt} font-bold tabular-nums text-red-200 ring-1 ring-red-500/30`}
+                >
+                    🔴 ค้าง 7 วัน · {formatCount(row.overdue7)}
                 </span>
             )}
-            {row.withIssue > 0 && (
-                <span className={`inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 ${px} ${txt} font-bold tabular-nums text-rose-200 ring-1 ring-rose-500/30`}>
-                    ❗ {row.withIssue}
+            {row.anomalyCount > 0 && (
+                <span
+                    title="น้ำหนักผิดปกติ — gateway ปรับยอด > 2.5× ที่แอดมินคีย์"
+                    className={`inline-flex items-center gap-0.5 rounded-full bg-fuchsia-500/15 ${px} ${txt} font-bold tabular-nums text-fuchsia-200 ring-1 ring-fuchsia-500/30`}
+                >
+                    ⚖ ปรับยอด · {formatCount(row.anomalyCount)}
                 </span>
             )}
-            <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onAcknowledge(row.id); }}
-                className={`inline-flex items-center gap-0.5 rounded-full bg-slate-700/50 ${px} ${txt} font-semibold text-slate-400 ring-1 ring-slate-600/50 transition-colors hover:bg-emerald-500/15 hover:text-emerald-300 hover:ring-emerald-500/30`}
-                aria-label="รับทราบเคสนี้"
-            >
-                ✓ รับทราบ
-            </button>
         </span>
     );
 }
 
-function CustomerListCard({ row, animationIndex, isAcknowledged, onAcknowledge }: {
+function CustomerListCard({ row, animationIndex }: {
     row: CustomerRow;
     animationIndex: number;
-    isAcknowledged: boolean;
-    onAcknowledge: (id: string) => void;
 }) {
     const gradient = pickGradient(row.name);
     const initial = initialOf(row.name);
@@ -536,7 +485,7 @@ function CustomerListCard({ row, animationIndex, isAcknowledged, onAcknowledge }
                     ) : null}
                 </p>
                 <div className="mt-0.5">
-                    <AlertBadges row={row} isAcknowledged={isAcknowledged} onAcknowledge={onAcknowledge} size="xs" />
+                    <AlertBadges row={row} size="xs" />
                 </div>
             </div>
             <div className="relative flex shrink-0 flex-col items-end gap-1">
@@ -549,11 +498,9 @@ function CustomerListCard({ row, animationIndex, isAcknowledged, onAcknowledge }
     );
 }
 
-function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }: {
+function CustomerListRow({ row, animationIndex }: {
     row: CustomerRow;
     animationIndex: number;
-    isAcknowledged: boolean;
-    onAcknowledge: (id: string) => void;
 }) {
     const router = useRouter();
     const gradient = pickGradient(row.name);
@@ -604,7 +551,7 @@ function CustomerListRow({ row, animationIndex, isAcknowledged, onAcknowledge }:
                 </span>
             </td>
             <td className="px-2.5 py-2">
-                <AlertBadges row={row} isAcknowledged={isAcknowledged} onAcknowledge={onAcknowledge} />
+                <AlertBadges row={row} />
             </td>
             <td className="px-2.5 py-2">
                 {row.vip_code ? (
