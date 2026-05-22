@@ -1,20 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { BarChart3, Clock3, GitCompareArrows } from 'lucide-react';
+import { BarChart3, GitCompareArrows } from 'lucide-react';
 import { useState } from 'react';
 
 const FinancialTab = dynamic(
     () => import('./FinancialTab').then((mod) => mod.FinancialTab),
     {
         loading: () => <TabLoading label="กำลังโหลดแท็บวิเคราะห์กำไร..." />,
-    },
-);
-
-const SLATab = dynamic(
-    () => import('./SLATab').then((mod) => mod.SLATab),
-    {
-        loading: () => <TabLoading label="กำลังโหลดแท็บวิเคราะห์การจัดส่ง..." />,
     },
 );
 
@@ -25,7 +18,7 @@ const ReconciliationTab = dynamic(
     },
 );
 
-type DeepDiveTabKey = 'financial' | 'sla' | 'reconciliation';
+type DeepDiveTabKey = 'financial' | 'reconciliation';
 
 const TABS: Array<{
     key: DeepDiveTabKey;
@@ -38,12 +31,6 @@ const TABS: Array<{
         label: 'วิเคราะห์กำไร',
         description: 'รายได้ ต้นทุน และกำไรจากงานขนส่ง',
         icon: <BarChart3 className="h-4 w-4" aria-hidden />,
-    },
-    {
-        key: 'sla',
-        label: 'วิเคราะห์การจัดส่ง',
-        description: 'เคสล่าช้า COD ผิดปกติ และงานปฏิบัติการ',
-        icon: <Clock3 className="h-4 w-4" aria-hidden />,
     },
     {
         key: 'reconciliation',
@@ -61,7 +48,7 @@ export function DeepDiveDashboardTabs() {
             <div
                 role="tablist"
                 aria-label="แท็บแดชบอร์ดวิเคราะห์เชิงลึก"
-                className="grid gap-2 md:grid-cols-3"
+                className="grid gap-2 md:grid-cols-2"
             >
                 {TABS.map((tab) => {
                     const active = activeTab === tab.key;
@@ -102,16 +89,6 @@ export function DeepDiveDashboardTabs() {
                         aria-labelledby="deep-dive-tab-financial"
                     >
                         <FinancialTab />
-                    </div>
-                ) : null}
-
-                {activeTab === 'sla' ? (
-                    <div
-                        role="tabpanel"
-                        id="deep-dive-panel-sla"
-                        aria-labelledby="deep-dive-tab-sla"
-                    >
-                        <SLATab />
                     </div>
                 ) : null}
 

@@ -32,7 +32,7 @@ export function DeepDiveDashboardPageClient({ showN8nFileUpload = true }: Props)
                 <AdminPageHeader
                     className="pr-14"
                     title="แดชบอร์ดวิเคราะห์เชิงลึกด้านขนส่ง"
-                    description="แยกมุมมองเป็น 2 ส่วน คือ วิเคราะห์กำไร และวิเคราะห์การจัดส่ง เพื่อให้ติดตามตัวเลขสำคัญได้ง่าย อ่านเข้าใจเร็ว และใช้คำอธิบายมาตรฐานเดียวกัน"
+                    description="วิเคราะห์กำไรจากงานขนส่ง และกระทบยอดต้นทุนเรา vs ยอด J&T เรียกเก็บจริง เพื่อให้ติดตามตัวเลขสำคัญได้ง่าย อ่านเข้าใจเร็ว"
                     tone="dark"
                     meta={
                         <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300 ring-1 ring-sky-500/30">
