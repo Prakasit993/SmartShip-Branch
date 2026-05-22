@@ -224,8 +224,11 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
         setLoading(true);
         setError(null);
         try {
+            // no-store: bypass the endpoint's max-age=30 cache so a refresh after
+            // รับทราบ/ดึงกลับ (และปุ่มรีเฟรช) สะท้อน KPI ล่าสุดเสมอ ไม่ค้างค่าเก่า
             const res = await fetch(`/api/admin/customer-profile/${id}`, {
                 credentials: 'include',
+                cache: 'no-store',
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
