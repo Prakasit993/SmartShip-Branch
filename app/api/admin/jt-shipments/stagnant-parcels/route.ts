@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAiToolAuth } from '@/lib/adminApiAuth';
 import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
+import { JT_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/jtReturnAcknowledgements';
 
 /**
  * GET /api/admin/jt-shipments/stagnant-parcels
@@ -67,6 +68,27 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // พัสดุที่แอดมิน "รับทราบและซ่อน" (active ack, kind=stagnant) — ตัดออกจาก count/list
+        const { data: ackRows, error: ackErr } = await supabaseAdmin
+            .from(JT_RETURN_ACKNOWLEDGEMENTS_TABLE)
+            .select('awb_number,reason,acknowledged_at,acknowledged_by')
+            .eq('kind', 'stagnant')
+            .eq('status', 'active');
+        if (ackErr) {
+            console.warn('[jt-shipments/stagnant-parcels] ack fetch failed:', ackErr);
+        }
+        type AckRow = {
+            awb_number: string | null;
+            reason: string | null;
+            acknowledged_at: string | null;
+            acknowledged_by: string | null;
+        };
+        const hiddenSet = new Set<string>(
+            ((ackRows ?? []) as AckRow[])
+                .map((r) => String(r.awb_number ?? '').trim())
+                .filter(Boolean),
+        );
+
         const safe = (v: unknown) => String(v ?? '').trim() || '-';
         const cases: Array<{
             awb_number: string;
@@ -86,6 +108,10 @@ export async function GET(req: Request) {
 
             const scanTime = r.latest_scan_time ? String(r.latest_scan_time).trim() : '';
             if (scanTime && scanTime.slice(0, 10) > cutoffYmd) continue;
+
+            // ข้ามพัสดุที่แอดมินรับทราบและซ่อนไว้แล้ว
+            const awbTrim = String(r.awb_number ?? '').trim();
+            if (awbTrim && hiddenSet.has(awbTrim)) continue;
 
             cases.push({
                 awb_number: safe(r.awb_number),
@@ -110,11 +136,23 @@ export async function GET(req: Request) {
             return b.latest_scan_time.localeCompare(a.latest_scan_time);
         });
 
+        // รายการที่ถูกซ่อน (สำหรับ UI "ดูที่ซ่อนไว้" + ปุ่มดึงกลับ) — ล่าสุดก่อน
+        const hidden = ((ackRows ?? []) as AckRow[])
+            .map((r) => ({
+                awb_number: safe(r.awb_number),
+                reason: safe(r.reason),
+                acknowledged_at: safe(r.acknowledged_at),
+                acknowledged_by: safe(r.acknowledged_by),
+            }))
+            .sort((a, b) => b.acknowledged_at.localeCompare(a.acknowledged_at));
+
         return NextResponse.json({
             total: cases.length,
+            hidden_count: hidden.length,
             min_age_days: MIN_AGE_DAYS,
             cutoff_date: cutoffYmd,
             cases,
+            hidden,
             _elapsed_ms: Math.round(performance.now() - t0),
         });
     } catch (err) {

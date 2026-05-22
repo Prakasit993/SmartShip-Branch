@@ -54,6 +54,10 @@ export type JtDashboardViewProps = {
         reason: string,
         muteAging: boolean,
     ) => Promise<void>;
+    /** รับทราบพัสดุตกค้าง → ซ่อนจากการ์ด + AI tool */
+    onAcknowledgeStagnant: (awbNumber: string, reason: string) => Promise<void>;
+    /** ดึงพัสดุตกค้างที่ซ่อนไว้กลับมา */
+    onRestoreStagnant: (awbNumber: string) => Promise<void>;
     showKpiPercentDelta: boolean;
     onToggleKpiPercentDelta: () => void;
     loading: boolean;
@@ -295,6 +299,15 @@ const ACK_PRESETS: ReadonlyArray<{ label: string; mute: boolean }> = [
     { label: ACK_CUSTOM_LABEL, mute: true },
 ];
 
+/** Preset เหตุผลรับทราบพัสดุตกค้างไม่เคลื่อนไหว */
+const STAGNANT_ACK_PRESETS: ReadonlyArray<string> = [
+    'ตรวจสอบแล้ว — ปกติ',
+    'ติดต่อขนส่งแล้ว',
+    'รออัปเดตสถานะ',
+    'ลูกค้ารับทราบแล้ว',
+    ACK_CUSTOM_LABEL,
+];
+
 function getPresetDateRange(preset: DateRangePreset): { from: string; to: string } {
     const today = new Date();
     if (preset === 'today') {
@@ -333,6 +346,8 @@ export function JtDashboardView({
     onSaveCustomMetricCards,
     onSaveDetailFields,
     onAcknowledgeReturn,
+    onAcknowledgeStagnant,
+    onRestoreStagnant,
     showKpiPercentDelta,
     onToggleKpiPercentDelta,
     loading,
@@ -370,6 +385,14 @@ export function JtDashboardView({
     const [ackMuteAging, setAckMuteAging] = useState(true);
     const [ackLoading, setAckLoading] = useState(false);
     const [ackError, setAckError] = useState<string | null>(null);
+    const [showAllStagnantHidden, setShowAllStagnantHidden] = useState(false);
+    const [showStagnantHidden, setShowStagnantHidden] = useState(false);
+    const [stagnantAckAwb, setStagnantAckAwb] = useState('');
+    const [stagnantAckPreset, setStagnantAckPreset] = useState<string>(STAGNANT_ACK_PRESETS[0]);
+    const [stagnantAckReason, setStagnantAckReason] = useState('');
+    const [stagnantAckLoading, setStagnantAckLoading] = useState(false);
+    const [stagnantAckError, setStagnantAckError] = useState<string | null>(null);
+    const [restoringStagnantAwb, setRestoringStagnantAwb] = useState<string | null>(null);
     const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
     const [copyMessage, setCopyMessage] = useState<string | null>(null);
     const showContent = !loading && !error;
@@ -529,6 +552,53 @@ export function JtDashboardView({
             setAckError(e instanceof Error ? e.message : 'บันทึกการรับทราบไม่สำเร็จ');
         } finally {
             setAckLoading(false);
+        }
+    }
+
+    function openStagnantAcknowledgement(awb: string) {
+        setStagnantAckAwb(awb);
+        setStagnantAckPreset(STAGNANT_ACK_PRESETS[0]);
+        setStagnantAckReason(STAGNANT_ACK_PRESETS[0]);
+        setStagnantAckError(null);
+    }
+
+    function handleStagnantPresetChange(next: string) {
+        setStagnantAckPreset(next);
+        setStagnantAckReason(next === ACK_CUSTOM_LABEL ? '' : next);
+    }
+
+    async function submitStagnantAcknowledgement() {
+        const awb = stagnantAckAwb.trim();
+        const reason = stagnantAckReason.trim();
+        if (!awb || stagnantAckLoading) return;
+        if (!reason) {
+            setStagnantAckError('กรุณาใส่เหตุผลที่รับทราบ');
+            return;
+        }
+        setStagnantAckLoading(true);
+        setStagnantAckError(null);
+        try {
+            await onAcknowledgeStagnant(awb, reason);
+            setStagnantAckAwb('');
+            setStagnantAckReason('');
+            setStagnantAckPreset(STAGNANT_ACK_PRESETS[0]);
+        } catch (e) {
+            setStagnantAckError(e instanceof Error ? e.message : 'บันทึกการรับทราบไม่สำเร็จ');
+        } finally {
+            setStagnantAckLoading(false);
+        }
+    }
+
+    async function handleRestoreStagnant(awb: string) {
+        const value = awb.trim();
+        if (!value || restoringStagnantAwb) return;
+        setRestoringStagnantAwb(value);
+        try {
+            await onRestoreStagnant(value);
+        } catch (e) {
+            setCopyMessage(e instanceof Error ? e.message : 'ดึงกลับไม่สำเร็จ');
+        } finally {
+            setRestoringStagnantAwb(null);
         }
     }
 
@@ -1275,25 +1345,40 @@ export function JtDashboardView({
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                                         พัสดุตกค้างไม่เคลื่อนไหว (ไม่มี scan ≥ 2 วัน · ยังไม่ปิดงาน)
                                     </p>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            void copyAwbList(
-                                                (showAllStagnant ? metrics.stagnantCases : metrics.stagnantCases.slice(0, 3)).map(
-                                                    (r) => r.awb_number,
-                                                ),
-                                            )
-                                        }
-                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white"
-                                    >
-                                        <Copy className="h-3.5 w-3.5" aria-hidden />
-                                        คัดลอก AWB ทั้งชุด
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowStagnantHidden((v) => !v)}
+                                            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition ${
+                                                showStagnantHidden
+                                                    ? 'border-sky-500/50 bg-sky-500/10 text-sky-200'
+                                                    : 'border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600 hover:text-white'
+                                            }`}
+                                        >
+                                            {showStagnantHidden
+                                                ? 'ซ่อนรายการที่ซ่อนไว้'
+                                                : `ดูที่ซ่อนไว้ (${metrics.stagnantHiddenCases.length})`}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void copyAwbList(
+                                                    (showAllStagnant ? metrics.stagnantCases : metrics.stagnantCases.slice(0, 3)).map(
+                                                        (r) => r.awb_number,
+                                                    ),
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white"
+                                        >
+                                            <Copy className="h-3.5 w-3.5" aria-hidden />
+                                            คัดลอก AWB ทั้งชุด
+                                        </button>
+                                    </div>
                                 </div>
                                 {metrics.stagnantCases.length > 0 ? (
                                     <>
                                         <div className="mt-2 space-y-1.5 overflow-x-auto">
-                                            <div className="grid min-w-[1100px] grid-cols-[1.6rem_1fr_0.9fr_1fr_1fr_4.5rem_4.5rem_4.5rem_5rem_5.5rem_1fr] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                            <div className="grid min-w-[1180px] grid-cols-[1.6rem_1fr_0.9fr_1fr_1fr_4.5rem_4.5rem_4.5rem_5rem_5.5rem_1fr_5rem] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                                 <span>#</span>
                                                 <span>เลขพัสดุ</span>
                                                 <span>วันคีย์</span>
@@ -1305,11 +1390,12 @@ export function JtDashboardView({
                                                 <span className="text-right">น้ำหนัก</span>
                                                 <span className="text-right">น้ำหนักปริมาตร</span>
                                                 <span className="text-right">scan ล่าสุด</span>
+                                                <span className="text-right">จัดการ</span>
                                             </div>
                                             {(showAllStagnant ? metrics.stagnantCases : metrics.stagnantCases.slice(0, 5)).map((r, idx) => (
                                                 <div
                                                     key={`${r.awb_number}-${idx}`}
-                                                    className="grid min-w-[1100px] grid-cols-[1.6rem_1fr_0.9fr_1fr_1fr_4.5rem_4.5rem_4.5rem_5rem_5.5rem_1fr] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                    className="grid min-w-[1180px] grid-cols-[1.6rem_1fr_0.9fr_1fr_1fr_4.5rem_4.5rem_4.5rem_5rem_5.5rem_1fr_5rem] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
                                                 >
                                                     <span className="tabular-nums text-slate-500">{idx + 1}</span>
                                                     <button
@@ -1343,6 +1429,13 @@ export function JtDashboardView({
                                                     <span className="min-w-0 truncate text-right tabular-nums text-slate-500">
                                                         {r.latest_scan_time !== '-' ? r.latest_scan_time.slice(0, 16) : '(ไม่มี scan)'}
                                                     </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openStagnantAcknowledgement(r.awb_number)}
+                                                        className="justify-self-end rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-400/50 hover:bg-amber-500/20"
+                                                    >
+                                                        รับทราบ
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
@@ -1358,9 +1451,77 @@ export function JtDashboardView({
                                     </>
                                 ) : (
                                     <p className="mt-2 text-xs text-slate-500">
-                                        ไม่พบพัสดุที่ตกค้างไม่เคลื่อนไหว ≥ 2 วันในขณะนี้
+                                        ไม่พบพัสดุที่ตกค้างไม่เคลื่อนไหว ≥ 2 วันในขณะนี้ (อาจถูกรับทราบและซ่อนไว้แล้ว)
                                     </p>
                                 )}
+
+                                {showStagnantHidden ? (
+                                    <div className="mt-3 rounded-lg border border-slate-800/70 bg-slate-900/30 p-2.5">
+                                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                            รายการที่ซ่อนไว้ ({metrics.stagnantHiddenCases.length}) — กด &quot;ดึงกลับ&quot; เพื่อนำกลับเข้ารายการ
+                                        </p>
+                                        {metrics.stagnantHiddenCases.length > 0 ? (
+                                            <>
+                                                <div className="space-y-1.5 overflow-x-auto">
+                                                    <div className="grid min-w-[720px] grid-cols-[1.6rem_1fr_1.7fr_1fr_5rem] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                                        <span>#</span>
+                                                        <span>เลขพัสดุ</span>
+                                                        <span>เหตุผล</span>
+                                                        <span>รับทราบเมื่อ</span>
+                                                        <span className="text-right">จัดการ</span>
+                                                    </div>
+                                                    {(showAllStagnantHidden ? metrics.stagnantHiddenCases : metrics.stagnantHiddenCases.slice(0, 5)).map((h, idx) => (
+                                                        <div
+                                                            key={`${h.awb_number}-${idx}`}
+                                                            className="grid min-w-[720px] grid-cols-[1.6rem_1fr_1.7fr_1fr_5rem] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]"
+                                                        >
+                                                            <span className="tabular-nums text-slate-500">{idx + 1}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void copyAwb(h.awb_number)}
+                                                                onDoubleClick={() => void openShipmentDetail(h.awb_number)}
+                                                                className="inline-flex min-w-0 items-center gap-1 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline"
+                                                                title={`คลิกเพื่อคัดลอก • ดับเบิลคลิกเพื่อเปิดรายละเอียด ${h.awb_number}`}
+                                                            >
+                                                                {h.awb_number}
+                                                                {copiedAwb === h.awb_number ? (
+                                                                    <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+                                                                ) : (
+                                                                    <Copy className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                                                                )}
+                                                            </button>
+                                                            <span className="min-w-0 truncate text-slate-300" title={h.reason}>
+                                                                {h.reason}
+                                                            </span>
+                                                            <span className="min-w-0 truncate text-right tabular-nums text-slate-400">
+                                                                {h.acknowledged_at !== '-' ? h.acknowledged_at.slice(0, 16) : '-'}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                disabled={restoringStagnantAwb === h.awb_number}
+                                                                onClick={() => void handleRestoreStagnant(h.awb_number)}
+                                                                className="justify-self-end rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200 transition-colors hover:border-sky-400/50 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                {restoringStagnantAwb === h.awb_number ? '...' : 'ดึงกลับ'}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {metrics.stagnantHiddenCases.length > 5 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowAllStagnantHidden(!showAllStagnantHidden)}
+                                                        className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-300 ring-1 ring-white/[0.04]"
+                                                    >
+                                                        {showAllStagnantHidden ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${metrics.stagnantHiddenCases.length - 5} รายการ`}
+                                                    </button>
+                                                ) : null}
+                                            </>
+                                        ) : (
+                                            <p className="text-xs text-slate-500">ยังไม่มีรายการที่ซ่อนไว้</p>
+                                        )}
+                                    </div>
+                                ) : null}
                             </div>
                         ) : null}
                         {activeDrilldown === 'return' ? (
@@ -1584,6 +1745,82 @@ export function JtDashboardView({
                                     className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {ackLoading ? 'กำลังบันทึก...' : 'บันทึกรับทราบ'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {stagnantAckAwb ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="jt-stagnant-ack-title"
+                >
+                    <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl ring-1 ring-white/10">
+                        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+                            <h3 id="jt-stagnant-ack-title" className="text-lg font-semibold text-white">
+                                รับทราบพัสดุตกค้าง
+                            </h3>
+                            <button
+                                type="button"
+                                disabled={stagnantAckLoading}
+                                onClick={() => setStagnantAckAwb('')}
+                                className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                            >
+                                ปิด
+                            </button>
+                        </div>
+                        <div className="space-y-3 px-4 py-4">
+                            <p className="text-sm text-slate-300">
+                                เลขพัสดุ <span className="font-semibold text-amber-300">{stagnantAckAwb}</span> จะถูกซ่อนจากการ์ดและ AI tool หลังบันทึก (ดึงกลับได้ภายหลัง)
+                            </p>
+                            <label className="block">
+                                <span className="text-xs font-medium text-slate-400">เหตุผลที่รับทราบ</span>
+                                <select
+                                    value={stagnantAckPreset}
+                                    onChange={(e) => handleStagnantPresetChange(e.target.value)}
+                                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-amber-500/25 focus:border-amber-500/50 focus:ring-2"
+                                >
+                                    {STAGNANT_ACK_PRESETS.map((p) => (
+                                        <option key={p} value={p}>
+                                            {p}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            {stagnantAckPreset === ACK_CUSTOM_LABEL ? (
+                                <label className="block">
+                                    <span className="text-xs font-medium text-slate-400">รายละเอียดเพิ่มเติม</span>
+                                    <textarea
+                                        value={stagnantAckReason}
+                                        onChange={(e) => setStagnantAckReason(e.target.value)}
+                                        rows={3}
+                                        maxLength={500}
+                                        placeholder="เช่น ตรวจสอบแล้ว ขนส่งยืนยันกำลังนำจ่าย"
+                                        className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-amber-500/25 placeholder:text-slate-600 focus:border-amber-500/50 focus:ring-2"
+                                    />
+                                </label>
+                            ) : null}
+                            {stagnantAckError ? <p className="text-sm text-rose-400">{stagnantAckError}</p> : null}
+                            <div className="flex justify-end gap-2 border-t border-slate-800 pt-3">
+                                <button
+                                    type="button"
+                                    disabled={stagnantAckLoading}
+                                    onClick={() => setStagnantAckAwb('')}
+                                    className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={stagnantAckLoading || !stagnantAckReason.trim()}
+                                    onClick={() => void submitStagnantAcknowledgement()}
+                                    className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {stagnantAckLoading ? 'กำลังบันทึก...' : 'บันทึกรับทราบ'}
                                 </button>
                             </div>
                         </div>

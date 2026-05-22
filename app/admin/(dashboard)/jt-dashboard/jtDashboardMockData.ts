@@ -48,6 +48,14 @@ export const MOCK_METRICS: JtDashboardMetrics = {
             latest_scan_time: '-',
         },
     ],
+    stagnantHiddenCases: [
+        {
+            awb_number: '8200011220003',
+            reason: 'ตรวจสอบแล้ว — ปกติ',
+            acknowledged_at: '2026-05-20 09:30:00',
+            acknowledged_by: 'admin',
+        },
+    ],
     topExceptionReasons: [
         { reason: 'ผู้รับปฏิเสธการชำระเงินหรือปฏิเสธการรับพัสดุ', count: 1 },
         { reason: 'พัสดุคัดแยกผิดร้านสาขานำจ่าย', count: 3 },

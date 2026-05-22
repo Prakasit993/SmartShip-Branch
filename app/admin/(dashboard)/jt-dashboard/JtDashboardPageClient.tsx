@@ -35,6 +35,13 @@ type StagnantCase = {
     latest_scan_time: string;
 };
 
+type StagnantHiddenCase = {
+    awb_number: string;
+    reason: string;
+    acknowledged_at: string;
+    acknowledged_by: string;
+};
+
 type CustomMetricRow = {
     id: string;
     title: string;
@@ -273,6 +280,7 @@ export function JtDashboardPageClient() {
                 exceptionCount: json.exceptionCount ?? 0,
                 stagnantCount: cacheRef.current?.metrics.stagnantCount ?? 0,
                 stagnantCases: cacheRef.current?.metrics.stagnantCases ?? [],
+                stagnantHiddenCases: cacheRef.current?.metrics.stagnantHiddenCases ?? [],
                 topExceptionReasons: Array.isArray(json.topExceptionReasons)
                     ? json.topExceptionReasons
                           .filter(
@@ -494,6 +502,7 @@ export function JtDashboardPageClient() {
                 error?: string;
                 total?: number;
                 cases?: StagnantCase[];
+                hidden?: StagnantHiddenCase[];
             };
             try {
                 stagnantJson = JSON.parse(stagnantRaw) as typeof stagnantJson;
@@ -509,6 +518,10 @@ export function JtDashboardPageClient() {
                     typeof (r as StagnantCase).booking_date === 'string' &&
                     typeof (r as StagnantCase).sender_name === 'string' &&
                     typeof (r as StagnantCase).sender_phone === 'string';
+                const isValidHidden = (r: unknown): r is StagnantHiddenCase =>
+                    r != null &&
+                    typeof (r as StagnantHiddenCase).awb_number === 'string' &&
+                    typeof (r as StagnantHiddenCase).reason === 'string';
                 const withStagnant = {
                     ...latest,
                     metrics: {
@@ -516,6 +529,9 @@ export function JtDashboardPageClient() {
                         stagnantCount: stagnantJson.total ?? 0,
                         stagnantCases: Array.isArray(stagnantJson.cases)
                             ? stagnantJson.cases.filter(isValidCase)
+                            : [],
+                        stagnantHiddenCases: Array.isArray(stagnantJson.hidden)
+                            ? stagnantJson.hidden.filter(isValidHidden)
                             : [],
                     },
                 };
@@ -571,6 +587,7 @@ export function JtDashboardPageClient() {
         exceptionCount: 0,
         stagnantCount: 0,
         stagnantCases: [],
+        stagnantHiddenCases: [],
         topExceptionReasons: [],
         topExceptionCases: [],
         topReturnTypeCases: [],
@@ -649,6 +666,54 @@ export function JtDashboardPageClient() {
         [load, parcelDateFrom, parcelDateTo],
     );
 
+    const acknowledgeStagnant = useCallback(
+        async (awbNumber: string, reason: string) => {
+            const res = await fetch('/api/admin/jt-shipments/parcel-acknowledgements', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ awb_number: awbNumber, kind: 'stagnant', reason, action: 'hide' }),
+            });
+            const raw = await res.text();
+            if (!res.ok) {
+                let msg = 'บันทึกการรับทราบไม่สำเร็จ';
+                try {
+                    const o = JSON.parse(raw) as { error?: string };
+                    if (o.error) msg = o.error;
+                } catch {
+                    /* ignore */
+                }
+                throw new Error(msg);
+            }
+            await load(parcelDateFrom, parcelDateTo);
+        },
+        [load, parcelDateFrom, parcelDateTo],
+    );
+
+    const restoreStagnant = useCallback(
+        async (awbNumber: string) => {
+            const res = await fetch('/api/admin/jt-shipments/parcel-acknowledgements', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ awb_number: awbNumber, kind: 'stagnant', action: 'restore' }),
+            });
+            const raw = await res.text();
+            if (!res.ok) {
+                let msg = 'ดึงกลับไม่สำเร็จ';
+                try {
+                    const o = JSON.parse(raw) as { error?: string };
+                    if (o.error) msg = o.error;
+                } catch {
+                    /* ignore */
+                }
+                throw new Error(msg);
+            }
+            await load(parcelDateFrom, parcelDateTo);
+        },
+        [load, parcelDateFrom, parcelDateTo],
+    );
+
     const chartsAligned =
         success &&
         Boolean(
@@ -673,6 +738,8 @@ export function JtDashboardPageClient() {
             onSaveCustomMetricCards={saveCustomMetricCards}
             onSaveDetailFields={saveDetailFields}
             onAcknowledgeReturn={acknowledgeReturn}
+            onAcknowledgeStagnant={acknowledgeStagnant}
+            onRestoreStagnant={restoreStagnant}
             showKpiPercentDelta={showKpiPercentDelta}
             onToggleKpiPercentDelta={() => setShowKpiPercentDelta((prev) => !prev)}
             loading={loading}
