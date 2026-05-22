@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     AlertCircle,
     AlertTriangle,
@@ -539,7 +540,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     delay={0.15}
                     progress={openShipments > 0 ? kpi.overdueOver3Days / openShipments : 0}
                     accentFill="bg-amber-400/60"
-                    onClick={kpi.overdueOver3Days > 0 ? () => setActiveKpiPanel((v) => (v === 'overdue3' ? null : 'overdue3')) : undefined}
+                    onClick={() => setActiveKpiPanel((v) => (v === 'overdue3' ? null : 'overdue3'))}
                     isActive={activeKpiPanel === 'overdue3'}
                 />
                 <KpiCard
@@ -552,7 +553,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     delay={0.2}
                     progress={openShipments > 0 ? kpi.overdueOver7Days / openShipments : 0}
                     accentFill="bg-red-400/60"
-                    onClick={kpi.overdueOver7Days > 0 ? () => setActiveKpiPanel((v) => (v === 'overdue7' ? null : 'overdue7')) : undefined}
+                    onClick={() => setActiveKpiPanel((v) => (v === 'overdue7' ? null : 'overdue7'))}
                     isActive={activeKpiPanel === 'overdue7'}
                 />
                 <KpiCard
@@ -565,7 +566,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     delay={0.26}
                     progress={kpi.total > 0 ? kpi.withIssue / kpi.total : 0}
                     accentFill="bg-rose-400/60"
-                    onClick={kpi.withIssue > 0 ? () => setActiveKpiPanel((v) => (v === 'issue' ? null : 'issue')) : undefined}
+                    onClick={() => setActiveKpiPanel((v) => (v === 'issue' ? null : 'issue'))}
                     isActive={activeKpiPanel === 'issue'}
                 />
             </section>
@@ -1487,9 +1488,9 @@ function OverduePanel({
                 ) : null}
             </div>
 
-            {ackAwb ? (
+            {ackAwb && typeof document !== 'undefined' ? createPortal(
                 <div
-                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+                    className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 sm:items-center"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="cp-ack-title"
@@ -1562,7 +1563,8 @@ function OverduePanel({
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             ) : null}
         </section>
     );
