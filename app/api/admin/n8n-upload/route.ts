@@ -6,7 +6,14 @@ import { requireAdminApiAuth } from '@/lib/adminApiAuth';
  * Query: ?filename=... (แนบชื่อไฟล์ให้ n8n ใช้ตั้งชื่อเมื่อบันทึก)
  * Body: multipart/form-data ฟิลด์ `file`
  * ขีดจำกัดขนาดคำขอขึ้นกับโฮสต์ (เช่น Vercel Serverless ~4.5 MB) — ให้ตั้ง NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB ใน client ให้ตรงกับขีดจำกัดจริงเพื่อข้อความแจ้งเตือนที่ถูกต้อง
+ *
+ * หมายเหตุ timeout: route นี้รอ n8n ประมวลผลแบบ sync — ถ้า n8n ตั้ง webhook เป็น
+ * "respond when last node finishes" และไฟล์ใหญ่ อาจใช้เวลานาน. ตั้ง maxDuration ให้
+ * Vercel function รันได้สูงสุด (300s บน Pro) และ abort ก่อนเล็กน้อยเพื่อคืน error ที่
+ * อ่านง่ายแทนถูกฆ่ากลางทาง. ทางแก้ที่ถาวรกว่าคือตั้ง n8n เป็น "Respond Immediately".
  */
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
     const denied = await requireAdminApiAuth('admin-or-staff', request);
     if (denied) return denied;
@@ -51,7 +58,8 @@ export async function POST(request: NextRequest) {
         const upstream = await fetch(target.toString(), {
             method: 'POST',
             body: outbound,
-            signal: AbortSignal.timeout(120_000),
+            // abort ก่อน maxDuration (300s) เล็กน้อย เพื่อคืน error ที่อ่านง่ายแทนถูก Vercel ฆ่า
+            signal: AbortSignal.timeout(290_000),
         });
 
         const bodyText = await upstream.text();
