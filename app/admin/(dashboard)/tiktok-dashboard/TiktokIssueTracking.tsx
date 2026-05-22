@@ -1,49 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Check, Copy, Hourglass, RefreshCw, RotateCcw } from 'lucide-react';
-
-/* ─── Types (สอดคล้องกับ /api/admin/tiktok-shipments/issues + /stagnant-parcels) ─── */
-type ExceptionCase = {
-    awb_number: string;
-    sender_name: string;
-    receiver_name: string;
-    receiver_phone: string;
-    exception_reason: string;
-    issue_registered_time: string;
-};
-type ReturnCase = ExceptionCase & { return_branch_name: string };
-type HiddenCase = {
-    awb_number: string;
-    reason: string;
-    acknowledged_at: string;
-    acknowledged_by: string;
-};
-type StagnantCase = {
-    awb_number: string;
-    booking_date: string;
-    sender_name: string;
-    sender_phone: string;
-    gateway_width: string;
-    gateway_height: string;
-    gateway_length: string;
-    gateway_weight: string;
-    gateway_vol_weight: string;
-    latest_scan_time: string;
-};
-
-type IssuesData = {
-    exceptionCount: number;
-    returnCount: number;
-    topExceptionCases: ExceptionCase[];
-    topReturnTypeCases: ReturnCase[];
-    returnHiddenCases: HiddenCase[];
-};
-type StagnantData = {
-    total: number;
-    cases: StagnantCase[];
-    hidden: HiddenCase[];
-};
+import { AlertCircle, Hourglass, RefreshCw, RotateCcw } from 'lucide-react';
+import type { IssuesData, StagnantData } from './tiktokDashboardTypes';
+import { AwbCell, CopyAllButton, HiddenList, HiddenToggle, IssueCard, ShowMoreButton } from './TiktokIssueCards';
+import { AckModal, CustomReasonTextarea, PresetSelect } from './TiktokAckModal';
 
 const ACK_CUSTOM_LABEL = 'อื่นๆ (พิมพ์เอง)';
 
@@ -337,6 +298,7 @@ export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) 
                     label="พัสดุมีปัญหา"
                     value={exceptionCount}
                     hint={exceptionCases[0]?.exception_reason && exceptionCases[0].exception_reason !== '-' ? exceptionCases[0].exception_reason : 'นับเฉพาะรายการที่ยังไม่มีรหัสสาขาปลายทาง'}
+                    tooltip="นับจากพัสดุที่ยังไม่มีรหัสสาขาปลายทาง (sign_branch_code ว่าง) และมีเหตุผลปัญหา (exception_reason ไม่ว่าง)"
                     isActive={activeDrilldown === 'exception'}
                     onClick={() => setActiveDrilldown((p) => (p === 'exception' ? null : 'exception'))}
                 />
@@ -346,6 +308,7 @@ export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) 
                     label="พัสดุตกค้างไม่เคลื่อนไหว"
                     value={stagnantCount}
                     hint="ไม่มี scan ≥ 2 วัน · ยังไม่ปิดงาน"
+                    tooltip="พัสดุที่ยังไม่ปิดงาน (signer_name ว่าง) และไม่มีการ scan ≥ 2 วัน (หรือไม่มี scan เลย) — ตัดรายการที่รับทราบและซ่อนไว้แล้ว"
                     isActive={activeDrilldown === 'stagnant'}
                     onClick={() => setActiveDrilldown((p) => (p === 'stagnant' ? null : 'stagnant'))}
                 />
@@ -355,6 +318,7 @@ export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) 
                     label="พัสดุถูกตีกลับ"
                     value={returnCount}
                     hint="นับจากรายการที่มีสถานะตีกลับ (ตัดที่รับทราบแล้ว)"
+                    tooltip="นับจาก return_type ที่มีค่าจริง (ไม่นับ EMPTY/NULL/-) — ตัดรายการที่รับทราบแล้ว และสาขา/พนักงานคืนที่ยกเว้น"
                     isActive={activeDrilldown === 'return'}
                     onClick={() => setActiveDrilldown((p) => (p === 'return' ? null : 'return'))}
                 />
@@ -546,162 +510,5 @@ export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) 
                 <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs font-medium text-slate-200 shadow-xl shadow-black/30">{copyMessage}</div>
             ) : null}
         </section>
-    );
-}
-
-/* ─────────── sub-components ─────────── */
-
-const TONE: Record<'rose' | 'amber', { iconBg: string; iconRing: string; iconFg: string; glow: string; active: string }> = {
-    rose: { iconBg: 'bg-rose-500/15', iconRing: 'ring-rose-500/25', iconFg: 'text-rose-300', glow: 'bg-rose-500/40', active: 'border-rose-500/60 ring-rose-500/35' },
-    amber: { iconBg: 'bg-amber-500/15', iconRing: 'ring-amber-500/25', iconFg: 'text-amber-400', glow: 'bg-amber-500/40', active: 'border-amber-500/60 ring-amber-500/35' },
-};
-
-function IssueCard({ icon, tone, label, value, hint, isActive, onClick }: { icon: React.ReactNode; tone: 'rose' | 'amber'; label: string; value: number; hint: string; isActive: boolean; onClick: () => void }) {
-    const t = TONE[tone];
-    return (
-        <article
-            role="button"
-            tabIndex={0}
-            aria-pressed={isActive}
-            onClick={onClick}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-            className={`group relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-900/60 via-slate-900/50 to-slate-950/80 p-4 shadow-lg shadow-black/20 ring-1 backdrop-blur-sm transition-all duration-300 sm:p-5 ${isActive ? `${t.active} shadow-black/20` : 'border-slate-800/80 ring-white/[0.06] hover:-translate-y-0.5 hover:border-slate-600/60 hover:shadow-xl hover:shadow-black/30'}`}
-        >
-            <div className={`pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full ${t.glow} opacity-20 blur-2xl`} />
-            <div className={`relative mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${t.iconBg} ${t.iconFg} ring-1 ${t.iconRing} transition-transform duration-300 group-hover:scale-110 sm:mb-4 sm:h-11 sm:w-11`}>{icon}</div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-[11px]">{label}</p>
-            <p className="mt-1.5 text-xl font-bold tabular-nums tracking-tight text-white sm:mt-2 sm:text-2xl">{value.toLocaleString('th-TH')}</p>
-            <p className="mt-auto pt-1.5 text-[10px] leading-snug text-slate-500 sm:pt-2 sm:text-[11px]">{hint}</p>
-        </article>
-    );
-}
-
-function AwbCell({ awb, copied, onCopy }: { awb: string; copied: boolean; onCopy: () => void }) {
-    return (
-        <button type="button" onClick={onCopy} className="inline-flex min-w-0 items-center gap-1 truncate text-left text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline" title={`คลิกเพื่อคัดลอก ${awb}`}>
-            {awb}
-            {copied ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden /> : <Copy className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />}
-        </button>
-    );
-}
-
-function CopyAllButton({ onClick }: { onClick: () => void }) {
-    return (
-        <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/50 px-2 py-1 text-[11px] font-medium text-slate-300 transition hover:border-slate-600 hover:text-white">
-            <Copy className="h-3.5 w-3.5" aria-hidden /> คัดลอก AWB ทั้งชุด
-        </button>
-    );
-}
-
-function HiddenToggle({ active, count, onClick }: { active: boolean; count: number; onClick: () => void }) {
-    return (
-        <button type="button" onClick={onClick} className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition ${active ? 'border-sky-500/50 bg-sky-500/10 text-sky-200' : 'border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600 hover:text-white'}`}>
-            {active ? 'ซ่อนรายการที่ซ่อนไว้' : `ดูที่ซ่อนไว้ (${count})`}
-        </button>
-    );
-}
-
-function ShowMoreButton({ expanded, extra, onClick }: { expanded: boolean; extra: number; onClick: () => void }) {
-    return (
-        <button type="button" onClick={onClick} className="mt-2 w-full rounded-lg bg-slate-900/50 py-1.5 text-xs font-medium text-slate-400 ring-1 ring-white/[0.04] transition-colors hover:bg-slate-800/60 hover:text-slate-300">
-            {expanded ? 'แสดงน้อยลง' : `ดูเพิ่มเติมอีก ${extra} รายการ`}
-        </button>
-    );
-}
-
-function HiddenList({ title, rows, expanded, onToggleExpand, copiedAwb, onCopy, restoringAwb, onRestore }: {
-    title: string;
-    rows: HiddenCase[];
-    expanded: boolean;
-    onToggleExpand: () => void;
-    copiedAwb: string | null;
-    onCopy: (awb: string) => void;
-    restoringAwb: string | null;
-    onRestore: (awb: string) => void;
-}) {
-    return (
-        <div className="mt-3 rounded-lg border border-slate-800/70 bg-slate-900/30 p-2.5">
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{title}</p>
-            {rows.length > 0 ? (
-                <>
-                    <div className="space-y-1.5 overflow-x-auto">
-                        <div className="grid min-w-[720px] grid-cols-[1.6rem_1fr_1.7fr_1fr_5rem] items-center gap-2 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            <span>#</span><span>เลขพัสดุ</span><span>เหตุผล</span><span>รับทราบเมื่อ</span><span className="text-right">จัดการ</span>
-                        </div>
-                        {(expanded ? rows : rows.slice(0, 5)).map((h, idx) => (
-                            <div key={`${h.awb_number}-${idx}`} className="grid min-w-[720px] grid-cols-[1.6rem_1fr_1.7fr_1fr_5rem] items-center gap-2 rounded-lg bg-slate-900/45 px-2.5 py-1.5 text-[12px]">
-                                <span className="tabular-nums text-slate-500">{idx + 1}</span>
-                                <AwbCell awb={h.awb_number} copied={copiedAwb === h.awb_number} onCopy={() => onCopy(h.awb_number)} />
-                                <span className="min-w-0 truncate text-slate-300" title={h.reason}>{h.reason}</span>
-                                <span className="min-w-0 truncate text-right tabular-nums text-slate-400">{h.acknowledged_at !== '-' ? h.acknowledged_at.slice(0, 16) : '—'}</span>
-                                <button type="button" disabled={restoringAwb === h.awb_number} onClick={() => onRestore(h.awb_number)} className="justify-self-end rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200 transition-colors hover:border-sky-400/50 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50">
-                                    {restoringAwb === h.awb_number ? '...' : 'ดึงกลับ'}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                    {rows.length > 5 ? <ShowMoreButton expanded={expanded} extra={rows.length - 5} onClick={onToggleExpand} /> : null}
-                </>
-            ) : (
-                <p className="text-xs text-slate-500">ยังไม่มีรายการที่ซ่อนไว้</p>
-            )}
-        </div>
-    );
-}
-
-function AckModal({ title, awb, awbTone, note, accent, loading, error, canSubmit, onClose, onSubmit, children }: {
-    title: string;
-    awb: string;
-    awbTone: string;
-    note: string;
-    accent: 'emerald' | 'amber';
-    loading: boolean;
-    error: string | null;
-    canSubmit: boolean;
-    onClose: () => void;
-    onSubmit: () => void;
-    children: React.ReactNode;
-}) {
-    const btn = accent === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500';
-    return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center" role="dialog" aria-modal="true">
-            <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl ring-1 ring-white/10">
-                <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-                    <h3 className="text-lg font-semibold text-white">{title}</h3>
-                    <button type="button" disabled={loading} onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50">ปิด</button>
-                </div>
-                <div className="space-y-3 px-4 py-4">
-                    <p className="text-sm text-slate-300">เลขพัสดุ <span className={`font-semibold ${awbTone}`}>{awb}</span> {note}</p>
-                    {children}
-                    {error ? <p className="text-sm text-rose-400">{error}</p> : null}
-                    <div className="flex justify-end gap-2 border-t border-slate-800 pt-3">
-                        <button type="button" disabled={loading} onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50">ยกเลิก</button>
-                        <button type="button" disabled={loading || !canSubmit} onClick={onSubmit} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${btn}`}>{loading ? 'กำลังบันทึก...' : 'บันทึกรับทราบ'}</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function PresetSelect({ value, accent, options, onChange }: { value: string; accent: 'emerald' | 'amber'; options: string[]; onChange: (v: string) => void }) {
-    const ring = accent === 'emerald' ? 'ring-emerald-500/25 focus:border-emerald-500/50' : 'ring-amber-500/25 focus:border-amber-500/50';
-    return (
-        <label className="block">
-            <span className="text-xs font-medium text-slate-400">เหตุผลที่รับทราบ</span>
-            <select value={value} onChange={(e) => onChange(e.target.value)} className={`mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:ring-2 ${ring}`}>
-                {options.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-        </label>
-    );
-}
-
-function CustomReasonTextarea({ value, accent, placeholder, onChange }: { value: string; accent: 'emerald' | 'amber'; placeholder: string; onChange: (v: string) => void }) {
-    const ring = accent === 'emerald' ? 'ring-emerald-500/25 focus:border-emerald-500/50' : 'ring-amber-500/25 focus:border-amber-500/50';
-    return (
-        <label className="block">
-            <span className="text-xs font-medium text-slate-400">รายละเอียดเพิ่มเติม</span>
-            <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} maxLength={500} placeholder={placeholder} className={`mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-600 focus:ring-2 ${ring}`} />
-        </label>
     );
 }
