@@ -83,8 +83,10 @@ export async function GET(req: Request) {
             .map((r) => r.display_name)
             .filter((n): n is string => typeof n === 'string' && n.length > 0);
 
-        type KpiCounts = { overdue3: number; overdue7: number; withIssue: number };
+        type KpiCounts = { overdue3: number; overdue7: number };
         const kpiMap: Record<string, KpiCounts> = {};
+        // anomaly (น้ำหนักผิดปกติ/ปรับยอด) คำนวณใน SQL ผ่าน RPC แยก — แม่นทุก shipment
+        const anomalyMap: Record<string, number> = {};
 
         if (senderNames.length > 0) {
             const senderOrFilter = senderNames.map((n) => `sender_name.ilike.${n}`).join(',');
@@ -98,7 +100,7 @@ export async function GET(req: Request) {
             const cutStr3 = cut3.toISOString().split('T')[0];
             const cutStr7 = cut7.toISOString().split('T')[0];
 
-            const [res3, res7, resIssue] = await Promise.allSettled([
+            const [res3, res7, resAnomaly] = await Promise.allSettled([
                 supabaseAdmin
                     .from('jt_shipments')
                     .select('sender_name')
@@ -115,16 +117,7 @@ export async function GET(req: Request) {
                     .not('booking_date', 'is', null)
                     .lt('booking_date', cutStr7)
                     .limit(5000),
-                supabaseAdmin
-                    .from('jt_shipments')
-                    .select('sender_name')
-                    .or(senderOrFilter)
-                    .not('return_type', 'is', null)
-                    .not('return_type', 'eq', '')
-                    .not('return_type', 'ilike', 'EMPTY')
-                    .not('return_type', 'ilike', 'NULL')
-                    .not('return_type', 'eq', '-')
-                    .limit(5000),
+                supabaseAdmin.rpc('customer_anomaly_counts', { p_sender_names: senderNames }),
             ]);
 
             function tally(settled: (typeof res3), field: keyof KpiCounts) {
@@ -132,14 +125,22 @@ export async function GET(req: Request) {
                 for (const row of settled.value.data) {
                     const key = ((row as { sender_name?: string }).sender_name ?? '').toLowerCase();
                     if (!key) continue;
-                    if (!kpiMap[key]) kpiMap[key] = { overdue3: 0, overdue7: 0, withIssue: 0 };
+                    if (!kpiMap[key]) kpiMap[key] = { overdue3: 0, overdue7: 0 };
                     kpiMap[key][field]++;
                 }
             }
 
             tally(res3, 'overdue3');
             tally(res7, 'overdue7');
-            tally(resIssue, 'withIssue');
+
+            if (resAnomaly.status === 'fulfilled' && Array.isArray(resAnomaly.value.data)) {
+                for (const r of resAnomaly.value.data as Array<{ sender_key?: string; anomaly_count?: number | string }>) {
+                    const key = (r.sender_key ?? '').toLowerCase();
+                    if (key) anomalyMap[key] = Number(r.anomaly_count) || 0;
+                }
+            } else if (resAnomaly.status === 'rejected') {
+                console.warn('[customer-profile list] anomaly RPC failed:', resAnomaly.reason);
+            }
         }
 
         // Batch-fetch override_phone from customers table by sender_key
@@ -158,7 +159,8 @@ export async function GET(req: Request) {
         }
 
         const rows = raw.map((r) => {
-            const kpi = kpiMap[(r.display_name ?? '').toLowerCase()] ?? { overdue3: 0, overdue7: 0, withIssue: 0 };
+            const key = (r.display_name ?? '').toLowerCase();
+            const kpi = kpiMap[key] ?? { overdue3: 0, overdue7: 0 };
             return {
                 id: encodeURIComponent(r.display_name ?? r.sender_key),
                 name: r.display_name,
@@ -168,7 +170,7 @@ export async function GET(req: Request) {
                 shipment_count: Number(r.shipment_count) || 0,
                 overdue3: kpi.overdue3,
                 overdue7: kpi.overdue7,
-                withIssue: kpi.withIssue,
+                anomalyCount: anomalyMap[key] ?? 0,
             };
         });
 
