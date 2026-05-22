@@ -76,6 +76,13 @@ export type JtDashboardMetrics = {
         return_branch_name: string;
         issue_registered_time?: string;
     }>;
+    /** พัสดุตีกลับที่แอดมินรับทราบและซ่อนไว้ (active ack kind='return') — สำหรับ "ดูที่ซ่อนไว้" + ดึงกลับ */
+    returnHiddenCases: Array<{
+        awb_number: string;
+        reason: string;
+        acknowledged_at: string;
+        acknowledged_by: string;
+    }>;
     codCollectionRate: number;     // paid / (paid + pending) × 100  (percent, 2 dp)
 };
 
