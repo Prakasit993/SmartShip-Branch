@@ -6,6 +6,7 @@ import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { TiktokN8nUpload } from './TiktokN8nUpload';
 import { TiktokTopSendersPanel, TiktokTopProductsPanel } from './TiktokTopPanels';
 import { ThailandChoropleth, type MapMetrics } from './ThailandChoropleth';
+import { TiktokIssueTracking } from './TiktokIssueTracking';
 import { CostAreaInspectionSection } from '@app/admin/(dashboard)/jt-dashboard/JtCostAreaInspection';
 
 function ymd(d: Date): string {
@@ -23,6 +24,7 @@ export function TiktokDashboardClient() {
     const [topLoading, setTopLoading] = useState(false);
     const [provinceCounts, setProvinceCounts] = useState<Record<string, number> | null>(null);
     const [mapMetrics, setMapMetrics] = useState<MapMetrics | null>(null);
+    const [issueRefreshToken, setIssueRefreshToken] = useState(0);
 
     const loadStats = useCallback(async () => {
         try {
@@ -86,6 +88,7 @@ export function TiktokDashboardClient() {
         loadTopLists();
         loadProvinces();
         loadMapMetrics();
+        setIssueRefreshToken((t) => t + 1);
     };
 
     const handleUploadSuccess = () => {
@@ -93,6 +96,7 @@ export function TiktokDashboardClient() {
         loadTopLists();
         loadProvinces();
         loadMapMetrics();
+        setIssueRefreshToken((t) => t + 1);
     };
 
     const closedPct = stats && stats.total > 0 ? (stats.closedCount / stats.total) * 100 : 0;
@@ -178,6 +182,9 @@ export function TiktokDashboardClient() {
                     />
                 </div>
             )}
+
+            {/* ติดตามปัญหา — มีปัญหา / ตกค้าง / ตีกลับ (ตรวจสอบเท่านั้น ไม่มีต้นทุน) */}
+            {stats && !isEmpty && <TiktokIssueTracking refreshToken={issueRefreshToken} />}
 
             {/* สรุป: กำลังคำนวณครั้งแรก */}
             {topLoading && !topLists && !isEmpty && (
