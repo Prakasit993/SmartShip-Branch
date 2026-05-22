@@ -575,6 +575,7 @@ export function CustomerProfileDetailClient({ id, isAdmin = false }: { id: strin
                     onClose={() => setActiveKpiPanel(null)}
                     copiedToken={copiedToken}
                     onCopyAwb={copyToClipboard}
+                    onChanged={fetchDetail}
                 />
             ) : null}
 
@@ -1159,6 +1160,25 @@ type OverdueShipment = {
     return_type?: string | null;
 };
 
+type OverdueHidden = OverdueShipment & {
+    reason: string;
+    acknowledged_at: string;
+};
+
+/** kind ของ ack ในแต่ละ panel: issue ใช้ 'return' (ร่วม dashboard), ค้าง ใช้ 'overdue' */
+function ackKindForPanel(type: OverduePanelType): 'overdue' | 'return' {
+    return type === 'issue' ? 'return' : 'overdue';
+}
+
+const PROFILE_ACK_PRESETS: ReadonlyArray<string> = [
+    'ตรวจสอบแล้ว — ปกติ',
+    'ติดต่อขนส่งแล้ว',
+    'รออัปเดตสถานะ',
+    'ลูกค้ารับทราบแล้ว',
+    'อื่นๆ (พิมพ์เอง)',
+];
+const PROFILE_ACK_CUSTOM = 'อื่นๆ (พิมพ์เอง)';
+
 const OVERDUE_META: Record<OverduePanelType, { title: string; borderCls: string; bgCls: string; iconCls: string; badgeCls: string }> = {
     overdue3: {
         title: 'ค้างเกิน 3 วัน',
@@ -1189,41 +1209,122 @@ function OverduePanel({
     onClose,
     copiedToken,
     onCopyAwb,
+    onChanged,
 }: {
     id: string;
     type: OverduePanelType;
     onClose: () => void;
     copiedToken: string | null;
     onCopyAwb: (awb: string, token: string) => void;
+    /** เรียกหลัง ack/restore เพื่อให้ KPI counts ฝั่งพ่อ refresh */
+    onChanged: () => void;
 }) {
     const [shipments, setShipments] = useState<OverdueShipment[]>([]);
+    const [hidden, setHidden] = useState<OverdueHidden[]>([]);
     const [panelLoading, setPanelLoading] = useState(true);
     const [panelError, setPanelError] = useState<string | null>(null);
+    const [showHidden, setShowHidden] = useState(false);
+    const [ackAwb, setAckAwb] = useState('');
+    const [ackPreset, setAckPreset] = useState<string>(PROFILE_ACK_PRESETS[0]);
+    const [ackReason, setAckReason] = useState<string>(PROFILE_ACK_PRESETS[0]);
+    const [ackLoading, setAckLoading] = useState(false);
+    const [ackError, setAckError] = useState<string | null>(null);
+    const [restoringAwb, setRestoringAwb] = useState<string | null>(null);
     const meta = OVERDUE_META[type];
+    const ackKind = ackKindForPanel(type);
 
-    useEffect(() => {
-        const controller = new AbortController();
-        setPanelLoading(true);
-        setPanelError(null);
-        fetch(`/api/admin/customer-profile/${id}/overdue?type=${type}`, {
-            credentials: 'include',
-            signal: controller.signal,
-        })
-            .then(async (r) => {
+    const fetchPanel = useCallback(
+        async (signal?: AbortSignal) => {
+            setPanelLoading(true);
+            setPanelError(null);
+            try {
+                const r = await fetch(`/api/admin/customer-profile/${id}/overdue?type=${type}`, {
+                    credentials: 'include',
+                    signal,
+                });
                 if (!r.ok) {
                     const b = await r.json().catch(() => ({}));
                     throw new Error((b as { error?: string })?.error || `HTTP ${r.status}`);
                 }
-                return r.json() as Promise<{ shipments: OverdueShipment[] }>;
-            })
-            .then((d) => setShipments(d.shipments ?? []))
-            .catch((e) => {
+                const d = (await r.json()) as { shipments?: OverdueShipment[]; hidden?: OverdueHidden[] };
+                setShipments(d.shipments ?? []);
+                setHidden(d.hidden ?? []);
+            } catch (e) {
                 if (e instanceof Error && e.name === 'AbortError') return;
                 setPanelError(e instanceof Error ? e.message : 'โหลดไม่สำเร็จ');
-            })
-            .finally(() => setPanelLoading(false));
+            } finally {
+                setPanelLoading(false);
+            }
+        },
+        [id, type],
+    );
+
+    useEffect(() => {
+        const controller = new AbortController();
+        void fetchPanel(controller.signal);
         return () => controller.abort();
-    }, [id, type]);
+    }, [fetchPanel]);
+
+    function openAck(awb: string) {
+        setAckAwb(awb);
+        setAckPreset(PROFILE_ACK_PRESETS[0]);
+        setAckReason(PROFILE_ACK_PRESETS[0]);
+        setAckError(null);
+    }
+
+    async function submitAck() {
+        const awb = ackAwb.trim();
+        const reason = ackReason.trim();
+        if (!awb || ackLoading) return;
+        if (!reason) {
+            setAckError('กรุณาใส่เหตุผลที่รับทราบ');
+            return;
+        }
+        setAckLoading(true);
+        setAckError(null);
+        try {
+            const res = await fetch('/api/admin/jt-shipments/parcel-acknowledgements', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ awb_number: awb, kind: ackKind, reason, action: 'hide' }),
+            });
+            if (!res.ok) {
+                const b = await res.json().catch(() => ({}));
+                throw new Error((b as { error?: string })?.error || `HTTP ${res.status}`);
+            }
+            setAckAwb('');
+            await fetchPanel();
+            onChanged();
+        } catch (e) {
+            setAckError(e instanceof Error ? e.message : 'บันทึกการรับทราบไม่สำเร็จ');
+        } finally {
+            setAckLoading(false);
+        }
+    }
+
+    async function restore(awb: string) {
+        if (!awb || restoringAwb) return;
+        setRestoringAwb(awb);
+        try {
+            const res = await fetch('/api/admin/jt-shipments/parcel-acknowledgements', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ awb_number: awb, kind: ackKind, action: 'restore' }),
+            });
+            if (!res.ok) {
+                const b = await res.json().catch(() => ({}));
+                throw new Error((b as { error?: string })?.error || `HTTP ${res.status}`);
+            }
+            await fetchPanel();
+            onChanged();
+        } catch (e) {
+            setPanelError(e instanceof Error ? e.message : 'ดึงกลับไม่สำเร็จ');
+        } finally {
+            setRestoringAwb(null);
+        }
+    }
 
     return (
         <section className={`animate-home-fade-up rounded-2xl border ${meta.borderCls} bg-gradient-to-br ${meta.bgCls} via-slate-950/60 to-slate-950/80 p-3 shadow-md ring-1 ring-white/[0.03] sm:p-3.5`}>
@@ -1239,14 +1340,27 @@ function OverduePanel({
                         </p>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-400 transition hover:border-slate-600 hover:text-slate-200"
-                    aria-label="ปิด"
-                >
-                    ✕ ปิด
-                </button>
+                <div className="flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => setShowHidden((v) => !v)}
+                        className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition ${
+                            showHidden
+                                ? 'border-sky-500/50 bg-sky-500/10 text-sky-200'
+                                : 'border-slate-700 bg-slate-900/70 text-slate-400 hover:border-slate-600 hover:text-slate-200'
+                        }`}
+                    >
+                        {showHidden ? 'ซ่อนที่ซ่อนไว้' : `ที่ซ่อนไว้ (${hidden.length})`}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-md border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[11px] font-semibold text-slate-400 transition hover:border-slate-600 hover:text-slate-200"
+                        aria-label="ปิด"
+                    >
+                        ✕ ปิด
+                    </button>
+                </div>
             </header>
 
             <div className="mt-2.5">
@@ -1257,10 +1371,12 @@ function OverduePanel({
                 ) : panelError ? (
                     <p className="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300">{panelError}</p>
                 ) : shipments.length === 0 ? (
-                    <p className="rounded-lg border border-slate-800/50 bg-slate-900/30 px-3 py-3 text-center text-[11px] text-slate-500">ไม่พบรายการ</p>
+                    <p className="rounded-lg border border-slate-800/50 bg-slate-900/30 px-3 py-3 text-center text-[11px] text-slate-500">
+                        ไม่พบรายการ (อาจถูกรับทราบและซ่อนไว้แล้ว)
+                    </p>
                 ) : (
                     <div className="overflow-x-auto rounded-xl border border-slate-800/60 bg-slate-950/40">
-                        <table className="w-full min-w-[400px] text-left text-[12px]">
+                        <table className="w-full min-w-[480px] text-left text-[12px]">
                             <thead className={`bg-gradient-to-b ${meta.bgCls} to-slate-900/50 text-[10px] uppercase tracking-wider text-slate-400`}>
                                 <tr>
                                     <th className="px-2.5 py-2 font-semibold">AWB</th>
@@ -1270,6 +1386,7 @@ function OverduePanel({
                                     ) : (
                                         <th className="px-2.5 py-2 font-semibold">ประเภทปัญหา</th>
                                     )}
+                                    <th className="px-2.5 py-2 text-right font-semibold">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50">
@@ -1292,6 +1409,17 @@ function OverduePanel({
                                         ) : (
                                             <td className="px-2.5 py-1.5 text-[11px] text-slate-300">{s.return_type ?? '—'}</td>
                                         )}
+                                        <td className="px-2.5 py-1.5 text-right">
+                                            {s.awb_number ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openAck(s.awb_number as string)}
+                                                    className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-200 transition hover:border-amber-400/50 hover:bg-amber-500/20"
+                                                >
+                                                    รับทราบ
+                                                </button>
+                                            ) : null}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -1301,7 +1429,138 @@ function OverduePanel({
                         ) : null}
                     </div>
                 )}
+
+                {showHidden ? (
+                    <div className="mt-2.5 rounded-xl border border-slate-800/60 bg-slate-900/30 p-2.5">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                            ที่ซ่อนไว้ ({hidden.length}) — กด &quot;ดึงกลับ&quot; เพื่อนำกลับเข้ารายการ
+                        </p>
+                        {hidden.length === 0 ? (
+                            <p className="text-[11px] text-slate-500">ยังไม่มีรายการที่ซ่อนไว้</p>
+                        ) : (
+                            <div className="overflow-x-auto rounded-lg border border-slate-800/50 bg-slate-950/40">
+                                <table className="w-full min-w-[480px] text-left text-[12px]">
+                                    <thead className="bg-slate-900/60 text-[10px] uppercase tracking-wider text-slate-500">
+                                        <tr>
+                                            <th className="px-2.5 py-1.5 font-semibold">AWB</th>
+                                            <th className="px-2.5 py-1.5 font-semibold">เหตุผล</th>
+                                            <th className="px-2.5 py-1.5 font-semibold">รับทราบเมื่อ</th>
+                                            <th className="px-2.5 py-1.5 text-right font-semibold">จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800/50">
+                                        {hidden.map((h, idx) => (
+                                            <tr key={h.awb_number ?? `h-${idx}`} className="transition-colors hover:bg-slate-800/20">
+                                                <td className="px-2.5 py-1.5">
+                                                    <AwbChip
+                                                        awb={h.awb_number}
+                                                        onCopy={(awb) => onCopyAwb(awb, `odawb-${awb}`)}
+                                                        copied={copiedToken === `odawb-${h.awb_number}`}
+                                                    />
+                                                </td>
+                                                <td className="px-2.5 py-1.5 text-[11px] text-slate-300">{h.reason}</td>
+                                                <td className="px-2.5 py-1.5 tabular-nums text-[11px] text-slate-400">
+                                                    {h.acknowledged_at && h.acknowledged_at !== '-' ? h.acknowledged_at.slice(0, 16) : '—'}
+                                                </td>
+                                                <td className="px-2.5 py-1.5 text-right">
+                                                    {h.awb_number ? (
+                                                        <button
+                                                            type="button"
+                                                            disabled={restoringAwb === h.awb_number}
+                                                            onClick={() => void restore(h.awb_number as string)}
+                                                            className="rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-200 transition hover:border-sky-400/50 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            {restoringAwb === h.awb_number ? '...' : 'ดึงกลับ'}
+                                                        </button>
+                                                    ) : null}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                ) : null}
             </div>
+
+            {ackAwb ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="cp-ack-title"
+                >
+                    <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl ring-1 ring-white/10">
+                        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+                            <h3 id="cp-ack-title" className="text-base font-semibold text-white">
+                                รับทราบ — {meta.title}
+                            </h3>
+                            <button
+                                type="button"
+                                disabled={ackLoading}
+                                onClick={() => setAckAwb('')}
+                                className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                            >
+                                ปิด
+                            </button>
+                        </div>
+                        <div className="space-y-3 px-4 py-4">
+                            <p className="text-sm text-slate-300">
+                                เลขพัสดุ <span className="font-mono font-semibold text-amber-300">{ackAwb}</span> จะถูกซ่อนจากการ์ดนี้
+                                {type === 'issue' ? ' และการ์ดตีกลับบน dashboard' : ' และ AI tool'} หลังบันทึก (ดึงกลับได้)
+                            </p>
+                            <label className="block">
+                                <span className="text-xs font-medium text-slate-400">เหตุผลที่รับทราบ</span>
+                                <select
+                                    value={ackPreset}
+                                    onChange={(e) => {
+                                        setAckPreset(e.target.value);
+                                        setAckReason(e.target.value === PROFILE_ACK_CUSTOM ? '' : e.target.value);
+                                    }}
+                                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-amber-500/25 focus:border-amber-500/50 focus:ring-2"
+                                >
+                                    {PROFILE_ACK_PRESETS.map((p) => (
+                                        <option key={p} value={p}>{p}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            {ackPreset === PROFILE_ACK_CUSTOM ? (
+                                <label className="block">
+                                    <span className="text-xs font-medium text-slate-400">รายละเอียดเพิ่มเติม</span>
+                                    <textarea
+                                        value={ackReason}
+                                        onChange={(e) => setAckReason(e.target.value)}
+                                        rows={3}
+                                        maxLength={500}
+                                        placeholder="เช่น ตรวจสอบแล้ว ขนส่งยืนยันกำลังนำจ่าย"
+                                        className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none ring-amber-500/25 placeholder:text-slate-600 focus:border-amber-500/50 focus:ring-2"
+                                    />
+                                </label>
+                            ) : null}
+                            {ackError ? <p className="text-sm text-rose-400">{ackError}</p> : null}
+                            <div className="flex justify-end gap-2 border-t border-slate-800 pt-3">
+                                <button
+                                    type="button"
+                                    disabled={ackLoading}
+                                    onClick={() => setAckAwb('')}
+                                    className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={ackLoading || !ackReason.trim()}
+                                    onClick={() => void submitAck()}
+                                    className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {ackLoading ? 'กำลังบันทึก...' : 'บันทึกรับทราบ'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </section>
     );
 }
