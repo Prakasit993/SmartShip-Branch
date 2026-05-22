@@ -12,6 +12,7 @@ import type {
 } from './jtDashboardTypes';
 import { JtDashboardCustomMetrics } from './JtDashboardCustomMetrics';
 import { JtDashboardDailyCharts } from './JtDashboardDailyCharts';
+import { CostAreaInspectionSection } from './JtCostAreaInspection';
 import {
     JtTopProductsPanel,
     JtTopSendersCountPanel,
@@ -1658,6 +1659,17 @@ export function JtDashboardView({
                             </div>
                         </div>
                     ) : null}
+                </div>
+            ) : null}
+
+            {!mockMode ? (
+                <div style={{ animation: 'fadeSlideIn 0.5s ease-out 0.35s both' }}>
+                    <CostAreaInspectionSection
+                        range={{
+                            from: appliedRange?.from || parcelDateFrom,
+                            to: appliedRange?.to || parcelDateTo,
+                        }}
+                    />
                 </div>
             ) : null}
 
