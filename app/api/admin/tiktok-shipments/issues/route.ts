@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { TIKTOK_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/tiktokReturnAcknowledgements';
+import { parseBookingWindow } from '@/lib/bookingDateWindow';
 
 /**
  * GET /api/admin/tiktok-shipments/issues
  *
  * "ติดตามปัญหา" ของ TikTok Shop — มิเรอร์ logic จาก jt-shipments/dashboard
- * แต่ไม่มี date filter (ดูทั้งตาราง) และไม่มีต้นทุน (ตรวจสอบเท่านั้น).
+ * (ไม่มีต้นทุน — ตรวจสอบเท่านั้น).
+ *
+ * ตัวกรองวันที่ (optional): ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD (inclusive)
+ *   กรองตาม booking_date — dashboard ส่งหน้าต่าง 14 วันมา (ช่วยลดการสแกนตารางด้วย).
+ *   ไม่ส่ง = สแกนทั้งตาราง (เดิม).
  *
  * คืน:
  *   - exceptionCount + topExceptionCases  : sign_branch_code IS NULL และมี exception_reason
@@ -60,6 +65,8 @@ export async function GET(request: NextRequest) {
     const denied = await requireAdminApiAuth('admin-or-staff', request);
     if (denied) return denied;
 
+    const { from: dateFrom, toExclusive: dateToExclusive } = parseBookingWindow(request.url);
+
     try {
         // active acks (kind='return') → ตัดออกจาก count/list + ใช้ทำ "ดูที่ซ่อนไว้"
         const { data: ackRows, error: ackErr } = await supabaseAdmin
@@ -111,13 +118,16 @@ export async function GET(request: NextRequest) {
                 console.warn(`[tiktok-shipments/issues] capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
                 break;
             }
-            const { data, error } = await supabaseAdmin
+            let pageQuery = supabaseAdmin
                 .from('tiktok_shipments')
                 .select(
                     'awb_number,sender_name,receiver_name,receiver_phone,exception_reason,issue_registered_time,return_type,return_branch_name,sign_branch_code,sign_branch_name,delivery_staff_id',
                 )
                 .order('booking_date', { ascending: false, nullsFirst: false })
                 .range(offset, offset + AGG_PAGE - 1);
+            if (dateFrom) pageQuery = pageQuery.gte('booking_date', dateFrom);
+            if (dateToExclusive) pageQuery = pageQuery.lt('booking_date', dateToExclusive);
+            const { data, error } = await pageQuery;
             if (error) {
                 console.error('[tiktok-shipments/issues] aggregate', error);
                 return NextResponse.json({ error: error.message }, { status: 500 });
