@@ -288,7 +288,10 @@ export const AI_AGENT_TOOLS: readonly AiAgentToolDefinition[] = [
             required: ['sql'],
             additionalProperties: false,
         },
-        usageNotes: 'endpoint + readonly GRANT ต้องสร้างก่อน (P1.3) — ดู docs/ai-agent-mcp-plan.md',
+        usageNotes:
+            'ถาม tiktok_shipments เท่านั้น — validator แยก dataset, ถ้า SQL อ้าง jt_shipments ' +
+            '(หรือ join/subquery) จะถูก reject (table not allowed). SELECT-only, auto LIMIT 1000, ' +
+            'statement_timeout 5s. ถ้า error 400 ให้แก้ SQL ตาม error แล้ว retry ได้.',
     },
 ] as const;
 

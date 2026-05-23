@@ -54,7 +54,7 @@
 | เฟส | งาน | สถานะ |
 |---|---|---|
 | **P0** | ยืนยัน Instance-level MCP เปิด + เลือก auth (OAuth vs Access token) + ทดสอบ connect จาก Claude Code | ✅ MCP เปิดแล้ว (รอเลือก auth) |
-| **P1** | **(Next.js) เตรียม endpoint ให้เป็น AI tool** — switch auth + เพิ่ม tiktok tool schema + query_tiktok_sql | 🔨 ร่างด้านล่าง |
+| **P1** | **(Next.js) เตรียม endpoint ให้เป็น AI tool** — switch auth + เพิ่ม tiktok tool schema + query_tiktok_sql | ✅ stats/stagnant + schema + query_tiktok_sql เสร็จ · ⏳ issues รอ RPC |
 | **P2** | **(n8n) ชั้น MCP ตามรูป** — สร้าง "tool workflow" ห่อ endpoint + Enable ใน Instance-level MCP + connect client | 🔨 ร่างด้านล่าง |
 | **P3** | ย้าย admin chatbot (n8n AI Agent) ให้ใช้ workflow/tool ชุดเดียวกัน (ลด config ซ้ำ) | ภายหลัง |
 | **P4** | เปิดให้ Phase 2 in-process agent (ถ้าทำ) อ่าน registry เดียวกัน | ภายหลัง |
@@ -80,10 +80,19 @@
 - `get_tiktok_issue_summary` → GET `/api/admin/tiktok-shipments/issues` (หลัง RPC)
 - `query_tiktok_sql` → POST `/api/admin/ai-tools/tiktok-sql`
 
-### 1.3 query_tiktok_sql (แยกจาก jt)
-- สร้าง route ใหม่ mirror `app/api/admin/ai-tools/sql/route.ts` แต่ whitelist = `tiktok_shipments` เท่านั้น
-- migration (รันใน Supabase): `GRANT SELECT ON public.tiktok_shipments TO smartship_ai_readonly;`
-- คง SELECT-only, auto LIMIT 1000, statement_timeout 5s, บังคับ WHERE booking_date
+### 1.3 query_tiktok_sql (แยกจาก jt) — ✅ เสร็จ (2026-05-23)
+- ✅ `validateSelectSql(sql, allowedTables?)` รับ whitelist เป็น param — `src/lib/sqlValidator.ts`
+  exports `JT_ALLOWED_TABLES` (default) และ `TIKTOK_ALLOWED_TABLES` (`tiktok_shipments` เท่านั้น, disjoint)
+- ✅ route ใหม่ `app/api/admin/ai-tools/tiktok-sql/route.ts` mirror `sql/route.ts` แต่ส่ง `TIKTOK_ALLOWED_TABLES`
+- ✅ migration `database/db/migrations/20260523_ai_readonly_grant_tiktok.sql` (รันใน Supabase) —
+  `GRANT SELECT ON public.tiktok_shipments TO smartship_ai_readonly;`
+  (หมายเหตุ: role dormant, GRANT เป็น documentation/future-proof — ตัวกั้นจริงคือ validator whitelist)
+- ✅ unit test แยก dataset `src/lib/sqlValidator.test.ts` (`npm test`, node --test native TS, ไม่เพิ่ม dep) —
+  พิสูจน์ jt↔tiktok ถามข้ามกันไม่ได้ (รวม join/subquery) + regression guards
+- ⚠️ ระหว่างทางเจอ + แก้ bug เดิม: `extractFunctionName` ไม่รู้จัก shape ของ node-sql-parser v5
+  ทำให้ `BLOCKED_FUNCTIONS` (pg_sleep / pg_read_file / dblink …) ไม่เคยทำงานทั้ง jt และ tiktok — แก้แล้ว
+- คง SELECT-only, auto LIMIT 1000, statement_timeout 5s
+- หมายเหตุ: validator reject SQL ที่ใช้ table alias (`t.col`) — AI ต้องเขียน SQL แบบไม่มี alias (ข้อจำกัดเดิม)
 
 ### หมายเหตุ perf (กันซ้ำกับที่คุยไว้)
 `issues` ตอนนี้สแกนทั้งตารางในแอป → ก่อนเปิดเป็น tool ควรทำ RPC `tiktok_issue_summary()` (COUNT FILTER + NOT EXISTS) ให้เหลือ ~1 query
@@ -149,7 +158,97 @@ n8n AI Agent (chatbot ในแอป) เพิ่ม node **"MCP Client Tool"*
 ---
 
 ## สรุปลำดับลงมือ (แนะนำ)
-1. **P1.1 + P1.2** (สลับ auth tiktok GET + เพิ่ม tiktok tool schema) — โค้ด Next.js, ปลอดภัย, ทำได้ทันที
-2. **P1.3** query_tiktok_sql + migration grant (รันใน Supabase)
-3. **P2** สร้าง wf_tiktok_* / wf_jt_* + Enable ใน Instance-level MCP + connect Claude Code ทดสอบ
-4. (ขนาน) RPC optimize `issues` แล้วค่อยเปิด `get_tiktok_issue_summary`
+1. ✅ **P1.1 + P1.2** (สลับ auth tiktok stats/stagnant + เพิ่ม tiktok tool schema) — เสร็จ
+2. ✅ **P1.3** query_tiktok_sql + validator แยก dataset + migration grant + unit test — เสร็จ (2026-05-23)
+3. ⬜ **Deploy + n8n** — ดู [วิธีเริ่มใช้งานตอนนี้](#วิธีเริ่มใช้งานตอนนี้-จากสถานะ-p13-เสร็จ)
+4. ⬜ **P2** สร้าง wf_tiktok_* / wf_jt_* + Enable ใน Instance-level MCP + connect Claude Code ทดสอบ
+5. ⬜ (ขนาน) RPC optimize `issues` แล้วค่อยเปิด `get_tiktok_issue_summary`
+
+---
+
+## การเทส (Testing)
+
+รัน: `npm test` — ใช้ `node --test` รัน TypeScript **native บน Node 24** (ไม่เพิ่ม dependency ใดๆ)
+- ไฟล์: `src/lib/sqlValidator.test.ts` — 19 เทส ผ่านหมด
+- `tsconfig.json` ใส่ `exclude: ["**/*.test.ts"]` แล้ว → ไฟล์เทสไม่เข้า `next build`
+- node-sql-parser เป็น CommonJS → `sqlValidator.ts` import แบบ `import nodeSqlParser, { type AST }` แล้ว destructure `Parser` (รองรับทั้ง Next swc และ raw Node ESM)
+
+**ครอบคลุม (เน้น security boundary การแยก dataset):**
+- `query_tiktok_sql` (ชุด `TIKTOK_ALLOWED_TABLES`) ถาม `jt_shipments` ตรงๆ / JOIN / subquery → reject ทุกแบบ
+- `query_sql` (default = `JT_ALLOWED_TABLES`) ถาม `tiktok_shipments` → reject
+- whitelist 2 ชุดไม่ overlap (assert ตรงๆ)
+- regression: non-SELECT (UPDATE/INSERT) / multi-statement / blocked function (pg_sleep) / LIMIT inject+clamp/no-touch
+
+**bug เดิมที่เทสจับได้ (แก้แล้ว):** `extractFunctionName` ไม่ match shape ของ node-sql-parser v5
+(`{ name: [{ value: 'pg_sleep' }] }`) → `BLOCKED_FUNCTIONS` ทั้งชุด (pg_sleep / pg_read_file / dblink …)
+ไม่เคยทำงานเลยทั้ง jt และ tiktok. pg_read_file/dblink ไม่ใช่ write จึงไม่โดน `transaction_read_only` กัน = ช่องโหว่จริง — แก้ที่ `src/lib/sqlValidator.ts` (กระทบ `query_sql` เดิมด้วย ตอนนี้บล็อกถูกต้อง)
+
+---
+
+## Tool definitions — copy-paste สำหรับ n8n
+
+> ใช้กับ n8n HTTP Request Tool node (ในกลุ่ม AI Agent ของ chatbot เดิม — ทาง A) หรือเป็น HTTP node ใน wf_tiktok_* (ทาง B/P2)
+> **Base URL ทุกตัว:** `https://box.mybabymeal.com`
+> **Header ทุกตัว:** `Authorization: Bearer <N8N_AI_TOOLS_SECRET>` (Header Auth credential เดิมที่ jt tools ใช้)
+
+### `get_tiktok_stats`
+- **Method / URL:** `GET https://box.mybabymeal.com/api/admin/tiktok-shipments/stats`
+- **Parameters:** ไม่มี
+- **Description:**
+```
+สรุปตัวเลขรวมของ TikTok Shop — จำนวนพัสดุทั้งหมด และจำนวนที่ปิดงานแล้ว (มีผู้เซ็นรับ). ใช้เมื่อผู้ใช้ถามภาพรวม TikTok เช่น "พัสดุ TikTok ทั้งหมดกี่ชิ้น" / "ปิดงานไปเท่าไหร่". TikTok ไม่มี date filter — คืนภาพรวมทั้งตาราง. ไม่มีข้อมูลต้นทุน/COD (ตรวจสอบเท่านั้น).
+```
+
+### `get_tiktok_stagnant_parcels`
+- **Method / URL:** `GET https://box.mybabymeal.com/api/admin/tiktok-shipments/stagnant-parcels`
+- **Parameters:** ไม่มี
+- **Description:**
+```
+รายการพัสดุ TikTok ที่ตกค้างไม่เคลื่อนไหว — ไม่มี scan ≥ 2 วัน และยังไม่ปิดงาน. คืน AWB + ผู้ส่ง + เบอร์ + scan ล่าสุด. ใช้เมื่อถาม "TikTok ตกค้าง/ไม่ขยับ". ตัดรายการที่แอดมินรับทราบ/ซ่อนแล้วออกให้. คืนสูงสุด ~200 รายการ.
+```
+
+### `query_tiktok_sql`
+- **Method / URL:** `POST https://box.mybabymeal.com/api/admin/ai-tools/tiktok-sql`
+- **Body field `sql`** map ด้วย `={{ $fromAI('sql', 'SELECT query บน tiktok_shipments เท่านั้น', 'string') }}`
+- **Parameters (JSON Schema):**
+```json
+{
+  "type": "object",
+  "properties": {
+    "sql": {
+      "type": "string",
+      "description": "SELECT query บน tiktok_shipments เท่านั้น — ไม่มี alias, ควรมี WHERE"
+    }
+  },
+  "required": ["sql"],
+  "additionalProperties": false
+}
+```
+- **Description:**
+```
+รัน SELECT บน tiktok_shipments เท่านั้น (แยกจาก query_sql ของ JT — ห้าม join/ถาม jt_shipments) เมื่อ predefined tools ตอบไม่ได้. SELECT-only, auto LIMIT 1000, statement timeout 5s, ควรมี WHERE. tiktok_shipments มีคอลัมน์เดียวกับ jt_shipments (awb_number PK, booking_date, sender_name, receiver_name/phone, signer_name, return_type, exception_reason, sign_branch_code, latest_scan_time ฯลฯ) แต่ไม่มีข้อมูลต้นทุน. ถ้า SQL อ้าง jt_shipments (หรือ join/subquery) จะถูก reject (table not allowed). เขียน SQL แบบไม่มี table alias (validator ไม่รองรับ t.col). ถ้า error 400 ให้แก้ SQL ตาม error message แล้ว retry ได้.
+```
+
+### ⚠️ `get_tiktok_issue_summary` — อย่าเพิ่งเพิ่ม
+endpoint `issues` ยังเป็น admin-only + สแกนทั้งตาราง (ช้า). ถ้าเพิ่มตอนนี้จะได้ 401 หรือช้าจน timeout.
+ต้องทำ RPC `tiktok_issue_summary()` + สลับ auth เป็น `requireAiToolAuth` ก่อน (ดูหมายเหตุ perf)
+
+---
+
+## วิธีเริ่มใช้งานตอนนี้ (จากสถานะ P1.3 เสร็จ)
+
+### ขั้นเตรียม (ครั้งเดียว)
+1. **Commit + merge เข้า main → deploy** ขึ้น box.mybabymeal.com. ยืนยัน env `N8N_AI_TOOLS_SECRET` มีบน box (jt tools ใช้ตัวเดียวกัน — น่าจะมีแล้ว)
+2. **รัน migration ใน Supabase:** `database/db/migrations/20260523_ai_readonly_grant_tiktok.sql`
+   (ไม่บล็อกการทำงาน เพราะ role dormant — แต่ควรรันเพื่อ audit trail)
+
+### เชื่อมต่อ — เลือก 1 ทาง
+**ทาง A (เร็วสุด) — ใช้ผ่าน admin chatbot เดิม:**
+เพิ่ม HTTP Request Tool node 3 ตัวใน n8n AI Agent (ใช้ค่าจาก [Tool definitions](#tool-definitions--copy-paste-สำหรับ-n8n)) → ถามบอทเรื่อง TikTok ได้เลย
+
+**ทาง B (future-proof) — ผ่าน MCP / Claude Code (P2):**
+สร้าง wf_tiktok_* → Enable ใน Instance-level MCP → คัดลอก Access token → `claude mcp add ...` (ดู 2.2–2.3)
+
+### สรุปสถานะ tool
+- ✅ พร้อมใช้: `get_tiktok_stats` · `get_tiktok_stagnant_parcels` · `query_tiktok_sql`
+- ⏳ ยังไม่พร้อม: `get_tiktok_issue_summary` (รอ RPC + สลับ auth)
