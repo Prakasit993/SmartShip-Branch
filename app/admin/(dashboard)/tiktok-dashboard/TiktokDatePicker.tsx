@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Check } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { ymdAddDays } from '@/lib/bookingDateWindow';
 
 /**
@@ -10,7 +10,7 @@ import { ymdAddDays } from '@/lib/bookingDateWindow';
  */
 
 const WINDOW_DAYS = 14;
-const CARD_COUNT = 30; // จำนวนการ์ดวันให้เลือก (ย้อนหลังจากวันนี้)
+const CARD_COUNT = 28; // จำนวนการ์ดวันให้เลือก (ย้อนหลังจากวันนี้ = 4 สัปดาห์)
 
 const TH_MONTH_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 const TH_DOW_SHORT = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
@@ -95,7 +95,7 @@ export function TiktokDatePicker({
                 <div
                     role="dialog"
                     aria-label="เลือกวันสิ้นสุดช่วง"
-                    className="absolute right-0 z-30 mt-2 w-[19rem] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950/95 shadow-2xl shadow-black/50 ring-1 ring-white/[0.04] backdrop-blur"
+                    className="absolute left-0 z-50 mt-2 w-[19rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/60 ring-1 ring-white/[0.06]"
                 >
                     <div className="border-b border-slate-800 px-4 py-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-300">เลือกวันสิ้นสุดช่วง</p>
@@ -117,8 +117,8 @@ export function TiktokDatePicker({
                         <span className="text-[10px] text-slate-600">หรือเลือกการ์ดวันด้านล่าง</span>
                     </div>
 
-                    <div className="max-h-64 overflow-y-auto px-3 pb-3">
-                        <div className="grid grid-cols-4 gap-1.5">
+                    <div className="max-h-[10.5rem] overflow-y-auto px-3 pb-3">
+                        <div className="grid grid-cols-7 gap-1">
                             {dayCards.map((ymd) => {
                                 const dt = parseYmd(ymd);
                                 const selected = ymd === endDate;
@@ -128,18 +128,16 @@ export function TiktokDatePicker({
                                         type="button"
                                         onClick={() => pick(ymd)}
                                         aria-pressed={selected}
-                                        className={`relative flex flex-col items-center rounded-xl border px-1 py-2 transition ${
+                                        title={`${TH_DOW_SHORT[dt.getDay()]} ${dt.getDate()} ${TH_MONTH_SHORT[dt.getMonth()]}`}
+                                        className={`relative flex flex-col items-center rounded-lg border px-0.5 py-1.5 transition ${
                                             selected
                                                 ? 'border-rose-500/60 bg-rose-500/15 text-rose-100 ring-1 ring-rose-500/40'
                                                 : 'border-slate-800 bg-slate-900/50 text-slate-300 hover:border-slate-600 hover:bg-slate-800'
                                         }`}
                                     >
-                                        {selected ? (
-                                            <Check className="absolute right-1 top-1 h-3 w-3 text-rose-300" aria-hidden />
-                                        ) : null}
-                                        <span className="text-[9px] text-slate-500">{TH_DOW_SHORT[dt.getDay()]}</span>
-                                        <span className="text-base font-bold leading-tight tabular-nums">{dt.getDate()}</span>
-                                        <span className="text-[9px] text-slate-500">{TH_MONTH_SHORT[dt.getMonth()]}</span>
+                                        <span className="text-[8px] leading-none text-slate-500">{TH_DOW_SHORT[dt.getDay()]}</span>
+                                        <span className="text-sm font-bold leading-tight tabular-nums">{dt.getDate()}</span>
+                                        <span className="text-[8px] leading-none text-slate-500">{TH_MONTH_SHORT[dt.getMonth()]}</span>
                                     </button>
                                 );
                             })}
