@@ -27,7 +27,17 @@ const STAGNANT_ACK_PRESETS: ReadonlyArray<string> = [
 
 const ACK_ENDPOINT = '/api/admin/tiktok-shipments/parcel-acknowledgements';
 
-export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) {
+export function TiktokIssueTracking({
+    refreshToken,
+    dateFrom,
+    dateTo,
+}: {
+    refreshToken: number;
+    dateFrom?: string;
+    dateTo?: string;
+}) {
+    const dateQs =
+        dateFrom && dateTo ? `?${new URLSearchParams({ date_from: dateFrom, date_to: dateTo }).toString()}` : '';
     const [issues, setIssues] = useState<IssuesData | null>(null);
     const [stagnant, setStagnant] = useState<StagnantData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -63,7 +73,7 @@ export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) 
 
     const loadIssues = useCallback(async () => {
         try {
-            const res = await fetch('/api/admin/tiktok-shipments/issues', { credentials: 'include' });
+            const res = await fetch(`/api/admin/tiktok-shipments/issues${dateQs}`, { credentials: 'include' });
             if (!res.ok) return;
             const json = (await res.json()) as Partial<IssuesData>;
             setIssues({
@@ -76,11 +86,11 @@ export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) 
         } catch {
             /* คงค่าเดิม */
         }
-    }, []);
+    }, [dateQs]);
 
     const loadStagnant = useCallback(async () => {
         try {
-            const res = await fetch('/api/admin/tiktok-shipments/stagnant-parcels', { credentials: 'include' });
+            const res = await fetch(`/api/admin/tiktok-shipments/stagnant-parcels${dateQs}`, { credentials: 'include' });
             if (!res.ok) return;
             const json = (await res.json()) as Partial<StagnantData>;
             setStagnant({
@@ -91,7 +101,7 @@ export function TiktokIssueTracking({ refreshToken }: { refreshToken: number }) 
         } catch {
             /* คงค่าเดิม */
         }
-    }, []);
+    }, [dateQs]);
 
     const reloadAll = useCallback(async () => {
         setLoading(true);

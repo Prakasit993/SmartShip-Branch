@@ -1,4 +1,9 @@
-import { Parser, type AST } from 'node-sql-parser';
+import nodeSqlParser, { type AST } from 'node-sql-parser';
+
+// node-sql-parser is CommonJS — destructure off the default import so the named
+// `Parser` resolves under both Next (swc) and raw Node ESM (node --test). A bare
+// `import { Parser }` fails Node's CJS named-export detection.
+const { Parser } = nodeSqlParser;
 
 /**
  * Phase 2 SQL validator for the AI Agent `query_sql` tool.
@@ -25,15 +30,19 @@ const PARSER_DIALECT = 'postgresql' as const;
 const PARSER_TIMEOUT_MS = 1000;
 
 /**
- * Tables the AI may SELECT from. Mirrors GRANTs in
+ * Tables the JT/NYXEL `query_sql` tool may SELECT from. Mirrors GRANTs in
  *   - database/db/migrations/20260515_ai_readonly_sql_tool.sql (jt + shipping)
  *   - database/db/migrations/20260520_ai_readonly_grant_nyxel.sql (inventory + pricing)
  *
  * Scope philosophy:
  *   - Operations + inventory + pricing: whitelist (low PII risk)
  *   - Customer / order / review tables with PII: defer to Level 2 with audit
+ *
+ * NOTE: tiktok_shipments is intentionally NOT here. The TikTok dataset is a
+ * separate carrier with its own tool (query_tiktok_sql → TIKTOK_ALLOWED_TABLES)
+ * so the two never cross-join. See docs/ai-agent-mcp-plan.md.
  */
-const ALLOWED_TABLES = new Set([
+export const JT_ALLOWED_TABLES: ReadonlySet<string> = new Set([
     // J&T operations (Phase 2 original scope)
     'jt_shipments',
     'shipping_cost_master',
@@ -52,6 +61,16 @@ const ALLOWED_TABLES = new Set([
 
     // Order line items — snapshots only (bundle_name + price text), no customer FK
     'order_items',
+]);
+
+/**
+ * Tables the TikTok `query_tiktok_sql` tool may SELECT from — tiktok_shipments
+ * only. Kept strictly disjoint from JT_ALLOWED_TABLES so neither tool can reach
+ * the other carrier's data. Mirrors the GRANT in
+ *   - database/db/migrations/20260523_ai_readonly_grant_tiktok.sql
+ */
+export const TIKTOK_ALLOWED_TABLES: ReadonlySet<string> = new Set([
+    'tiktok_shipments',
 ]);
 
 /**
@@ -108,8 +127,17 @@ export interface SqlValidationError {
 
 export type SqlValidationResult = SqlValidationOk | SqlValidationError;
 
-/** Entry point — call this before executing any AI-generated SQL. */
-export function validateSelectSql(rawSql: unknown): SqlValidationResult {
+/**
+ * Entry point — call this before executing any AI-generated SQL.
+ *
+ * @param allowedTables which tables the query may reference. Defaults to the
+ *   JT/NYXEL set so existing callers (query_sql) need no change; the TikTok tool
+ *   passes TIKTOK_ALLOWED_TABLES to keep the datasets disjoint.
+ */
+export function validateSelectSql(
+    rawSql: unknown,
+    allowedTables: ReadonlySet<string> = JT_ALLOWED_TABLES,
+): SqlValidationResult {
     if (typeof rawSql !== 'string') {
         return { ok: false, error: 'sql must be a string' };
     }
@@ -156,7 +184,7 @@ export function validateSelectSql(rawSql: unknown): SqlValidationResult {
     }
 
     // 2. All FROM tables must be in the whitelist.
-    const tableCheck = collectAndCheckTables(stmt);
+    const tableCheck = collectAndCheckTables(stmt, allowedTables);
     if (!tableCheck.ok) return tableCheck;
 
     // 3. No blocked function calls anywhere in the AST.
@@ -202,7 +230,7 @@ interface SelectAst {
     _next?: SelectAst | null; // chained UNION / INTERSECT
 }
 
-function collectAndCheckTables(stmt: AST): SqlValidationResult {
+function collectAndCheckTables(stmt: AST, allowedTables: ReadonlySet<string>): SqlValidationResult {
     const found = new Set<string>();
     const visited = new WeakSet<object>();
 
@@ -240,10 +268,10 @@ function collectAndCheckTables(stmt: AST): SqlValidationResult {
                     error: `non-public schema blocked: ${schema}.${tableName}`,
                 };
             }
-            if (!ALLOWED_TABLES.has(tableName)) {
+            if (!allowedTables.has(tableName)) {
                 return {
                     ok: false,
-                    error: `table not allowed: ${tableName}. Allowed: ${[...ALLOWED_TABLES].join(', ')}`,
+                    error: `table not allowed: ${tableName}. Allowed: ${[...allowedTables].join(', ')}`,
                 };
             }
             found.add(tableName);
@@ -322,6 +350,11 @@ function extractFunctionName(name: unknown): string | null {
     if (name && typeof name === 'object') {
         const obj = name as { name?: unknown; value?: unknown };
         if (typeof obj.name === 'string') return obj.name;
+        // node-sql-parser v5 shape: { name: [{ type: 'default', value: 'pg_sleep' }] }
+        if (Array.isArray(obj.name)) {
+            const first = obj.name[0] as { value?: unknown } | undefined;
+            if (first && typeof first.value === 'string') return first.value;
+        }
         if (typeof obj.value === 'string') return obj.value;
     }
     return null;

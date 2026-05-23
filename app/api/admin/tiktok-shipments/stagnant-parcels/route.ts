@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAiToolAuth } from '@/lib/adminApiAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { TIKTOK_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/tiktokReturnAcknowledgements';
+import { parseBookingWindow } from '@/lib/bookingDateWindow';
 
 /**
  * GET /api/admin/tiktok-shipments/stagnant-parcels
@@ -9,6 +10,9 @@ import { TIKTOK_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/tiktokReturnAcknowle
  * พัสดุ TikTok ที่ไม่มีความเคลื่อนไหว (latest_scan_time ค้าง >= MIN_AGE_DAYS วัน หรือ NULL)
  * และยังไม่ปิดงาน (signer_name เป็น null/ว่าง/'NULL').
  * มิเรอร์จาก jt-shipments/stagnant-parcels แต่อ่านจาก tiktok_shipments + tiktok ack table.
+ *
+ * ตัวกรองวันที่ (optional): ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD (inclusive)
+ *   กรองตาม booking_date — dashboard ส่งหน้าต่าง 14 วันมา. ไม่ส่ง = ทั้งตาราง (เดิม).
  *
  * Response: { total, hidden_count, min_age_days, cutoff_date, cases[], hidden[], _elapsed_ms }
  */
@@ -50,12 +54,17 @@ export async function GET(req: NextRequest) {
         const todayMs = Date.now();
         const cutoffYmd = utcYmd(todayMs - MIN_AGE_DAYS * 86_400_000);
 
-        const { data, error } = await supabaseAdmin
+        const { from: dateFrom, toExclusive: dateToExclusive } = parseBookingWindow(req.url);
+
+        let query = supabaseAdmin
             .from('tiktok_shipments')
             .select(
                 'awb_number,booking_date,sender_name,sender_phone,gateway_width,gateway_height,gateway_length,gateway_weight,gateway_vol_weight,latest_scan_time,signer_name',
             )
-            .or('signer_name.is.null,signer_name.eq.,signer_name.eq.NULL')
+            .or('signer_name.is.null,signer_name.eq.,signer_name.eq.NULL');
+        if (dateFrom) query = query.gte('booking_date', dateFrom);
+        if (dateToExclusive) query = query.lt('booking_date', dateToExclusive);
+        const { data, error } = await query
             .order('latest_scan_time', { ascending: true, nullsFirst: true })
             .range(0, MAX_LIMIT - 1);
 

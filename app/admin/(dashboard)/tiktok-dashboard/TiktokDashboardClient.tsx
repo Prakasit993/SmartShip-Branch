@@ -1,15 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, InboxIcon } from 'lucide-react';
+import { RefreshCw, InboxIcon, CalendarOff } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { TiktokN8nUpload } from './TiktokN8nUpload';
 import { TiktokTopSendersPanel, TiktokTopProductsPanel } from './TiktokTopPanels';
 import { ThailandChoropleth, type MapMetrics } from './ThailandChoropleth';
 import { TiktokIssueTracking } from './TiktokIssueTracking';
+import { TiktokDatePicker } from './TiktokDatePicker';
 import { InlineInfoTooltip } from './TiktokIssueCards';
 import type { Stats, TopLists } from './tiktokDashboardTypes';
 import { CostAreaInspectionSection } from '@app/admin/(dashboard)/jt-dashboard/JtCostAreaInspection';
+import { ymdAddDays } from '@/lib/bookingDateWindow';
+
+const WINDOW_DAYS = 14;
 
 function ymd(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -23,16 +27,22 @@ export function TiktokDashboardClient() {
     const [mapMetrics, setMapMetrics] = useState<MapMetrics | null>(null);
     const [issueRefreshToken, setIssueRefreshToken] = useState(0);
 
+    // ช่วงวันที่ — เลือก "วันสิ้นสุด" แล้วดูย้อนหลัง WINDOW_DAYS วัน (กรองตาม booking_date)
+    // มีผลเฉพาะการ์ดสรุป + ติดตามปัญหา (ส่วนอื่นอ่านทั้งตารางเหมือนเดิม)
+    const [endDate, setEndDate] = useState<string>(() => ymd(new Date()));
+    const windowFrom = useMemo(() => ymdAddDays(endDate, -(WINDOW_DAYS - 1)), [endDate]);
+
     const loadStats = useCallback(async () => {
         try {
-            const res = await fetch('/api/admin/tiktok-shipments/stats', { credentials: 'include' });
+            const qs = new URLSearchParams({ date_from: windowFrom, date_to: endDate });
+            const res = await fetch(`/api/admin/tiktok-shipments/stats?${qs.toString()}`, { credentials: 'include' });
             if (!res.ok) return;
             const json = (await res.json()) as Stats;
             setStats({ total: json.total ?? 0, closedCount: json.closedCount ?? 0 });
         } catch {
             /* คงค่าเดิม */
         }
-    }, []);
+    }, [windowFrom, endDate]);
 
     const loadTopLists = useCallback(async () => {
         setTopLoading(true);
@@ -73,12 +83,17 @@ export function TiktokDashboardClient() {
         }
     }, []);
 
+    // ส่วนที่อ่านทั้งตาราง — โหลดครั้งเดียว ไม่ผูกกับช่วงวันที่
     useEffect(() => {
-        loadStats();
         loadTopLists();
         loadProvinces();
         loadMapMetrics();
-    }, [loadStats, loadTopLists, loadProvinces, loadMapMetrics]);
+    }, [loadTopLists, loadProvinces, loadMapMetrics]);
+
+    // การ์ดสรุป — โหลดใหม่เมื่อช่วงวันที่เปลี่ยน
+    useEffect(() => {
+        loadStats();
+    }, [loadStats]);
 
     const refreshAll = () => {
         loadStats();
@@ -97,8 +112,19 @@ export function TiktokDashboardClient() {
     };
 
     const closedPct = stats && stats.total > 0 ? (stats.closedCount / stats.total) * 100 : 0;
-    const isEmpty = stats !== null && stats.total === 0;
     const initialLoading = stats === null;
+
+    // ตารางว่างจริง (ยังไม่เคยมีข้อมูล) — ใช้ส่วนที่อ่านทั้งตาราง (top-lists/จังหวัด) ช่วยตัดสิน
+    // เพื่อไม่สับสนกับ "ไม่มีข้อมูลในช่วง 14 วันที่เลือก"
+    const wholeTableLoaded = topLists !== null && provinceCounts !== null;
+    const wholeTableEmpty =
+        wholeTableLoaded &&
+        topLists.topSenders.length === 0 &&
+        topLists.topProducts.length === 0 &&
+        Object.keys(provinceCounts).length === 0;
+    const noDataAtAll = stats !== null && stats.total === 0 && wholeTableEmpty;
+    // มีข้อมูลในตาราง (จาก top-lists/จังหวัด) แต่ไม่มีในช่วงที่เลือก — รอ whole-table โหลดก่อนค่อยตัดสิน
+    const windowEmpty = stats !== null && stats.total === 0 && wholeTableLoaded && !wholeTableEmpty;
 
     // ช่วงวันที่สำหรับ "พื้นที่ปิดงานช้า" — tiktok ไม่มี date filter ใช้ย้อนหลัง 1 ปี
     const areaRange = useMemo(() => {
@@ -137,6 +163,16 @@ export function TiktokDashboardClient() {
                 </div>
             </div>
 
+            {/* แถบเลือกช่วงวันที่ — มีผลกับการ์ดสรุป + ติดตามปัญหา */}
+            {!initialLoading && !noDataAtAll && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <TiktokDatePicker endDate={endDate} onChange={setEndDate} />
+                    <span className="text-[11px] text-slate-500">
+                        มีผลกับ <span className="text-slate-400">การ์ดสรุป + ติดตามปัญหา</span> (กรองตาม booking_date)
+                    </span>
+                </div>
+            )}
+
             {/* กำลังโหลดครั้งแรก */}
             {initialLoading && (
                 <div className="flex items-center justify-center rounded-2xl border border-slate-800/70 bg-slate-900/45 p-16">
@@ -147,8 +183,8 @@ export function TiktokDashboardClient() {
                 </div>
             )}
 
-            {/* ยังไม่มีข้อมูล */}
-            {isEmpty && (
+            {/* ยังไม่มีข้อมูลเลย (ตารางว่างจริง) */}
+            {noDataAtAll && (
                 <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-slate-700 bg-slate-900/30 p-16 text-center">
                     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20">
                         <InboxIcon className="h-8 w-8" aria-hidden />
@@ -160,33 +196,43 @@ export function TiktokDashboardClient() {
                 </div>
             )}
 
-            {/* การ์ดสรุป */}
-            {stats && !isEmpty && (
+            {/* มีข้อมูลในตาราง แต่ไม่มีในช่วง 14 วันที่เลือก */}
+            {windowEmpty && (
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-800/70 bg-slate-900/45 px-4 py-3 text-sm text-slate-400 ring-1 ring-white/[0.03]">
+                    <CalendarOff className="h-5 w-5 text-amber-400" aria-hidden />
+                    <span>ไม่มีพัสดุในช่วง {WINDOW_DAYS} วันที่เลือก — ลองเลือกช่วงวันอื่นจากปฎิทินด้านบน</span>
+                </div>
+            )}
+
+            {/* การ์ดสรุป (ในช่วง 14 วันที่เลือก) */}
+            {stats && !noDataAtAll && (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                         label="จำนวนพัสดุ"
                         value={stats.total.toLocaleString('th-TH')}
                         icon="📦"
                         accent="from-sky-500 to-blue-700"
-                        hint="พัสดุ TikTok ทั้งหมดในฐานข้อมูล"
-                        tooltip="นับพัสดุ TikTok ทั้งหมดในตาราง tiktok_shipments (นำเข้าผ่าน n8n webhook จากไฟล์ Excel/CSV)"
+                        hint={`พัสดุ TikTok ในช่วง ${WINDOW_DAYS} วันที่เลือก`}
+                        tooltip="นับพัสดุ TikTok ที่ booking_date อยู่ในช่วง 14 วันที่เลือก (จากปฎิทินด้านบน)"
                     />
                     <StatCard
                         label="ปิดงานแล้ว"
                         value={stats.closedCount.toLocaleString('th-TH')}
                         icon="✅"
                         accent="from-emerald-500 to-teal-700"
-                        hint={`มีผู้เซ็นรับ (${closedPct.toFixed(1)}% ของทั้งหมด)`}
-                        tooltip="พัสดุที่ปิดงานแล้ว — มีผู้เซ็นรับ (signer_name มีค่า ไม่นับว่าง/'NULL')"
+                        hint={`มีผู้เซ็นรับ (${closedPct.toFixed(1)}% ของช่วงนี้)`}
+                        tooltip="พัสดุที่ปิดงานแล้วในช่วง 14 วันที่เลือก — มีผู้เซ็นรับ (signer_name มีค่า ไม่นับว่าง/'NULL')"
                     />
                 </div>
             )}
 
-            {/* ติดตามปัญหา — มีปัญหา / ตกค้าง / ตีกลับ (ตรวจสอบเท่านั้น ไม่มีต้นทุน) */}
-            {stats && !isEmpty && <TiktokIssueTracking refreshToken={issueRefreshToken} />}
+            {/* ติดตามปัญหา — มีปัญหา / ตกค้าง / ตีกลับ (ในช่วง 14 วันที่เลือก, ตรวจสอบเท่านั้น) */}
+            {stats && !noDataAtAll && (
+                <TiktokIssueTracking refreshToken={issueRefreshToken} dateFrom={windowFrom} dateTo={endDate} />
+            )}
 
             {/* สรุป: กำลังคำนวณครั้งแรก */}
-            {topLoading && !topLists && !isEmpty && (
+            {topLoading && !topLists && !noDataAtAll && (
                 <div className="flex items-center gap-2 rounded-2xl border border-slate-800/70 bg-slate-900/45 px-4 py-3 text-sm text-slate-400 ring-1 ring-white/[0.03]">
                     <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
                     กำลังสรุปผู้ส่ง / สินค้าขายดี…
@@ -194,7 +240,7 @@ export function TiktokDashboardClient() {
             )}
 
             {/* สรุป: ผู้ส่งมากสุด + สินค้าในระบบ (pattern เดียวกับ jt-dashboard) */}
-            {topLists && !isEmpty && (topLists.topSenders.length > 0 || topLists.topProducts.length > 0) && (
+            {topLists && !noDataAtAll && (topLists.topSenders.length > 0 || topLists.topProducts.length > 0) && (
                 <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                     <TiktokTopSendersPanel rows={topLists.topSenders} />
                     <TiktokTopProductsPanel rows={topLists.topProducts} />
@@ -202,12 +248,12 @@ export function TiktokDashboardClient() {
             )}
 
             {/* แผนที่ปลายทางรายจังหวัด */}
-            {provinceCounts && !isEmpty && Object.keys(provinceCounts).length > 0 && (
+            {provinceCounts && !noDataAtAll && Object.keys(provinceCounts).length > 0 && (
                 <ThailandChoropleth data={mapMetrics} fallbackTotals={provinceCounts} />
             )}
 
             {/* พื้นที่ปิดงานช้า (area-only — tiktok ไม่มีต้นทุน) */}
-            {stats && !isEmpty && (
+            {stats && !noDataAtAll && (
                 <CostAreaInspectionSection
                     range={areaRange}
                     apiPath="/api/admin/tiktok-shipments/area-detail"
