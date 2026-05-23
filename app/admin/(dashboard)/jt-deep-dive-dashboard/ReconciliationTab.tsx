@@ -29,6 +29,7 @@ import {
     addMonths,
     formatThb,
 } from '@/lib/jtDashboardDateUtils';
+import { DateRangePicker } from '@app/admin/components/DateRangePicker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,12 +123,6 @@ export function ReconciliationTab() {
         setAppliedRange({ from: dateFrom, to: dateTo });
     };
 
-    const onManualDate = (which: 'from' | 'to', value: string) => {
-        setActivePreset('custom');
-        if (which === 'from') setDateFrom(value);
-        else setDateTo(value);
-    };
-
     // Quick presets
     const applyPreset = (key: string, days: number) => {
         const from = toYmd(addDays(new Date(), -(days - 1)));
@@ -207,38 +202,20 @@ export function ReconciliationTab() {
                         </div>
                     </div>
 
-                    {/* Date inputs + load */}
+                    {/* Date range + load */}
                     <div className="flex flex-wrap items-end gap-2">
                         <div>
-                            <label htmlFor="recon-date-from" className="mb-1.5 block text-[11px] font-medium text-slate-500">
-                                ตั้งแต่
-                            </label>
-                            <input
-                                id="recon-date-from"
-                                type="date"
-                                value={dateFrom}
-                                max={dateTo || today}
-                                onChange={(e) => onManualDate('from', e.target.value)}
-                                className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm text-white transition focus:outline-none ${
-                                    activePreset === 'custom' ? 'border-sky-500/50' : 'border-slate-700 focus:border-sky-500'
-                                }`}
-                            />
-                        </div>
-                        <span className="pb-2.5 text-xs text-slate-500">ถึง</span>
-                        <div>
-                            <label htmlFor="recon-date-to" className="mb-1.5 block text-[11px] font-medium text-slate-500">
-                                ถึงวันที่
-                            </label>
-                            <input
-                                id="recon-date-to"
-                                type="date"
-                                value={dateTo}
-                                min={dateFrom}
-                                max={today}
-                                onChange={(e) => onManualDate('to', e.target.value)}
-                                className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm text-white transition focus:outline-none ${
-                                    activePreset === 'custom' ? 'border-sky-500/50' : 'border-slate-700 focus:border-sky-500'
-                                }`}
+                            <span className="mb-1.5 block text-[11px] font-medium text-slate-500">ช่วงวันที่</span>
+                            <DateRangePicker
+                                from={dateFrom}
+                                to={dateTo}
+                                onChange={(f, t) => {
+                                    setActivePreset('custom');
+                                    setDateFrom(f);
+                                    setDateTo(t);
+                                }}
+                                maxDate={today}
+                                accent="sky"
                             />
                         </div>
                         <button
