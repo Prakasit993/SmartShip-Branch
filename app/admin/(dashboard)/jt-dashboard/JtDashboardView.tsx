@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, Calendar, Check, CheckCircle2, CheckSquare, Clock, Copy, HandCoins, Hourglass, Minus, Package, Percent, RefreshCw, RotateCcw, Search, Truck, X } from 'lucide-react';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
+import { DateRangePicker } from '@app/admin/components/DateRangePicker';
 import type { JtCustomMetricCardDefinition } from '@/lib/jtCustomMetricCards';
 import type { JtDashboardChartsPayload } from './jtDashboardStatsChartTypes';
 import type {
@@ -818,35 +819,18 @@ export function JtDashboardView({
                                 ) : null}
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:col-span-5 xl:grid-cols-2 xl:gap-3">
-                            <label className="flex min-w-0 flex-col gap-1 text-sm text-slate-400">
-                                <span className="text-[10px] font-medium text-slate-500">วันที่เริ่มต้น</span>
-                                <input
-                                    type="date"
-                                    value={parcelDateFrom}
-                                    onChange={(e) => onParcelDateFromChange(e.target.value)}
-                                    max={parcelDateTo || undefined}
-                                    className={`min-h-[44px] w-full rounded-xl border bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/40 transition-all focus:ring-2 hover:border-slate-600 sm:min-h-0 ${
-                                        dateRangeError
-                                            ? 'border-rose-500/60 focus:border-rose-400 focus:ring-rose-500/30'
-                                            : 'border-slate-700/80 focus:border-sky-500/50'
-                                    }`}
-                                />
-                            </label>
-                            <label className="flex min-w-0 flex-col gap-1 text-sm text-slate-400">
-                                <span className="text-[10px] font-medium text-slate-500">วันที่สิ้นสุด</span>
-                                <input
-                                    type="date"
-                                    value={parcelDateTo}
-                                    onChange={(e) => onParcelDateToChange(e.target.value)}
-                                    min={parcelDateFrom || undefined}
-                                    className={`min-h-[44px] w-full rounded-xl border bg-slate-950/80 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500/40 transition-all focus:ring-2 hover:border-slate-600 sm:min-h-0 ${
-                                        dateRangeError
-                                            ? 'border-rose-500/60 focus:border-rose-400 focus:ring-rose-500/30'
-                                            : 'border-slate-700/80 focus:border-sky-500/50'
-                                    }`}
-                                />
-                            </label>
+                        <div className="min-w-0 xl:col-span-5">
+                            <span className="mb-1 block text-[10px] font-medium text-slate-500">ช่วงวันที่จองพัสดุ</span>
+                            <DateRangePicker
+                                from={parcelDateFrom}
+                                to={parcelDateTo}
+                                onChange={(f, t) => {
+                                    onParcelDateFromChange(f);
+                                    onParcelDateToChange(t);
+                                }}
+                                accent="sky"
+                                placeholder="ทั้งหมด (เว้นว่าง)"
+                            />
                         </div>
                         <div className="flex flex-wrap items-center gap-2 xl:col-span-4 xl:justify-end">
                             {[

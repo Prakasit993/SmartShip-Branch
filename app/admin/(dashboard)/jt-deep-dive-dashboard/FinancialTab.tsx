@@ -1,20 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AlertCircle, Calculator, CalendarDays, ChevronDown, Database, Eye, EyeOff, Info, RefreshCw, TrendingUp } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AlertCircle, Calculator, ChevronDown, Database, Eye, EyeOff, Info, RefreshCw, TrendingUp } from 'lucide-react';
 import {
     toYmd,
     addDays,
     addMonths,
-    addCalendarMonths,
-    monthStartFromYmd,
-    monthKey,
-    formatCalendarMonth,
     formatThb,
     formatThbCompact,
     formatCountWithUnit,
     formatDayLabel,
 } from '@/lib/jtDashboardDateUtils';
+import { DateRangePicker } from '@app/admin/components/DateRangePicker';
 
 type FinancialSummary = {
     date_from: string;
@@ -79,12 +76,6 @@ type FinancialSummaryState =
 
 type FinancialRangePreset = '7d' | '30d' | '3m' | '6m' | '1y' | 'custom';
 
-type FinancialCalendarDay = {
-    date: string;
-    totalProfit: number;
-    shipmentCount: number;
-};
-
 const RANGE_PRESETS: Array<{ key: Exclude<FinancialRangePreset, 'custom'>; label: string }> = [
     { key: '7d', label: '7 วันย้อนหลัง' },
     { key: '30d', label: '30 วันย้อนหลัง' },
@@ -122,10 +113,6 @@ export function FinancialTab() {
     const [dateTo, setDateTo] = useState(initialRange.to);
     const [appliedRange, setAppliedRange] = useState(initialRange);
     const [activePreset, setActivePreset] = useState<FinancialRangePreset>('30d');
-    const [activeDatePicker, setActiveDatePicker] = useState<'from' | 'to' | null>(null);
-    const [calendarMonth, setCalendarMonth] = useState(() => monthStartFromYmd(initialRange.to));
-    const [calendarDays, setCalendarDays] = useState<Record<string, FinancialCalendarDay>>({});
-    const [calendarError, setCalendarError] = useState<string | null>(null);
     const [state, setState] = useState<FinancialSummaryState>({
         status: 'loading',
         data: null,
@@ -221,54 +208,6 @@ export function FinancialTab() {
         return () => controller.abort();
     }, [appliedRange, loadSummary]);
 
-    // Debounced calendar month: delays fetch by 300ms so rapid month
-    // navigation doesn't spam the backend.
-    const [debouncedCalendarMonth, setDebouncedCalendarMonth] = useState(calendarMonth);
-    useEffect(() => {
-        const timer = setTimeout(() => setDebouncedCalendarMonth(calendarMonth), 300);
-        return () => clearTimeout(timer);
-    }, [calendarMonth]);
-
-    useEffect(() => {
-        if (!activeDatePicker) return;
-        const controller = new AbortController();
-        const month = monthKey(debouncedCalendarMonth);
-
-        // Use the lightweight /financial-calendar endpoint (single RPC)
-        // instead of /financial-summary (5 RPCs).
-        fetch(`/api/admin/jt-shipments/financial-calendar?month=${encodeURIComponent(month)}`, {
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json' },
-            signal: controller.signal,
-        })
-            .then(async (res) => {
-                const json = (await res.json()) as {
-                    error?: string;
-                    days?: Array<{ date: string; totalProfit: number; shipmentCount: number }>;
-                };
-                if (!res.ok) throw new Error(json.error || 'โหลดกำไรรายวันไม่สำเร็จ');
-                const next: Record<string, FinancialCalendarDay> = {};
-                for (const row of json.days ?? []) {
-                    const date = String(row.date || '');
-                    if (!date) continue;
-                    next[date] = {
-                        date,
-                        totalProfit: Number(row.totalProfit) || 0,
-                        shipmentCount: Number(row.shipmentCount) || 0,
-                    };
-                }
-                setCalendarDays(next);
-                setCalendarError(null);
-            })
-            .catch((e: unknown) => {
-                if ((e as { name?: string }).name === 'AbortError') return;
-                setCalendarDays({});
-                setCalendarError(e instanceof Error ? e.message : 'โหลดกำไรรายวันไม่สำเร็จ');
-            });
-
-        return () => controller.abort();
-    }, [activeDatePicker, debouncedCalendarMonth]);
-
     const data = state.data;
     const isLoading = state.status === 'loading';
     const canApply = dateFrom.trim() !== '' && dateTo.trim() !== '' && dateFrom <= dateTo;
@@ -279,29 +218,6 @@ export function FinancialTab() {
         setDateFrom(range.from);
         setDateTo(range.to);
         setAppliedRange(range);
-    };
-
-    const openDatePicker = (target: 'from' | 'to') => {
-        setActiveDatePicker(target);
-        setCalendarMonth(monthStartFromYmd(target === 'from' ? dateFrom : dateTo));
-    };
-
-    const selectCalendarDate = (date: string) => {
-        setActivePreset('custom');
-        let nextFrom = dateFrom;
-        let nextTo = dateTo;
-        if (activeDatePicker === 'from') {
-            nextFrom = date;
-            if (date > dateTo) nextTo = date;
-        } else if (activeDatePicker === 'to') {
-            nextTo = date;
-            if (date < dateFrom) nextFrom = date;
-        }
-        setDateFrom(nextFrom);
-        setDateTo(nextTo);
-        setActiveDatePicker(null);
-        // กดวันแล้วโหลดข้อมูลทันที (apply เลย ไม่ต้องกดปุ่ม "ใช้ช่วงวันที่กำหนดเอง" ซ้ำ)
-        setAppliedRange({ from: nextFrom, to: nextTo });
     };
 
     return (
@@ -332,38 +248,20 @@ export function FinancialTab() {
                         })}
                     </div>
                 </div>
-                <label className="space-y-1 text-xs font-medium text-slate-400">
-                    <FinancialDatePicker
-                        label="วันที่เริ่มต้น"
-                        value={dateFrom}
-                        selectedFrom={dateFrom}
-                        selectedTo={dateTo}
-                        open={activeDatePicker === 'from'}
-                        month={calendarMonth}
-                        days={calendarDays}
-                        error={calendarError}
-                        onOpen={() => openDatePicker('from')}
-                        onClose={() => setActiveDatePicker(null)}
-                        onMonthChange={setCalendarMonth}
-                        onSelect={selectCalendarDate}
+                <div className="space-y-1 text-xs font-medium text-slate-400">
+                    <span className="block">ช่วงวันที่</span>
+                    <DateRangePicker
+                        from={dateFrom}
+                        to={dateTo}
+                        onChange={(f, t) => {
+                            setActivePreset('custom');
+                            setDateFrom(f);
+                            setDateTo(t);
+                            setAppliedRange({ from: f, to: t });
+                        }}
+                        accent="sky"
                     />
-                </label>
-                <label className="space-y-1 text-xs font-medium text-slate-400">
-                    <FinancialDatePicker
-                        label="วันที่สิ้นสุด"
-                        value={dateTo}
-                        selectedFrom={dateFrom}
-                        selectedTo={dateTo}
-                        open={activeDatePicker === 'to'}
-                        month={calendarMonth}
-                        days={calendarDays}
-                        error={calendarError}
-                        onOpen={() => openDatePicker('to')}
-                        onClose={() => setActiveDatePicker(null)}
-                        onMonthChange={setCalendarMonth}
-                        onSelect={selectCalendarDate}
-                    />
-                </label>
+                </div>
                 <button
                     type="button"
                     disabled={!canApply || isLoading}
@@ -958,211 +856,6 @@ function MissingCostPricesTable({ rows }: { rows: FinancialMissingCostPriceRow[]
                         ))}
                     </tbody>
                 </table>
-            </div>
-        </div>
-    );
-}
-
-function FinancialDatePicker({
-    label,
-    value,
-    selectedFrom,
-    selectedTo,
-    open,
-    month,
-    days,
-    error,
-    onOpen,
-    onClose,
-    onMonthChange,
-    onSelect,
-}: {
-    label: string;
-    value: string;
-    selectedFrom: string;
-    selectedTo: string;
-    open: boolean;
-    month: Date;
-    days: Record<string, FinancialCalendarDay>;
-    error: string | null;
-    onOpen: () => void;
-    onClose: () => void;
-    onMonthChange: (date: Date) => void;
-    onSelect: (date: string) => void;
-}) {
-    return (
-        <div className="relative space-y-1">
-            <span>{label}</span>
-            <button
-                type="button"
-                onClick={open ? onClose : onOpen}
-                className="flex min-w-40 items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm font-semibold text-slate-100 outline-none ring-sky-500/20 transition hover:border-slate-600 focus:border-sky-500 focus:ring-2"
-            >
-                <span>{value}</span>
-                <CalendarDays className="h-4 w-4 text-slate-500" aria-hidden />
-            </button>
-            {open ? (
-                <FinancialCalendarPopover
-                    month={month}
-                    selectedFrom={selectedFrom}
-                    selectedTo={selectedTo}
-                    days={days}
-                    error={error}
-                    onMonthChange={onMonthChange}
-                    onSelect={onSelect}
-                    onClose={onClose}
-                />
-            ) : null}
-        </div>
-    );
-}
-
-function FinancialCalendarPopover({
-    month,
-    selectedFrom,
-    selectedTo,
-    days,
-    error,
-    onMonthChange,
-    onSelect,
-    onClose,
-}: {
-    month: Date;
-    selectedFrom: string;
-    selectedTo: string;
-    days: Record<string, FinancialCalendarDay>;
-    error: string | null;
-    onMonthChange: (date: Date) => void;
-    onSelect: (date: string) => void;
-    onClose: () => void;
-}) {
-    const popoverRef = useRef<HTMLDivElement>(null);
-    const today = toYmd(new Date());
-    const monthIndex = month.getMonth();
-    const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
-    const firstGridDay = addDays(firstDay, -firstDay.getDay());
-    const gridDays = Array.from({ length: 42 }, (_, i) => addDays(firstGridDay, i));
-
-    // Close popover when clicking outside
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-                onClose();
-            }
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, [onClose]);
-
-    return (
-        <div ref={popoverRef} className="absolute left-0 top-full z-30 mt-2 w-80 rounded-2xl border border-slate-700 bg-slate-950 p-3 text-slate-200 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04]">
-            <div className="flex items-center justify-between gap-2">
-                <button
-                    type="button"
-                    onClick={() => onMonthChange(addCalendarMonths(month, -1))}
-                    className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-300 transition hover:border-slate-700 hover:text-white"
-                    aria-label="เดือนก่อนหน้า"
-                >
-                    ←
-                </button>
-                <div className="text-center">
-                    <p className="text-sm font-bold text-white">{formatCalendarMonth(month)}</p>
-                    <p className="text-[11px] text-slate-500">ตัวเลขใต้วันที่คือกำไร/ขาดทุนของวันนั้น</p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => onMonthChange(addCalendarMonths(month, 1))}
-                    className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-sm text-slate-300 transition hover:border-slate-700 hover:text-white"
-                    aria-label="เดือนถัดไป"
-                >
-                    →
-                </button>
-            </div>
-
-            <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500">
-                {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((day) => (
-                    <div key={day} className="py-1">
-                        {day}
-                    </div>
-                ))}
-            </div>
-
-            <div className="mt-1 grid grid-cols-7 gap-1">
-                {gridDays.map((day) => {
-                    const ymd = toYmd(day);
-                    const outside = day.getMonth() !== monthIndex;
-                    const isStart = ymd === selectedFrom;
-                    const isEnd = ymd === selectedTo;
-                    const inRange = selectedFrom <= ymd && ymd <= selectedTo;
-                    const isToday = ymd === today;
-                    const selected = isStart || isEnd;
-                    const row = days[ymd];
-                    const hasProfit = row && row.shipmentCount > 0;
-                    const positive = (row?.totalProfit ?? 0) >= 0;
-
-                    return (
-                        <button
-                            key={ymd}
-                            type="button"
-                            onClick={() => onSelect(ymd)}
-                            title={row ? `${ymd} · กำไร ${formatThb(row.totalProfit)} · ${formatCount(row.shipmentCount)}` : undefined}
-                            className={`relative h-12 rounded-lg pb-4 pt-1 text-sm font-semibold transition ${
-                                selected
-                                    ? 'bg-sky-500 text-white shadow-lg shadow-sky-950/30'
-                                    : inRange
-                                        ? 'bg-sky-500/10 text-sky-200'
-                                        : outside
-                                            ? 'text-slate-700 hover:bg-slate-900 hover:text-slate-500'
-                                            : 'text-slate-300 hover:bg-slate-900 hover:text-white'
-                            } ${isToday && !selected ? 'ring-1 ring-sky-500/35' : ''}`}
-                        >
-                            <span>{day.getDate()}</span>
-                            {hasProfit ? (
-                                <span
-                                    className={`absolute bottom-1 left-1/2 min-w-8 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
-                                        positive ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                                    }`}
-                                >
-                                    {compactThb(row.totalProfit)}
-                                </span>
-                            ) : null}
-                        </button>
-                    );
-                })}
-            </div>
-
-            {error ? (
-                <p className="mt-2 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-[11px] text-red-200">
-                    {error}
-                </p>
-            ) : (
-                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
-                    <span className="inline-flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        กำไร
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-red-500" />
-                        ขาดทุน
-                    </span>
-                </div>
-            )}
-
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
-                <button
-                    type="button"
-                    onClick={() => onSelect(today)}
-                    className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20"
-                >
-                    วันนี้
-                </button>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white"
-                >
-                    ปิด
-                </button>
             </div>
         </div>
     );
