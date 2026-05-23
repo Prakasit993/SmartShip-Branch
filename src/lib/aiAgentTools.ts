@@ -20,6 +20,8 @@ export type AiToolHttpMethod = 'GET' | 'POST';
 export interface AiAgentToolDefinition {
     /** Stable tool identifier the agent uses in `tool_calls`. snake_case. */
     name: string;
+    /** กลุ่มขนส่ง — แยก registry jt / tiktok (ไม่ระบุ = 'jt'). ดู docs/ai-agent-mcp-plan.md */
+    group?: 'jt' | 'tiktok';
     /** Human-readable purpose — surfaced to the LLM. Keep it tight. */
     description: string;
     /** Internal endpoint the tool wraps (path-only, host comes from n8n env). */
@@ -232,6 +234,62 @@ export const AI_AGENT_TOOLS: readonly AiAgentToolDefinition[] = [
             'AI สามารถ retry ด้วย SQL ที่แก้ตาม error message ได้ (เช่น add WHERE, ' +
             'remove blocked function). หาก error 504 (timeout) ให้ระบุ booking_date ที่แคบลง.',
     },
+
+    // ── TikTok Shop tools (กลุ่มแยกจาก JT — คนละตาราง tiktok_shipments, ไม่รวมข้อมูล) ──
+    // ⚠️ ต้องสลับ endpoint เป็น requireAiToolAuth (P1.1) ก่อน bearer/MCP ถึงเรียกได้
+    {
+        name: 'get_tiktok_stats',
+        group: 'tiktok',
+        description:
+            'สรุปตัวเลขรวมของ TikTok Shop — จำนวนพัสดุทั้งหมด และจำนวนที่ปิดงานแล้ว (มีผู้เซ็นรับ). ' +
+            'ใช้เมื่อผู้ใช้ถามภาพรวม TikTok เช่น "พัสดุ TikTok ทั้งหมดกี่ชิ้น" / "ปิดงานไปเท่าไหร่".',
+        endpoint: { method: 'GET', path: '/api/admin/tiktok-shipments/stats' },
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        usageNotes:
+            'TikTok ไม่มี date filter — คืนภาพรวมทั้งตาราง. ไม่มีข้อมูลต้นทุน/COD (ตรวจสอบเท่านั้น).',
+    },
+    {
+        name: 'get_tiktok_stagnant_parcels',
+        group: 'tiktok',
+        description:
+            'รายการพัสดุ TikTok ที่ตกค้างไม่เคลื่อนไหว — ไม่มี scan ≥ 2 วัน และยังไม่ปิดงาน. ' +
+            'คืน AWB + ผู้ส่ง + เบอร์ + scan ล่าสุด. ใช้เมื่อถาม "TikTok ตกค้าง/ไม่ขยับ".',
+        endpoint: { method: 'GET', path: '/api/admin/tiktok-shipments/stagnant-parcels' },
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        usageNotes: 'ตัดรายการที่แอดมินรับทราบ/ซ่อนแล้ว. คืนสูงสุด ~200 รายการ.',
+    },
+    {
+        name: 'get_tiktok_issue_summary',
+        group: 'tiktok',
+        description:
+            'สรุปปัญหา TikTok — จำนวนพัสดุมีปัญหา (ยังไม่มีรหัสสาขาปลายทาง + มี exception_reason) ' +
+            'และพัสดุถูกตีกลับ (return_type มีค่า) พร้อมรายการตัวอย่าง. ' +
+            'ใช้เมื่อถาม "TikTok มีปัญหา/ตีกลับเท่าไหร่".',
+        endpoint: { method: 'GET', path: '/api/admin/tiktok-shipments/issues' },
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        usageNotes:
+            '⚠️ ปัจจุบัน endpoint สแกนทั้งตาราง (ช้า) — ควรทำ RPC tiktok_issue_summary ก่อนเปิดเป็น tool จริง.',
+    },
+    {
+        name: 'query_tiktok_sql',
+        group: 'tiktok',
+        description:
+            'รัน SELECT บน tiktok_shipments เท่านั้น (แยกจาก query_sql ของ JT — ห้าม join/ถาม jt_shipments) ' +
+            'เมื่อ predefined tools ตอบไม่ได้. SELECT-only, auto LIMIT 1000, statement timeout 5s, ควรมี WHERE. ' +
+            'tiktok_shipments มีคอลัมน์เดียวกับ jt_shipments (awb_number PK, booking_date, sender_name, ' +
+            'receiver_name/phone, signer_name, return_type, exception_reason, sign_branch_code, ' +
+            'latest_scan_time ฯลฯ) แต่ไม่มีข้อมูลต้นทุน.',
+        endpoint: { method: 'POST', path: '/api/admin/ai-tools/tiktok-sql' },
+        parameters: {
+            type: 'object',
+            properties: {
+                sql: { type: 'string', description: 'SELECT query บน tiktok_shipments เท่านั้น' },
+            },
+            required: ['sql'],
+            additionalProperties: false,
+        },
+        usageNotes: 'endpoint + readonly GRANT ต้องสร้างก่อน (P1.3) — ดู docs/ai-agent-mcp-plan.md',
+    },
 ] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -239,6 +297,11 @@ export const AI_AGENT_TOOLS: readonly AiAgentToolDefinition[] = [
 /** Lookup by tool name. Returns undefined if not found. */
 export function findAiAgentTool(name: string): AiAgentToolDefinition | undefined {
     return AI_AGENT_TOOLS.find((t) => t.name === name);
+}
+
+/** Tools เฉพาะกลุ่มขนส่ง ('jt' เป็น default เมื่อ tool ไม่ได้ระบุ group) — ใช้แยก registry jt / tiktok */
+export function aiAgentToolsByGroup(group: 'jt' | 'tiktok'): AiAgentToolDefinition[] {
+    return AI_AGENT_TOOLS.filter((t) => (t.group ?? 'jt') === group);
 }
 
 /**

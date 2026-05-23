@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { requireAiToolAuth } from '@/lib/adminApiAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { TIKTOK_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/tiktokReturnAcknowledgements';
 
@@ -43,7 +43,8 @@ type StagnantRow = {
 export async function GET(req: NextRequest) {
     const t0 = performance.now();
     try {
-        const denied = await requireAdminApiAuth('admin-or-staff', req);
+        // AI tool: รับ admin session หรือ Bearer N8N_AI_TOOLS_SECRET (สำหรับ n8n workflow / MCP)
+        const denied = await requireAiToolAuth(req);
         if (denied) return denied;
 
         const todayMs = Date.now();
