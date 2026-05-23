@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { requireAiToolAuth } from '@/lib/adminApiAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
@@ -11,7 +11,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
  * ปลอดภัย: ถ้า RPC ยังไม่ถูกสร้าง (ก่อนรัน migration) จะ fallback ไป count query
  */
 export async function GET(request: NextRequest) {
-    const denied = await requireAdminApiAuth('admin-or-staff', request);
+    // AI tool: รับ admin session หรือ Bearer N8N_AI_TOOLS_SECRET (สำหรับ n8n workflow / MCP)
+    const denied = await requireAiToolAuth(request);
     if (denied) return denied;
 
     try {
