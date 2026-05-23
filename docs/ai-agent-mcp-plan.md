@@ -138,6 +138,30 @@ n8n AI Agent (chatbot ในแอป) เพิ่ม node **"MCP Client Tool"*
 
 ---
 
+## ของเดิม (Phase 1 chatbot tools) ต้องปรับให้เข้ากับ MCP ไหม?
+
+**สรุป: ไม่ต้องแตะของเดิมเพื่อให้ chatbot ทำงานต่อ — แต่ของเดิมเอาไปเป็น MCP tool ตรงๆ ไม่ได้ ต้องสร้าง workflow ห่อเพิ่ม (endpoint Next.js เดิมใช้ซ้ำได้เลย ไม่ต้องแก้โค้ด).**
+
+n8n มี "tool" 2 แบบที่เป็นคนละกลไกกัน — มักสับสน:
+
+| | AI Agent attached tool (ของเดิม) | MCP tool (Instance-level MCP) |
+|---|---|---|
+| คืออะไร | "HTTP Request Tool" sub-node ที่ต่อเข้ากับ AI Agent node | **workflow** ที่ published + Enable ใน Instance-level MCP |
+| ใครเรียก | LLM agent ภายใน workflow chatbot ตัวนั้น | MCP client ภายนอก (Claude Code / Cursor / Desktop) |
+| expose ผ่าน MCP? | ❌ ไม่ | ✅ ใช่ |
+
+→ tool เดิม 5 ตัวของ jt (`get_dashboard_kpi`, `get_cod_summary`, `get_top_not_closed_cases`, `get_not_closed_overdue_cases`, `query_sql`) เป็นแบบคอลัมน์ซ้าย → **ไม่โผล่ใน MCP โดยอัตโนมัติ**
+
+**ชั้น endpoint พร้อม MCP อยู่แล้ว** (ยืนยัน 2026-05-23): ทั้ง 5 jt endpoints ใช้ `requireAiToolAuth` (Bearer `N8N_AI_TOOLS_SECRET`) เหมือน tiktok → **ไม่ต้องแก้โค้ด Next.js**. งานที่เหลืออยู่ฝั่ง n8n ล้วนๆ: สร้าง `wf_jt_*` (trigger + HTTP node ชี้ endpoint เดิม) แล้ว Enable ใน MCP
+
+**2 แนวทาง:**
+- **(a) อยู่คู่กัน:** เก็บ chatbot Phase 1 ไว้เหมือนเดิม + สร้าง `wf_*`/MCP แยกสำหรับ Claude Code → ดูแล config **2 ชุด** (tool ใน agent + workflow) ที่ซ้ำกัน
+- **(b) รวมเป็นชุดเดียว — P3, แนะนำเป็นปลายทาง:** สร้าง `wf_jt_*` / `wf_tiktok_*` ครบ → ใน chatbot **เปลี่ยน HTTP Request Tool nodes ทั้งหมดเป็น "MCP Client Tool" node เดียว** ชี้กลับ `…/mcp-server/http` → chatbot กับ Claude Code ใช้ registry (workflows) ชุดเดียวกัน, แก้ schema ที่เดียวจบ
+
+**`src/lib/aiAgentTools.ts` ยังเป็น source of truth ของ schema** — ตอนสร้าง `wf_*` ให้ก๊อป description/parameters จากไฟล์นี้ไปใส่ใน trigger input ของแต่ละ workflow (jt อยู่ใน `aiAgentToolsByGroup('jt')`, tiktok อยู่ใน `('tiktok')`)
+
+---
+
 ## Auth & Security
 - **MCP layer (n8n ↔ client):** Access token / OAuth ของ Instance-level MCP (n8n ออกให้)
 - **Tool layer (n8n ↔ Next.js):** Bearer `N8N_AI_TOOLS_SECRET` (เดิม) ใน Header Auth credential
