@@ -50,26 +50,46 @@ export function sanitizeJtShipmentDetailFieldsWithAllowed(raw: unknown, allowedF
     return out.length > 0 ? out : [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
 }
 
-export function sanitizeJtShipmentDetailFields(raw: unknown): string[] {
-    return sanitizeJtShipmentDetailFieldsWithAllowed(
-        raw,
-        JT_SHIPMENT_DETAIL_FIELDS.map((f) => f.key),
-    );
+/**
+ * แปลง array ดิบ → list ของ key (trim + ตัดซ้ำ) โดย "ไม่" กรองด้วย allowlist.
+ * ว่าง → คืน DEFAULT.
+ */
+function toKeyList(raw: unknown): string[] {
+    const list = Array.isArray(raw) ? raw : [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of list) {
+        const key = String(item ?? '').trim();
+        if (!key || seen.has(key)) continue;
+        out.push(key);
+        seen.add(key);
+    }
+    return out.length > 0 ? out : [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
 }
 
+/**
+ * ถอดค่า field list จาก settings (รองรับ double-encoded JSON).
+ *
+ * สำคัญ: ที่นี่ "ไม่" กรองด้วย allowlist ใด ๆ — ฟิลด์ที่แอดมินเลือกได้คือคอลัมน์จริง
+ * ทั้งหมดของ jt_shipments (จาก RPC jt_shipments_import_columns) ซึ่งกว้างกว่าชุด
+ * JT_SHIPMENT_DETAIL_FIELDS แบบ hardcode. ปล่อยให้ caller (route) sanitize เทียบกับ
+ * availableFields อีกชั้น มิฉะนั้นฟิลด์นอกชุด default จะถูกตัดทิ้งตั้งแต่ตอนอ่าน
+ * แล้ว modal รายละเอียดพัสดุจะไม่แสดงค่าให้ ("บางฟิลด์ไม่ดึงมา").
+ */
 export function parseJtShipmentDetailFieldsFromSettingsValue(raw: unknown): string[] {
     if (raw == null || raw === '') return [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
-    if (Array.isArray(raw)) return sanitizeJtShipmentDetailFields(raw);
+    if (Array.isArray(raw)) return toKeyList(raw);
     let s = typeof raw === 'string' ? raw : JSON.stringify(raw);
     try {
         const once = JSON.parse(s);
+        if (Array.isArray(once)) return toKeyList(once);
         if (typeof once === 'string') s = once;
     } catch {
         return [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
     }
     try {
         const v = JSON.parse(s);
-        return sanitizeJtShipmentDetailFields(v);
+        return Array.isArray(v) ? toKeyList(v) : [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
     } catch {
         return [...DEFAULT_JT_SHIPMENT_DETAIL_FIELDS];
     }
