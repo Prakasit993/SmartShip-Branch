@@ -5,36 +5,38 @@ export type JtShipmentDetailFieldDef = {
     label: string;
 };
 
+// จัดชุดให้ครอบคลุม "ข้อมูลเบื้องหลังการ์ดทุกใบบนแดชบอร์ดขนส่ง" (jt-dashboard):
+//   จำนวนพัสดุ → awb_number · ปิดงานแล้ว → signer_name · ค่าจัดส่งรวม → shipping_fee/total_shipping_fee
+//   COD ทั้งหมด/ชำระ/ค้าง/อัตรา → cod_amount/cod_status/cod_payment_* · ช่องทาง → platform/order_source
+//   พัสดุมีปัญหา → exception_reason/sign_branch_code · ตกค้าง → latest_scan_type/latest_scan_time
+//   ถูกตีกลับ → return_type/return_branch_name
 export const JT_SHIPMENT_DETAIL_FIELDS: JtShipmentDetailFieldDef[] = [
     { key: 'awb_number', label: 'AWB Number' },
     { key: 'booking_date', label: 'Booking Date' },
     { key: 'sender_name', label: 'Sender Name' },
-    { key: 'receiver_name', label: 'Receiver Name' },
     { key: 'sender_phone', label: 'Sender Phone' },
+    { key: 'receiver_name', label: 'Receiver Name' },
     { key: 'receiver_phone', label: 'Receiver Phone' },
     { key: 'platform', label: 'Platform' },
     { key: 'order_source', label: 'Order Source' },
     { key: 'shipping_fee', label: 'Shipping Fee' },
-    { key: 'cod_amount', label: 'COD Amount' },
     { key: 'total_shipping_fee', label: 'Total Shipping Fee' },
-    { key: 'return_type', label: 'Return Type' },
+    { key: 'cod_amount', label: 'COD Amount' },
+    { key: 'cod_status', label: 'COD Status' },
+    { key: 'cod_payment_method', label: 'COD Payment Method' },
+    { key: 'cod_payment_time', label: 'COD Payment Time' },
+    { key: 'signer_name', label: 'Signer Name' },
+    { key: 'latest_scan_type', label: 'Latest Scan Type' },
+    { key: 'latest_scan_time', label: 'Latest Scan Time' },
+    { key: 'sign_branch_code', label: 'Sign Branch Code' },
     { key: 'exception_reason', label: 'Exception Reason' },
+    { key: 'return_type', label: 'Return Type' },
     { key: 'return_branch_name', label: 'Return Branch Name' },
     { key: 'issue_registered_time', label: 'Issue Registered Time' },
-    { key: 'latest_scan_type', label: 'Latest Scan Type' },
-    { key: 'signer_name', label: 'Signer Name' },
 ];
 
-export const DEFAULT_JT_SHIPMENT_DETAIL_FIELDS = [
-    'awb_number',
-    'booking_date',
-    'sender_name',
-    'receiver_name',
-    'return_type',
-    'exception_reason',
-    'return_branch_name',
-    'issue_registered_time',
-];
+// ค่าเริ่มต้น = ทุกฟิลด์ที่อิงการ์ดบนแดชบอร์ด (ดึงให้ครบเมื่อ admin ยังไม่ได้เลือกเอง)
+export const DEFAULT_JT_SHIPMENT_DETAIL_FIELDS = JT_SHIPMENT_DETAIL_FIELDS.map((f) => f.key);
 
 export function sanitizeJtShipmentDetailFieldsWithAllowed(raw: unknown, allowedFields: string[]): string[] {
     const allowed = new Set(allowedFields);
