@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search, Warehouse } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search, Warehouse } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { StaffDetailModal } from './StaffDetailModal';
 
 type BranchSummary = {
     delivery_branch_code: string;
@@ -41,11 +42,11 @@ type Props = {
     meta: LastUploadMeta;
 };
 
-function formatTimeAgo(iso: string | null): string {
+function formatTimeAgo(iso: string | null, nowMs: number): string {
     if (!iso) return 'ยังไม่มีการอัปโหลด';
     const then = new Date(iso).getTime();
     if (Number.isNaN(then)) return '—';
-    const diffMs = Date.now() - then;
+    const diffMs = nowMs - then;
     const mins = Math.floor(diffMs / 60_000);
     if (mins < 1) return 'เมื่อสักครู่';
     if (mins < 60) return `${mins} นาทีที่แล้ว`;
@@ -53,6 +54,37 @@ function formatTimeAgo(iso: string | null): string {
     if (hrs < 24) return `${hrs} ชั่วโมงที่แล้ว`;
     const days = Math.floor(hrs / 24);
     return `${days} วันที่แล้ว`;
+}
+
+// อ่าน hour ใน Asia/Bangkok โดยไม่พึ่ง browser TZ
+function bangkokHour(nowMs: number): number {
+    return Number.parseInt(
+        new Date(nowMs).toLocaleString('en-US', {
+            timeZone: 'Asia/Bangkok',
+            hour: 'numeric',
+            hour12: false,
+        }),
+        10,
+    );
+}
+
+// Stale = อยู่ในเวลาทำงาน (06:00–20:59 TZ Bangkok) และข้อมูลค้างเกิน 30 นาที
+// ดู [[project-jt-warehouse-business-rules]] § Reporting Cadence
+const STALE_THRESHOLD_MIN = 30;
+
+function getStaleStatus(
+    iso: string | null,
+    nowMs: number,
+): { isStale: boolean; minutesAgo: number } {
+    if (!iso) return { isStale: false, minutesAgo: 0 };
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return { isStale: false, minutesAgo: 0 };
+
+    const hour = bangkokHour(nowMs);
+    if (hour < 6 || hour >= 21) return { isStale: false, minutesAgo: 0 };
+
+    const minutesAgo = Math.floor((nowMs - then) / 60_000);
+    return { isStale: minutesAgo > STALE_THRESHOLD_MIN, minutesAgo };
 }
 
 function formatNumber(n: number): string {
@@ -70,6 +102,26 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
     );
     const [query, setQuery] = useState('');
     const [refreshing, setRefreshing] = useState(false);
+
+    // ใช้ nowMs สำหรับ time-based UI — null ก่อน mount เพื่อหลีกเลี่ยง hydration mismatch
+    const [nowMs, setNowMs] = useState<number | null>(null);
+    useEffect(() => {
+        setNowMs(Date.now());
+        const id = setInterval(() => setNowMs(Date.now()), 60_000);
+        return () => clearInterval(id);
+    }, []);
+
+    const staleInfo = useMemo(
+        () => (nowMs === null ? null : getStaleStatus(meta.last_uploaded_at, nowMs)),
+        [meta.last_uploaded_at, nowMs],
+    );
+
+    // Lazy-load detail รายพนักงาน
+    const [selectedStaff, setSelectedStaff] = useState<{
+        branchCode: string;
+        staffId: string;
+        staffName: string | null;
+    } | null>(null);
 
     // แยกพัสดุที่ยังไม่ assign พนักงาน (staff_id ว่าง) ออกจากพนักงานจริง
     const branchStaff = useMemo(
@@ -122,7 +174,19 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
                     <div className="flex items-center gap-2 text-slate-400">
                         <span className="text-slate-500">อัปเดตล่าสุด:</span>
-                        <span className="font-medium text-amber-300">{formatTimeAgo(meta.last_uploaded_at)}</span>
+                        <span className="font-medium text-amber-300" suppressHydrationWarning>
+                            {nowMs === null ? '—' : formatTimeAgo(meta.last_uploaded_at, nowMs)}
+                        </span>
+                        {staleInfo?.isStale ? (
+                            <span
+                                role="alert"
+                                title={`ข้อมูลไม่อัปเดตเกิน ${STALE_THRESHOLD_MIN} นาที — auto-sync อาจมีปัญหา`}
+                                className="inline-flex animate-pulse items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-300 ring-1 ring-red-500/40"
+                            >
+                                <AlertCircle className="h-3 w-3" aria-hidden />
+                                ข้อมูลค้าง
+                            </span>
+                        ) : null}
                     </div>
                     <div className="flex items-center gap-2 text-slate-400">
                         <span className="text-slate-500">รวม:</span>
@@ -303,7 +367,28 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
                                 </tr>
                             ) : (
                                 filteredStaff.map((s) => (
-                                    <tr key={`${s.delivery_branch_code}-${s.delivery_staff_id}`} className="transition hover:bg-slate-900/40">
+                                    <tr
+                                        key={`${s.delivery_branch_code}-${s.delivery_staff_id}`}
+                                        className="cursor-pointer transition hover:bg-slate-900/60"
+                                        onClick={() => setSelectedStaff({
+                                            branchCode: s.delivery_branch_code,
+                                            staffId: s.delivery_staff_id,
+                                            staffName: s.delivery_staff_name,
+                                        })}
+                                        tabIndex={0}
+                                        role="button"
+                                        aria-label={`ดูรายละเอียดพนักงาน ${s.delivery_staff_name || s.delivery_staff_id}`}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setSelectedStaff({
+                                                    branchCode: s.delivery_branch_code,
+                                                    staffId: s.delivery_staff_id,
+                                                    staffName: s.delivery_staff_name,
+                                                });
+                                            }
+                                        }}
+                                    >
                                         <td className="px-4 py-2.5">
                                             <div className="font-medium text-slate-100">
                                                 {s.delivery_staff_name || '—'}
@@ -342,6 +427,16 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
                     </table>
                 </div>
             </section>
+
+            {selectedStaff ? (
+                <StaffDetailModal
+                    open={true}
+                    branchCode={selectedStaff.branchCode}
+                    staffId={selectedStaff.staffId}
+                    staffNameFallback={selectedStaff.staffName}
+                    onClose={() => setSelectedStaff(null)}
+                />
+            ) : null}
         </div>
     );
 }
