@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search } from 'lucide-react';
+import { Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search, Warehouse } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type BranchSummary = {
@@ -71,17 +71,31 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
     const [query, setQuery] = useState('');
     const [refreshing, setRefreshing] = useState(false);
 
+    // แยกพัสดุที่ยังไม่ assign พนักงาน (staff_id ว่าง) ออกจากพนักงานจริง
+    const branchStaff = useMemo(
+        () => staff.filter((s) => s.delivery_branch_code === activeBranch),
+        [staff, activeBranch]
+    );
+
+    const unassignedRow = useMemo(
+        () => branchStaff.find((s) => !s.delivery_staff_id || s.delivery_staff_id.trim() === ''),
+        [branchStaff]
+    );
+
+    const assignedStaff = useMemo(
+        () => branchStaff.filter((s) => s.delivery_staff_id && s.delivery_staff_id.trim() !== ''),
+        [branchStaff]
+    );
+
     const filteredStaff = useMemo(() => {
-        if (!activeBranch) return [];
-        const base = staff.filter((s) => s.delivery_branch_code === activeBranch);
         const q = query.trim().toLowerCase();
-        if (!q) return base;
-        return base.filter((s) =>
+        if (!q) return assignedStaff;
+        return assignedStaff.filter((s) =>
             (s.delivery_staff_name ?? '').toLowerCase().includes(q) ||
             (s.delivery_staff_id ?? '').toLowerCase().includes(q) ||
             (s.delivery_staff_phone ?? '').toLowerCase().includes(q)
         );
-    }, [staff, activeBranch, query]);
+    }, [assignedStaff, query]);
 
     const handleRefresh = () => {
         setRefreshing(true);
@@ -196,6 +210,35 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
                     );
                 })}
             </div>
+
+            {/* Banner: พัสดุยังอยู่ในคลัง รอแจกจ่ายให้พนักงาน */}
+            {unassignedRow && unassignedRow.parcel_count > 0 ? (
+                <section
+                    className="flex flex-wrap items-center gap-4 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-900/40 px-5 py-4 ring-1 ring-amber-500/10"
+                    aria-label="พัสดุที่ยังอยู่ในคลังรอแจกจ่าย"
+                >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/30">
+                        <Warehouse className="h-6 w-6" aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-300/90">
+                            ยังอยู่ในคลัง — รอแจกจ่ายให้พนักงาน
+                        </p>
+                        <p className="mt-0.5 flex items-baseline gap-2 text-2xl font-black tabular-nums text-white">
+                            {formatNumber(unassignedRow.parcel_count)}
+                            <span className="text-sm font-medium text-slate-400">ชิ้น</span>
+                        </p>
+                    </div>
+                    {unassignedRow.cod_total > 0 ? (
+                        <div className="border-l border-slate-700/60 pl-4 text-right">
+                            <p className="text-[10px] uppercase tracking-wider text-slate-500">COD รวม</p>
+                            <p className="mt-0.5 font-mono text-sm font-semibold text-slate-200">
+                                ฿{formatCurrency(unassignedRow.cod_total)}
+                            </p>
+                        </div>
+                    ) : null}
+                </section>
+            ) : null}
 
             {/* Staff table */}
             <section className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/40">
