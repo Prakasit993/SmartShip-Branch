@@ -45,17 +45,24 @@ export function WarehouseUploadClient() {
     const [detail, setDetail] = useState<string | null>(null);
     const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
 
+    const resetFileState = () => {
+        setFile(null); setDisplayName(''); setStatus('idle');
+        setMessage(''); setDetail(null); setSuccessInfo(null);
+    };
+
     const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
-        if (!f) { setFile(null); setDisplayName(''); setStatus('idle'); setMessage(''); setDetail(null); setSuccessInfo(null); return; }
-        setFile(f); setDisplayName(f.name); setStatus('idle'); setMessage(''); setDetail(null); setSuccessInfo(null);
+        if (!f) { resetFileState(); return; }
+        setFile(f); setDisplayName(f.name);
+        setStatus('idle'); setMessage(''); setDetail(null); setSuccessInfo(null);
     }, []);
 
     const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         const f = e.dataTransfer.files?.[0];
         if (!f) return;
-        setFile(f); setDisplayName(f.name); setStatus('idle'); setMessage(''); setDetail(null); setSuccessInfo(null);
+        setFile(f); setDisplayName(f.name);
+        setStatus('idle'); setMessage(''); setDetail(null); setSuccessInfo(null);
     }, []);
 
     const submit = async () => {
@@ -65,7 +72,7 @@ export function WarehouseUploadClient() {
         if (file.size > maxMb * 1024 * 1024) {
             setStatus('error');
             setMessage('ไฟล์ใหญ่เกินขีดจำกัด');
-            setDetail(`ไฟล์นี้มีขนาดเกิน ${maxMb} MB — ลองแยกหรือลดขนาดไฟล์แล้วส่งใหม่`);
+            setDetail(`ไฟล์มีขนาดเกิน ${maxMb} MB — ลองแยกหรือลดขนาดไฟล์แล้วส่งใหม่`);
             return;
         }
 
@@ -103,11 +110,10 @@ export function WarehouseUploadClient() {
                     return;
                 }
             }
-            if (typeof parsed === 'string') {
-                setSuccessInfo({ kind: 'plain', text: parsed.trim().slice(0, 800) || 'ดำเนินการสำเร็จ' });
-            } else {
-                setSuccessInfo({ kind: 'plain', text: 'ได้รับการตอบกลับจากระบบแล้ว' });
-            }
+            setSuccessInfo({
+                kind: 'plain',
+                text: typeof parsed === 'string' ? parsed.trim().slice(0, 800) || 'ดำเนินการสำเร็จ' : 'ได้รับการตอบกลับจากระบบแล้ว',
+            });
         } catch (e) {
             setStatus('error');
             setMessage('เชื่อมต่อไม่สำเร็จ — ลองใหม่อีกครั้ง');
@@ -116,12 +122,12 @@ export function WarehouseUploadClient() {
     };
 
     const clearFile = () => {
-        setFile(null); setDisplayName(''); setStatus('idle'); setMessage(''); setDetail(null); setSuccessInfo(null);
+        resetFileState();
         if (inputRef.current) inputRef.current.value = '';
     };
 
     return (
-        <div className="w-full max-w-xl space-y-5">
+        <div className="w-full space-y-5">
             {/* Drop zone */}
             <div
                 onDrop={onDrop}
@@ -131,12 +137,12 @@ export function WarehouseUploadClient() {
                 tabIndex={0}
                 aria-label="คลิกหรือลากไฟล์มาวางที่นี่"
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
-                className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition
+                className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed px-6 py-12 text-center transition select-none
                     ${status === 'uploading'
                         ? 'cursor-not-allowed border-slate-700 bg-slate-900/40 opacity-60'
                         : file
                             ? 'border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10'
-                            : 'border-slate-700 bg-slate-900/40 hover:border-amber-500/40 hover:bg-amber-500/5'
+                            : 'border-slate-700 bg-slate-900/40 hover:border-amber-500/40 hover:bg-slate-900/60'
                     }`}
             >
                 <input
@@ -147,26 +153,26 @@ export function WarehouseUploadClient() {
                     disabled={status === 'uploading'}
                     className="sr-only"
                 />
-                <FileSpreadsheet
-                    className={`h-10 w-10 ${file ? 'text-amber-400' : 'text-slate-600'}`}
-                    aria-hidden
-                />
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ring-1 transition
+                    ${file ? 'bg-amber-500/15 ring-amber-500/30 text-amber-400' : 'bg-slate-800 ring-slate-700 text-slate-500'}`}
+                >
+                    <FileSpreadsheet className="h-7 w-7" aria-hidden />
+                </div>
+
                 {file ? (
                     <div className="space-y-1">
-                        <p className="font-semibold text-amber-200 break-all">{displayName}</p>
-                        <p className="text-xs text-slate-500">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
+                        <p className="font-semibold text-amber-200 break-all leading-snug">{displayName}</p>
+                        <p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                 ) : (
-                    <div className="space-y-1">
-                        <p className="text-sm font-medium text-slate-300">คลิกเลือกไฟล์ หรือลากมาวางที่นี่</p>
+                    <div className="space-y-1.5">
+                        <p className="text-sm font-semibold text-slate-200">คลิกเลือกไฟล์ หรือลากมาวางที่นี่</p>
                         <p className="text-xs text-slate-500">รองรับ .xlsx, .xls, .csv</p>
                     </div>
                 )}
             </div>
 
-            {/* Progress bar */}
+            {/* Progress */}
             {status === 'uploading' && (
                 <div className="space-y-2" role="status" aria-live="polite">
                     <div className="flex items-center gap-2 text-sm text-slate-300">
@@ -179,7 +185,7 @@ export function WarehouseUploadClient() {
                 </div>
             )}
 
-            {/* Actions */}
+            {/* Buttons */}
             <div className="flex flex-wrap items-center gap-3">
                 <button
                     type="button"
@@ -187,11 +193,10 @@ export function WarehouseUploadClient() {
                     disabled={!file || status === 'uploading'}
                     className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-amber-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-amber-950/40 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                    {status === 'uploading' ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    ) : (
-                        <Upload className="h-4 w-4" aria-hidden />
-                    )}
+                    {status === 'uploading'
+                        ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                        : <Upload className="h-4 w-4" aria-hidden />
+                    }
                     ส่งไฟล์เพื่อนำเข้า
                 </button>
                 {file && status !== 'uploading' ? (
@@ -208,10 +213,10 @@ export function WarehouseUploadClient() {
 
             {/* Success */}
             {status === 'success' && successInfo ? (
-                <div className="flex gap-3 rounded-xl border border-emerald-800/60 bg-emerald-950/35 px-4 py-4 text-sm text-emerald-200">
+                <div className="flex gap-3 rounded-xl border border-emerald-800/60 bg-emerald-950/35 px-4 py-4">
                     <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400 mt-0.5" aria-hidden />
                     <div className="min-w-0 flex-1 space-y-2">
-                        <p className="font-semibold text-white">ส่งไฟล์สำเร็จ</p>
+                        <p className="font-semibold text-white text-sm">ส่งไฟล์สำเร็จ</p>
                         {successInfo.kind === 'payload' ? (
                             <>
                                 {successInfo.status ? (
@@ -230,10 +235,10 @@ export function WarehouseUploadClient() {
 
             {/* Error */}
             {status === 'error' && (
-                <div className="flex gap-3 rounded-xl border border-red-900/60 bg-red-950/35 px-4 py-3 text-sm text-red-200">
+                <div className="flex gap-3 rounded-xl border border-red-900/60 bg-red-950/35 px-4 py-3">
                     <AlertCircle className="h-5 w-5 shrink-0 text-red-400 mt-0.5" aria-hidden />
                     <div className="min-w-0">
-                        <p className="font-semibold">{message}</p>
+                        <p className="font-semibold text-sm text-red-200">{message}</p>
                         {detail ? <p className="mt-1 text-xs text-red-100/90">{detail}</p> : null}
                     </div>
                 </div>

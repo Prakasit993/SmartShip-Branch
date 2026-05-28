@@ -117,7 +117,7 @@ export async function middleware(request: NextRequest) {
         return response;
     }
 
-    // 2. Warehouse Route Protection — same auth as /admin but no RBAC sidebar restrictions
+    // 2. Warehouse Route Protection — same auth as /admin, no sidebar RBAC
     if (pathname.startsWith('/warehouse')) {
         let response = NextResponse.next({ request: { headers: request.headers } });
 
@@ -156,7 +156,7 @@ export async function middleware(request: NextRequest) {
         const userEmail = user.email;
         const adminEmail = process.env.ADMIN_EMAIL;
         const staffEmails = (process.env.STAFF_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
-        const isAllowed = userEmail === adminEmail || (userEmail && staffEmails.includes(userEmail));
+        const isAllowed = userEmail === adminEmail || (userEmail != null && staffEmails.includes(userEmail));
 
         if (!isAllowed) {
             const url = request.nextUrl.clone();
@@ -173,5 +173,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*', '/warehouse/:path*', '/warehouse'],
+    matcher: ['/admin/:path*', '/warehouse', '/warehouse/:path*'],
 };
