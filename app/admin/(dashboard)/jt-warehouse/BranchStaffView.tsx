@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search, Warehouse } from 'lucide-react';
+import { AlertCircle, Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search, Warehouse, Banknote, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { StaffDetailModal } from './StaffDetailModal';
+import { CodBucketDrawer, type CodBucketKey } from './CodBucketDrawer';
+import type { CodSummary } from './page';
 
 type BranchSummary = {
     delivery_branch_code: string;
@@ -40,6 +42,7 @@ type Props = {
     branches: BranchSummary[];
     staff: StaffSummary[];
     meta: LastUploadMeta;
+    codSummaryByBranch: Record<string, CodSummary>;
 };
 
 function formatTimeAgo(iso: string | null, nowMs: number): string {
@@ -95,7 +98,7 @@ function formatCurrency(n: number): string {
     return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function BranchStaffView({ branches, staff, meta }: Props) {
+export function BranchStaffView({ branches, staff, meta, codSummaryByBranch }: Props) {
     const router = useRouter();
     const [activeBranch, setActiveBranch] = useState<string>(
         branches[0]?.delivery_branch_code ?? ''
@@ -122,6 +125,10 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
         staffId: string;
         staffName: string | null;
     } | null>(null);
+
+    // COD bucket drill-down
+    const [selectedBucket, setSelectedBucket] = useState<CodBucketKey | null>(null);
+    const activeCodSummary = codSummaryByBranch[activeBranch];
 
     // แยกพัสดุที่ยังไม่ assign พนักงาน (staff_id ว่าง) ออกจากพนักงานจริง
     const branchStaff = useMemo(
@@ -274,6 +281,63 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
                     );
                 })}
             </div>
+
+            {/* COD bucket card — เร่งจัดส่งพัสดุ COD สูง */}
+            {activeCodSummary && activeCodSummary.pending_count > 0 ? (
+                <section
+                    className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/40"
+                    aria-label="สรุป COD ค้างเก็บ"
+                >
+                    <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-800/70 px-5 py-3">
+                        <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-emerald-400" aria-hidden />
+                            <h2 className="text-sm font-semibold text-white">
+                                COD ค้างเก็บ
+                            </h2>
+                            <span className="text-xs text-slate-500">
+                                ({formatNumber(activeCodSummary.pending_count)} พัสดุที่ยังไม่ปิดงาน)
+                            </span>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] uppercase tracking-wider text-slate-500">รวม</p>
+                            <p className="font-mono text-base font-bold tabular-nums text-emerald-300">
+                                ฿{formatCurrency(activeCodSummary.pending_total)}
+                            </p>
+                        </div>
+                    </header>
+                    <div className="grid grid-cols-2 gap-px bg-slate-800/40 sm:grid-cols-4">
+                        <CodBucketTile
+                            label="< ฿1,000"
+                            count={activeCodSummary.buckets.low.count}
+                            sum={activeCodSummary.buckets.low.sum}
+                            tone="muted"
+                            onClick={() => setSelectedBucket('low')}
+                        />
+                        <CodBucketTile
+                            label="฿1k – 2k"
+                            count={activeCodSummary.buckets.mid.count}
+                            sum={activeCodSummary.buckets.mid.sum}
+                            tone="amber"
+                            onClick={() => setSelectedBucket('mid')}
+                        />
+                        <CodBucketTile
+                            label="฿2k – 5k"
+                            count={activeCodSummary.buckets.high.count}
+                            sum={activeCodSummary.buckets.high.sum}
+                            tone="orange"
+                            onClick={() => setSelectedBucket('high')}
+                        />
+                        <CodBucketTile
+                            label="> ฿5,000  ⚠️"
+                            count={activeCodSummary.buckets.very_high.count}
+                            sum={activeCodSummary.buckets.very_high.sum}
+                            tone="red"
+                            priority
+                            onClick={() => setSelectedBucket('very_high')}
+                        />
+                    </div>
+                </section>
+            ) : null}
 
             {/* Banner: พัสดุยังอยู่ในคลัง รอแจกจ่ายให้พนักงาน */}
             {unassignedRow && unassignedRow.parcel_count > 0 ? (
@@ -437,7 +501,58 @@ export function BranchStaffView({ branches, staff, meta }: Props) {
                     onClose={() => setSelectedStaff(null)}
                 />
             ) : null}
+
+            <CodBucketDrawer
+                open={selectedBucket !== null}
+                branchCode={activeBranch}
+                bucket={selectedBucket}
+                onClose={() => setSelectedBucket(null)}
+            />
         </div>
+    );
+}
+
+function CodBucketTile({
+    label, count, sum, tone, priority, onClick,
+}: {
+    label: string;
+    count: number;
+    sum: number;
+    tone: 'muted' | 'amber' | 'orange' | 'red';
+    priority?: boolean;
+    onClick: () => void;
+}) {
+    const colorClass =
+        tone === 'red' ? 'text-red-300 hover:bg-red-500/10' :
+        tone === 'orange' ? 'text-orange-300 hover:bg-orange-500/10' :
+        tone === 'amber' ? 'text-amber-300 hover:bg-amber-500/10' :
+        'text-slate-400 hover:bg-slate-800/40';
+
+    const disabled = count === 0;
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={`group relative flex w-full flex-col items-start gap-1 bg-slate-950/40 px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${colorClass}`}
+        >
+            <div className="flex w-full items-center justify-between">
+                <p className="text-[11px] font-semibold text-slate-400">{label}</p>
+                {!disabled ? (
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-slate-300" aria-hidden />
+                ) : null}
+            </div>
+            <p className={`font-mono text-2xl font-black tabular-nums ${priority && count > 0 ? 'animate-pulse' : ''}`}>
+                {formatNumber(count)}
+                <span className="ml-1 text-xs font-normal text-slate-500">ชิ้น</span>
+            </p>
+            {sum > 0 ? (
+                <p className="font-mono text-[11px] text-slate-500">฿{formatCurrency(sum)}</p>
+            ) : (
+                <p className="text-[11px] text-slate-600">—</p>
+            )}
+        </button>
     );
 }
 
