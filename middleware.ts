@@ -117,61 +117,13 @@ export async function middleware(request: NextRequest) {
         return response;
     }
 
-    // 2. Warehouse Route Protection — same auth as /admin, no sidebar RBAC
-    if (pathname.startsWith('/warehouse')) {
-        let response = NextResponse.next({ request: { headers: request.headers } });
+    // 2. Profile Route - Let the page handle its own auth check
+    // The page already redirects to login if no session exists
+    // No middleware protection needed here
 
-        const adminSession = request.cookies.get('admin_session');
-        if (
-            await isPasswordAdminSessionCookie(
-                adminSession?.value,
-                adminSessionContextFromRequest(request)
-            )
-        ) {
-            return response;
-        }
-
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() { return request.cookies.getAll(); },
-                    setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-                        response = NextResponse.next({ request: { headers: request.headers } });
-                        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-                    },
-                },
-            }
-        );
-
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error || !user) {
-            const url = request.nextUrl.clone();
-            url.pathname = '/admin/login';
-            return NextResponse.redirect(url);
-        }
-
-        const userEmail = user.email;
-        const adminEmail = process.env.ADMIN_EMAIL;
-        const staffEmails = (process.env.STAFF_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
-        const isAllowed = userEmail === adminEmail || (userEmail != null && staffEmails.includes(userEmail));
-
-        if (!isAllowed) {
-            const url = request.nextUrl.clone();
-            url.pathname = '/admin/login';
-            url.searchParams.set('error', 'Unauthorized Account');
-            return NextResponse.redirect(url);
-        }
-
-        return response;
-    }
-
-    // 3. Profile Route - Let the page handle its own auth check
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ['/admin/:path*', '/warehouse', '/warehouse/:path*'],
+    matcher: ['/admin/:path*'],
 };
