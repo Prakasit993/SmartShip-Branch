@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import { AdminTablePanel } from '@app/admin/components/AdminTablePanel';
 import ToastListener from '@app/admin/components/ToastListener';
+import { StockN8nUpload } from './StockN8nUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export default async function StockPage() {
                 title="จัดการสต๊อก"
                 description="ตรวจสอบจำนวนคงคลัง แก้ไขสต๊อกได้จากลิงก์แก้ไขสินค้า — รูปในตารางใช้ข้อความ alt จากหน้าแก้ไขสินค้า (SEO)"
                 titleLeft={<span aria-hidden>📋</span>}
+                actions={<StockN8nUpload />}
             />
 
             {/* Summary Cards */}
