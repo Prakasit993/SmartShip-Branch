@@ -37,6 +37,19 @@ type LastUploadMeta = {
     staff_count: number;
 };
 
+type CodBucket = { label: string; count: number; sum: number };
+export type CodSummary = {
+    branch_code: string;
+    pending_total: number;
+    pending_count: number;
+    buckets: {
+        low: CodBucket;
+        mid: CodBucket;
+        high: CodBucket;
+        very_high: CodBucket;
+    };
+};
+
 export default async function JtWarehousePage() {
     const [branchRes, staffRes, metaRes] = await Promise.all([
         supabaseAdmin.rpc('get_warehouse_jt_branch_summary'),
@@ -52,6 +65,18 @@ export default async function JtWarehousePage() {
         branch_count: 0,
         staff_count: 0,
     }) as LastUploadMeta;
+
+    // Pre-fetch COD summary ของทุก branch ที่มี — ใช้สร้าง card หน้าหลัก
+    // ปัจจุบันมี 1 สาขา แต่ออกแบบให้รองรับหลายสาขา
+    const codSummaryEntries = await Promise.all(
+        branches.map(async (b) => {
+            const { data } = await supabaseAdmin.rpc('get_warehouse_jt_cod_summary', {
+                p_delivery_branch_code: b.delivery_branch_code,
+            });
+            return [b.delivery_branch_code, data as CodSummary] as const;
+        }),
+    );
+    const codSummaryByBranch: Record<string, CodSummary> = Object.fromEntries(codSummaryEntries);
 
     const anyError = branchRes.error || staffRes.error || metaRes.error;
 
@@ -75,6 +100,7 @@ export default async function JtWarehousePage() {
                 branches={branches}
                 staff={staff}
                 meta={meta}
+                codSummaryByBranch={codSummaryByBranch}
             />
         </div>
     );
