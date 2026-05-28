@@ -135,6 +135,7 @@ export default function AdminSidebar({ role }: { role: string }) {
                     <NavItem href="/admin/jt-deep-dive-dashboard" icon="💹" label={t('nav.jtDeepDive')} active={isActive('/admin/jt-deep-dive-dashboard')} onClick={closeSidebar} />
                     <NavItem href="/admin/tiktok-dashboard" icon="🎵" label={t('nav.tiktokDashboard')} active={isActive('/admin/tiktok-dashboard')} onClick={closeSidebar} />
                     <NavItem href="/admin/customer-profile" icon="👤" label={t('nav.customerProfile')} active={isActive('/admin/customer-profile')} onClick={closeSidebar} />
+                    <NavItem href="/admin/jt-warehouse" icon="📦" label={t('nav.jtWarehouse')} active={isActive('/admin/jt-warehouse')} onClick={closeSidebar} />
                     <NavItem href="/admin/orders" icon="🛍️" label={t('nav.orders')} active={isActive('/admin/orders')} onClick={closeSidebar} />
 
                     {(role === 'admin' || role === 'true') && (
