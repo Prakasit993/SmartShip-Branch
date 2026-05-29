@@ -8,6 +8,7 @@ import { StaffDetailModal } from './StaffDetailModal';
 import { CodBucketDrawer, type CodBucketKey } from './CodBucketDrawer';
 import { AlertDrawer, type AlertKind } from './AlertDrawer';
 import { MiddayKpiCard } from './MiddayKpiCard';
+import { CollapsibleSection } from '@app/admin/components/CollapsibleSection';
 import type { CodSummary, AlertSummary, DateRange } from './page';
 
 type BranchSummary = {
@@ -331,19 +332,22 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
 
             {/* Alert summary card — pending / stuck / problem */}
             {activeAlertSummary ? (
-                <section
-                    className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/40"
-                    aria-label="สรุป Alert"
+                <CollapsibleSection
+                    id="alert-summary"
+                    defaultCollapsed
+                    icon={<AlertTriangle className="h-4 w-4 text-red-400" aria-hidden />}
+                    title="สรุป Alert"
+                    subtitle={`(${range === 'today' ? 'วันนี้' : 'ทั้งหมด'})`}
+                    summary={
+                        <>
+                            <span className="text-amber-300 font-mono">{formatNumber(activeAlertSummary.pending.count)}</span>
+                            <span className="text-slate-600">·</span>
+                            <span className="text-red-300 font-mono">{formatNumber(activeAlertSummary.stuck.count)}</span>
+                            <span className="text-slate-600">·</span>
+                            <span className="text-orange-300 font-mono">{formatNumber(activeAlertSummary.problem.count)}</span>
+                        </>
+                    }
                 >
-                    <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-800/70 px-5 py-3">
-                        <div className="flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-red-400" aria-hidden />
-                            <h2 className="text-sm font-semibold text-white">สรุป Alert</h2>
-                            <span className="text-xs text-slate-500">
-                                ({range === 'today' ? 'วันนี้' : 'ทั้งหมด'})
-                            </span>
-                        </div>
-                    </header>
                     <div className="grid grid-cols-1 gap-px bg-slate-800/40 sm:grid-cols-3">
                         <AlertTile
                             label="ยังไม่ปิดงาน"
@@ -368,32 +372,33 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
                             onClick={() => setSelectedAlert('problem')}
                         />
                     </div>
-                </section>
+                </CollapsibleSection>
             ) : null}
 
             {/* COD bucket card — เร่งจัดส่งพัสดุ COD สูง */}
             {activeCodSummary && activeCodSummary.pending_count > 0 ? (
-                <section
-                    className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/40"
-                    aria-label="สรุป COD ค้างเก็บ"
-                >
-                    <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-800/70 px-5 py-3">
-                        <div className="flex items-center gap-2">
-                            <Banknote className="h-4 w-4 text-emerald-400" aria-hidden />
-                            <h2 className="text-sm font-semibold text-white">
-                                COD ค้างเก็บ
-                            </h2>
-                            <span className="text-xs text-slate-500">
-                                ({formatNumber(activeCodSummary.pending_count)} พัสดุที่ยังไม่ปิดงาน)
-                            </span>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[10px] uppercase tracking-wider text-slate-500">รวม</p>
-                            <p className="font-mono text-base font-bold tabular-nums text-emerald-300">
+                <CollapsibleSection
+                    id="cod-bucket"
+                    defaultCollapsed
+                    icon={<Banknote className="h-4 w-4 text-emerald-400" aria-hidden />}
+                    title="COD ค้างเก็บ"
+                    subtitle={`(${formatNumber(activeCodSummary.pending_count)} พัสดุที่ยังไม่ปิดงาน)`}
+                    summary={
+                        <>
+                            <span className="font-mono text-emerald-300 font-bold">
                                 ฿{formatCurrency(activeCodSummary.pending_total)}
-                            </p>
-                        </div>
-                    </header>
+                            </span>
+                            {activeCodSummary.buckets.very_high.count > 0 ? (
+                                <>
+                                    <span className="text-slate-600">·</span>
+                                    <span className="text-red-300">
+                                        {activeCodSummary.buckets.very_high.count} ตัว &gt; ฿5k
+                                    </span>
+                                </>
+                            ) : null}
+                        </>
+                    }
+                >
                     <div className="grid grid-cols-2 gap-px bg-slate-800/40 sm:grid-cols-4">
                         <CodBucketTile
                             label="< ฿1,000"
@@ -425,7 +430,7 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
                             onClick={() => setSelectedBucket('very_high')}
                         />
                     </div>
-                </section>
+                </CollapsibleSection>
             ) : null}
 
             {/* Banner: พัสดุยังอยู่ในคลัง รอแจกจ่ายให้พนักงาน */}
@@ -458,14 +463,28 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
             ) : null}
 
             {/* Staff table */}
-            <section className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/40">
-                <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/70 px-4 py-3">
-                    <h2 className="text-sm font-semibold text-white">
-                        พนักงานนำจ่าย{' '}
-                        <span className="text-slate-500 font-normal">
-                            ({filteredStaff.length} คน)
+            <CollapsibleSection
+                id="staff-table"
+                defaultCollapsed={false}
+                icon={<Users className="h-4 w-4 text-slate-300" aria-hidden />}
+                title="พนักงานนำจ่าย"
+                subtitle={`(${filteredStaff.length} คน)`}
+                summary={
+                    <>
+                        <span className="font-mono text-slate-300">
+                            {formatNumber(assignedStaff.reduce((acc, s) => acc + s.parcel_count, 0))} พัสดุ
                         </span>
-                    </h2>
+                        <span className="text-slate-600">·</span>
+                        <span className="text-emerald-300 font-mono">
+                            ฿{formatCurrency(assignedStaff.reduce((acc, s) => acc + s.cod_total, 0))}
+                        </span>
+                    </>
+                }
+            >
+                <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/40 px-4 py-3">
+                    <span className="text-xs text-slate-500">
+                        คลิกแถวเพื่อดูรายละเอียดรายคน
+                    </span>
                     <div className="relative w-full sm:w-72">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" aria-hidden />
                         <input
@@ -579,7 +598,7 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
                         </tbody>
                     </table>
                 </div>
-            </section>
+            </CollapsibleSection>
 
             {selectedStaff ? (
                 <StaffDetailModal
