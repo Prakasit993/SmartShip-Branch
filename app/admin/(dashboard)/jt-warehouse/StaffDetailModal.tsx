@@ -54,6 +54,8 @@ type Props = {
     branchCode: string;
     staffId: string;
     staffNameFallback: string | null;
+    dateFrom?: string | null;  // YYYY-MM-DD
+    dateTo?: string | null;
     onClose: () => void;
 };
 
@@ -65,7 +67,7 @@ function formatCurrency(n: number): string {
     return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function StaffDetailModal({ open, branchCode, staffId, staffNameFallback, onClose }: Props) {
+export function StaffDetailModal({ open, branchCode, staffId, staffNameFallback, dateFrom, dateTo, onClose }: Props) {
     const [data, setData] = useState<DetailResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,13 @@ export function StaffDetailModal({ open, branchCode, staffId, staffNameFallback,
         setError(null);
         setData(null);
 
-        const url = `/api/admin/jt-warehouse/staff-detail?branch=${encodeURIComponent(branchCode)}&staff=${encodeURIComponent(staffId)}`;
+        const params = new URLSearchParams({
+            branch: branchCode,
+            staff: staffId,
+        });
+        if (dateFrom) params.set('date_from', dateFrom);
+        if (dateTo) params.set('date_to', dateTo);
+        const url = `/api/admin/jt-warehouse/staff-detail?${params.toString()}`;
         fetch(url, { credentials: 'include' })
             .then(async (res) => {
                 const json = await res.json();
@@ -100,7 +108,7 @@ export function StaffDetailModal({ open, branchCode, staffId, staffNameFallback,
         return () => {
             cancelled = true;
         };
-    }, [open, branchCode, staffId]);
+    }, [open, branchCode, staffId, dateFrom, dateTo]);
 
     useEffect(() => {
         if (!open) return;

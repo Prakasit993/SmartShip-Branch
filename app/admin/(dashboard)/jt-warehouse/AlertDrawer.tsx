@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Loader2, AlertCircle, MapPin, User } from 'lucide-react';
+import { X, Loader2, AlertCircle, MapPin, User, Clock, AlertTriangle, FileWarning } from 'lucide-react';
 
-export type CodBucketKey = 'low' | 'mid' | 'high' | 'very_high';
+export type AlertKind = 'pending' | 'stuck' | 'problem';
 
 type Parcel = {
     awb_number: string;
@@ -16,35 +16,46 @@ type Parcel = {
     receiver_address: string | null;
     stuck_flag: string | null;
     stuck_reason: string | null;
+    problem_time: string | null;
     problem_reason: string | null;
     arrived_branch_time: string | null;
 };
 
-type BucketResponse = {
-    bucket: CodBucketKey;
+type AlertResponse = {
+    kind: AlertKind;
     total: number;
-    sum: number;
+    cod_sum: number;
     parcels: Parcel[];
 };
 
-const BUCKET_LABEL: Record<CodBucketKey, string> = {
-    low: '< ฿1,000',
-    mid: '฿1,000 – ฿2,000',
-    high: '฿2,000 – ฿5,000',
-    very_high: '> ฿5,000',
-};
-
-const BUCKET_TONE: Record<CodBucketKey, { ring: string; text: string; bg: string }> = {
-    low:       { ring: 'ring-slate-500/30',  text: 'text-slate-300',  bg: 'bg-slate-900/40'  },
-    mid:       { ring: 'ring-amber-500/40',  text: 'text-amber-300',  bg: 'bg-amber-500/10'  },
-    high:      { ring: 'ring-orange-500/40', text: 'text-orange-300', bg: 'bg-orange-500/10' },
-    very_high: { ring: 'ring-red-500/40',    text: 'text-red-300',    bg: 'bg-red-500/15'    },
+const KIND_META: Record<AlertKind, { title: string; icon: React.ReactNode; ringClass: string; bgClass: string; textClass: string }> = {
+    pending: {
+        title: 'ยังไม่ปิดงาน',
+        icon: <Clock className="h-5 w-5" aria-hidden />,
+        ringClass: 'ring-amber-500/40',
+        bgClass: 'bg-amber-500/10',
+        textClass: 'text-amber-300',
+    },
+    stuck: {
+        title: 'ตกค้าง',
+        icon: <AlertTriangle className="h-5 w-5" aria-hidden />,
+        ringClass: 'ring-red-500/40',
+        bgClass: 'bg-red-500/10',
+        textClass: 'text-red-300',
+    },
+    problem: {
+        title: 'มีปัญหา',
+        icon: <FileWarning className="h-5 w-5" aria-hidden />,
+        ringClass: 'ring-orange-500/40',
+        bgClass: 'bg-orange-500/10',
+        textClass: 'text-orange-300',
+    },
 };
 
 type Props = {
     open: boolean;
     branchCode: string;
-    bucket: CodBucketKey | null;
+    kind: AlertKind | null;
     dateFrom?: string | null;
     dateTo?: string | null;
     onClose: () => void;
@@ -58,26 +69,24 @@ function formatCurrency(n: number): string {
     return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, onClose }: Props) {
-    const [data, setData] = useState<BucketResponse | null>(null);
+export function AlertDrawer({ open, branchCode, kind, dateFrom, dateTo, onClose }: Props) {
+    const [data, setData] = useState<AlertResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!open || !bucket) return;
+        if (!open || !kind) return;
 
         let cancelled = false;
         setLoading(true);
         setError(null);
         setData(null);
 
-        const params = new URLSearchParams({
-            branch: branchCode,
-            bucket,
-        });
+        const params = new URLSearchParams({ branch: branchCode, kind });
         if (dateFrom) params.set('date_from', dateFrom);
         if (dateTo) params.set('date_to', dateTo);
-        const url = `/api/admin/jt-warehouse/cod-bucket?${params.toString()}`;
+        const url = `/api/admin/jt-warehouse/alert-list?${params.toString()}`;
+
         fetch(url, { credentials: 'include' })
             .then(async (res) => {
                 const json = await res.json();
@@ -86,7 +95,7 @@ export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, on
                     setError(typeof json?.error === 'string' ? json.error : 'โหลดข้อมูลไม่สำเร็จ');
                     return;
                 }
-                setData(json as BucketResponse);
+                setData(json as AlertResponse);
             })
             .catch((e) => {
                 if (cancelled) return;
@@ -97,7 +106,7 @@ export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, on
             });
 
         return () => { cancelled = true; };
-    }, [open, bucket, branchCode, dateFrom, dateTo]);
+    }, [open, kind, branchCode, dateFrom, dateTo]);
 
     useEffect(() => {
         if (!open) return;
@@ -113,33 +122,35 @@ export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, on
         return () => { document.body.style.overflow = prev; };
     }, [open]);
 
-    if (!open || !bucket) return null;
+    if (!open || !kind) return null;
 
-    const tone = BUCKET_TONE[bucket];
+    const meta = KIND_META[kind];
 
     return (
-        <div className="fixed inset-0 z-[200] flex justify-end" role="dialog" aria-modal="true" aria-labelledby="cod-bucket-title">
+        <div className="fixed inset-0 z-[200] flex justify-end" role="dialog" aria-modal="true" aria-labelledby="alert-drawer-title">
             <button
                 type="button"
                 className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
                 aria-label="ปิด"
                 onClick={onClose}
             />
-            <aside className={`relative z-[1] flex h-full w-full max-w-xl flex-col overflow-hidden border-l border-slate-800/80 bg-slate-950 shadow-2xl shadow-black/40 ring-1 ${tone.ring}`}>
-                {/* Header */}
-                <header className={`flex shrink-0 items-start justify-between gap-3 border-b border-slate-800/80 px-5 py-4 ${tone.bg}`}>
-                    <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            COD ค้างเก็บ — {BUCKET_LABEL[bucket]}
-                        </p>
-                        <h2 id="cod-bucket-title" className={`mt-0.5 text-lg font-bold ${tone.text}`}>
-                            {data ? `${formatNumber(data.total)} พัสดุ` : 'กำลังโหลด…'}
-                        </h2>
-                        {data && data.sum > 0 ? (
-                            <p className="mt-0.5 font-mono text-xs text-slate-400">
-                                รวม ฿{formatCurrency(data.sum)}
+            <aside className={`relative z-[1] flex h-full w-full max-w-xl flex-col overflow-hidden border-l border-slate-800/80 bg-slate-950 shadow-2xl shadow-black/40 ring-1 ${meta.ringClass}`}>
+                <header className={`flex shrink-0 items-start justify-between gap-3 border-b border-slate-800/80 px-5 py-4 ${meta.bgClass}`}>
+                    <div className="flex min-w-0 items-start gap-3">
+                        <div className={`shrink-0 ${meta.textClass}`}>{meta.icon}</div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                Alert — {meta.title}
                             </p>
-                        ) : null}
+                            <h2 id="alert-drawer-title" className={`mt-0.5 text-lg font-bold ${meta.textClass}`}>
+                                {data ? `${formatNumber(data.total)} พัสดุ` : 'กำลังโหลด…'}
+                            </h2>
+                            {data && data.cod_sum > 0 ? (
+                                <p className="mt-0.5 font-mono text-xs text-slate-400">
+                                    COD รวม ฿{formatCurrency(data.cod_sum)}
+                                </p>
+                            ) : null}
+                        </div>
                     </div>
                     <button
                         type="button"
@@ -151,7 +162,6 @@ export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, on
                     </button>
                 </header>
 
-                {/* Body */}
                 <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
                     {loading ? (
                         <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
@@ -169,7 +179,7 @@ export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, on
                     ) : data ? (
                         data.parcels.length === 0 ? (
                             <p className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-6 text-center text-sm text-slate-500">
-                                🎉 ไม่มีพัสดุใน bucket นี้
+                                🎉 ไม่มีพัสดุ
                             </p>
                         ) : (
                             <ul className="space-y-2">
@@ -205,9 +215,13 @@ export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, on
                                                 )}
                                             </div>
                                             <div className="shrink-0 text-right">
-                                                <p className={`font-mono text-sm font-bold tabular-nums ${tone.text}`}>
-                                                    ฿{formatNumber(p.cod_num)}
-                                                </p>
+                                                {p.cod_num > 0 ? (
+                                                    <p className="font-mono text-sm font-bold tabular-nums text-slate-300">
+                                                        ฿{formatNumber(p.cod_num)}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-xs text-slate-600">— ไม่มี COD —</p>
+                                                )}
                                                 <div className="mt-1 flex flex-wrap justify-end gap-1">
                                                     {p.stuck_flag === 'Y' ? (
                                                         <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-red-300 ring-1 ring-red-500/35">
@@ -225,6 +239,11 @@ export function CodBucketDrawer({ open, branchCode, bucket, dateFrom, dateTo, on
                                         {p.stuck_reason ? (
                                             <p className="mt-2 rounded-lg bg-red-950/40 px-2 py-1 text-[11px] text-red-200/90">
                                                 เหตุตกค้าง: {p.stuck_reason}
+                                            </p>
+                                        ) : null}
+                                        {p.problem_reason ? (
+                                            <p className="mt-2 rounded-lg bg-orange-950/40 px-2 py-1 text-[11px] text-orange-200/90">
+                                                ปัญหา: {p.problem_reason}
                                             </p>
                                         ) : null}
                                     </li>

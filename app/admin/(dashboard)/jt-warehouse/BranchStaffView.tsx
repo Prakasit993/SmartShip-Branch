@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search, Warehouse, Banknote, ChevronRight } from 'lucide-react';
+import { AlertCircle, Users, Package, CheckCircle2, Clock, AlertTriangle, RefreshCw, Search, Warehouse, Banknote, ChevronRight, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { StaffDetailModal } from './StaffDetailModal';
 import { CodBucketDrawer, type CodBucketKey } from './CodBucketDrawer';
-import type { CodSummary } from './page';
+import { AlertDrawer, type AlertKind } from './AlertDrawer';
+import type { CodSummary, AlertSummary, DateRange } from './page';
 
 type BranchSummary = {
     delivery_branch_code: string;
@@ -43,6 +45,9 @@ type Props = {
     staff: StaffSummary[];
     meta: LastUploadMeta;
     codSummaryByBranch: Record<string, CodSummary>;
+    alertSummaryByBranch: Record<string, AlertSummary>;
+    range: DateRange;
+    today: string; // YYYY-MM-DD ของ Asia/Bangkok — ส่งต่อให้ child fetch
 };
 
 function formatTimeAgo(iso: string | null, nowMs: number): string {
@@ -98,7 +103,7 @@ function formatCurrency(n: number): string {
     return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function BranchStaffView({ branches, staff, meta, codSummaryByBranch }: Props) {
+export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, alertSummaryByBranch, range, today }: Props) {
     const router = useRouter();
     const [activeBranch, setActiveBranch] = useState<string>(
         branches[0]?.delivery_branch_code ?? ''
@@ -129,6 +134,10 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch }: P
     // COD bucket drill-down
     const [selectedBucket, setSelectedBucket] = useState<CodBucketKey | null>(null);
     const activeCodSummary = codSummaryByBranch[activeBranch];
+
+    // Alert kind drill-down
+    const [selectedAlert, setSelectedAlert] = useState<AlertKind | null>(null);
+    const activeAlertSummary = alertSummaryByBranch[activeBranch];
 
     // แยกพัสดุที่ยังไม่ assign พนักงาน (staff_id ว่าง) ออกจากพนักงานจริง
     const branchStaff = useMemo(
@@ -209,15 +218,49 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch }: P
                         <span className="font-medium text-white">{meta.staff_count}</span>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-600 hover:text-white disabled:opacity-50"
-                >
-                    <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
-                    รีเฟรช
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Date range toggle: วันนี้ | ทั้งหมด */}
+                    <div
+                        role="tablist"
+                        aria-label="ช่วงเวลา"
+                        className="inline-flex rounded-lg border border-slate-700 bg-slate-900/80 p-0.5 text-xs"
+                    >
+                        <Link
+                            href="?range=today"
+                            role="tab"
+                            aria-selected={range === 'today'}
+                            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition ${
+                                range === 'today'
+                                    ? 'bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/30'
+                                    : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            <Calendar className="h-3 w-3" aria-hidden />
+                            วันนี้
+                        </Link>
+                        <Link
+                            href="?range=all"
+                            role="tab"
+                            aria-selected={range === 'all'}
+                            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium transition ${
+                                range === 'all'
+                                    ? 'bg-slate-700 text-white ring-1 ring-slate-600'
+                                    : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            ทั้งหมด
+                        </Link>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-600 hover:text-white disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
+                        รีเฟรช
+                    </button>
+                </div>
             </div>
 
             {/* Branch tabs / cards */}
@@ -281,6 +324,48 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch }: P
                     );
                 })}
             </div>
+
+            {/* Alert summary card — pending / stuck / problem */}
+            {activeAlertSummary ? (
+                <section
+                    className="overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/40"
+                    aria-label="สรุป Alert"
+                >
+                    <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-800/70 px-5 py-3">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-red-400" aria-hidden />
+                            <h2 className="text-sm font-semibold text-white">สรุป Alert</h2>
+                            <span className="text-xs text-slate-500">
+                                ({range === 'today' ? 'วันนี้' : 'ทั้งหมด'})
+                            </span>
+                        </div>
+                    </header>
+                    <div className="grid grid-cols-1 gap-px bg-slate-800/40 sm:grid-cols-3">
+                        <AlertTile
+                            label="ยังไม่ปิดงาน"
+                            count={activeAlertSummary.pending.count}
+                            codSum={activeAlertSummary.pending.cod_sum}
+                            tone="amber"
+                            onClick={() => setSelectedAlert('pending')}
+                        />
+                        <AlertTile
+                            label="ตกค้าง"
+                            count={activeAlertSummary.stuck.count}
+                            codSum={activeAlertSummary.stuck.cod_sum}
+                            tone="red"
+                            priority
+                            onClick={() => setSelectedAlert('stuck')}
+                        />
+                        <AlertTile
+                            label="มีปัญหา"
+                            count={activeAlertSummary.problem.count}
+                            codSum={activeAlertSummary.problem.cod_sum}
+                            tone="orange"
+                            onClick={() => setSelectedAlert('problem')}
+                        />
+                    </div>
+                </section>
+            ) : null}
 
             {/* COD bucket card — เร่งจัดส่งพัสดุ COD สูง */}
             {activeCodSummary && activeCodSummary.pending_count > 0 ? (
@@ -498,6 +583,8 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch }: P
                     branchCode={selectedStaff.branchCode}
                     staffId={selectedStaff.staffId}
                     staffNameFallback={selectedStaff.staffName}
+                    dateFrom={range === 'today' ? today : null}
+                    dateTo={range === 'today' ? today : null}
                     onClose={() => setSelectedStaff(null)}
                 />
             ) : null}
@@ -506,9 +593,63 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch }: P
                 open={selectedBucket !== null}
                 branchCode={activeBranch}
                 bucket={selectedBucket}
+                dateFrom={range === 'today' ? today : null}
+                dateTo={range === 'today' ? today : null}
                 onClose={() => setSelectedBucket(null)}
             />
+
+            <AlertDrawer
+                open={selectedAlert !== null}
+                branchCode={activeBranch}
+                kind={selectedAlert}
+                dateFrom={range === 'today' ? today : null}
+                dateTo={range === 'today' ? today : null}
+                onClose={() => setSelectedAlert(null)}
+            />
         </div>
+    );
+}
+
+function AlertTile({
+    label, count, codSum, tone, priority, onClick,
+}: {
+    label: string;
+    count: number;
+    codSum: number;
+    tone: 'amber' | 'orange' | 'red';
+    priority?: boolean;
+    onClick: () => void;
+}) {
+    const colorClass =
+        tone === 'red' ? 'text-red-300 hover:bg-red-500/10' :
+        tone === 'orange' ? 'text-orange-300 hover:bg-orange-500/10' :
+        'text-amber-300 hover:bg-amber-500/10';
+
+    const disabled = count === 0;
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={`group relative flex w-full flex-col items-start gap-1 bg-slate-950/40 px-4 py-3.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${colorClass}`}
+        >
+            <div className="flex w-full items-center justify-between">
+                <p className="text-[11px] font-semibold text-slate-400">{label}</p>
+                {!disabled ? (
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-slate-300" aria-hidden />
+                ) : null}
+            </div>
+            <p className={`font-mono text-2xl font-black tabular-nums ${priority && count > 0 ? 'animate-pulse' : ''}`}>
+                {formatNumber(count)}
+                <span className="ml-1 text-xs font-normal text-slate-500">ชิ้น</span>
+            </p>
+            {codSum > 0 ? (
+                <p className="font-mono text-[11px] text-slate-500">COD ฿{formatCurrency(codSum)}</p>
+            ) : (
+                <p className="text-[11px] text-slate-600">— ไม่มี COD —</p>
+            )}
+        </button>
     );
 }
 

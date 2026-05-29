@@ -50,10 +50,38 @@ export type CodSummary = {
     };
 };
 
-export default async function JtWarehousePage() {
+type AlertCounter = { count: number; cod_sum: number };
+export type AlertSummary = {
+    branch_code: string;
+    pending: AlertCounter;
+    stuck: AlertCounter;
+    problem: AlertCounter;
+};
+
+export type DateRange = 'today' | 'all';
+
+// คืน YYYY-MM-DD ของวันนี้ใน Asia/Bangkok (ไม่พึ่ง browser TZ)
+function bangkokToday(): string {
+    // 'sv-SE' locale ให้ format ISO YYYY-MM-DD ที่ครอบคลุมทุก timezone
+    return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+}
+
+type Props = {
+    searchParams: Promise<{ range?: string }>;
+};
+
+export default async function JtWarehousePage({ searchParams }: Props) {
+    const { range: rangeRaw } = await searchParams;
+    const range: DateRange = rangeRaw === 'all' ? 'all' : 'today';
+    const today = bangkokToday();
+    const dateParams = range === 'today'
+        ? { p_date_from: today, p_date_to: today }
+        : {};
+
     const [branchRes, staffRes, metaRes] = await Promise.all([
-        supabaseAdmin.rpc('get_warehouse_jt_branch_summary'),
-        supabaseAdmin.rpc('get_warehouse_jt_branch_staff_summary'),
+        supabaseAdmin.rpc('get_warehouse_jt_branch_summary', dateParams),
+        supabaseAdmin.rpc('get_warehouse_jt_branch_staff_summary', dateParams),
+        // meta ใช้ live view ที่อ่านจาก parcels โดยตรง — ไม่ filter ตาม range เพราะเป็น health indicator ทั้งระบบ
         supabaseAdmin.from('warehouse_jt_last_upload').select('*').maybeSingle(),
     ]);
 
@@ -66,17 +94,32 @@ export default async function JtWarehousePage() {
         staff_count: 0,
     }) as LastUploadMeta;
 
-    // Pre-fetch COD summary ของทุก branch ที่มี — ใช้สร้าง card หน้าหลัก
-    // ปัจจุบันมี 1 สาขา แต่ออกแบบให้รองรับหลายสาขา
-    const codSummaryEntries = await Promise.all(
+    // Pre-fetch COD summary + Alert summary ของทุก branch ขนานกัน
+    const perBranchData = await Promise.all(
         branches.map(async (b) => {
-            const { data } = await supabaseAdmin.rpc('get_warehouse_jt_cod_summary', {
-                p_delivery_branch_code: b.delivery_branch_code,
-            });
-            return [b.delivery_branch_code, data as CodSummary] as const;
+            const [codRes, alertRes] = await Promise.all([
+                supabaseAdmin.rpc('get_warehouse_jt_cod_summary', {
+                    p_delivery_branch_code: b.delivery_branch_code,
+                    ...dateParams,
+                }),
+                supabaseAdmin.rpc('get_warehouse_jt_alert_summary', {
+                    p_delivery_branch_code: b.delivery_branch_code,
+                    ...dateParams,
+                }),
+            ]);
+            return {
+                code: b.delivery_branch_code,
+                cod: codRes.data as CodSummary,
+                alert: alertRes.data as AlertSummary,
+            };
         }),
     );
-    const codSummaryByBranch: Record<string, CodSummary> = Object.fromEntries(codSummaryEntries);
+    const codSummaryByBranch: Record<string, CodSummary> = Object.fromEntries(
+        perBranchData.map((d) => [d.code, d.cod]),
+    );
+    const alertSummaryByBranch: Record<string, AlertSummary> = Object.fromEntries(
+        perBranchData.map((d) => [d.code, d.alert]),
+    );
 
     const anyError = branchRes.error || staffRes.error || metaRes.error;
 
@@ -101,6 +144,9 @@ export default async function JtWarehousePage() {
                 staff={staff}
                 meta={meta}
                 codSummaryByBranch={codSummaryByBranch}
+                alertSummaryByBranch={alertSummaryByBranch}
+                range={range}
+                today={today}
             />
         </div>
     );

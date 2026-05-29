@@ -3,18 +3,17 @@ import { requireAdminApiAuth } from '@/lib/adminApiAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
- * GET /api/admin/jt-warehouse/cod-bucket?branch=<code>&bucket=<key>&limit=<n>
+ * GET /api/admin/jt-warehouse/alert-list?branch=<code>&kind=<key>&limit=<n>&date_from=&date_to=
  *
- * Drill-down รายการ AWB ใน COD bucket ที่เลือก — ใช้ใน drawer ของหน้า /admin/jt-warehouse
+ * Drill-down รายการ AWB ของ alert kind ที่เลือก — ใช้ใน drawer
  *
- * bucket: 'low' | 'mid' | 'high' | 'very_high'
- *   low       — < ฿1,000
- *   mid       — ฿1,000 – ฿2,000
- *   high      — ฿2,000 – ฿5,000
- *   very_high — > ฿5,000
+ * kind: 'pending' | 'stuck' | 'problem'
+ *   pending — ยังไม่ปิดงาน (6 ฟิลด์ signed_* ไม่ครบ)
+ *   stuck   — stuck_flag = 'Y'
+ *   problem — problem_time มีค่า
  */
 
-const ALLOWED_BUCKETS = new Set(['low', 'mid', 'high', 'very_high']);
+const ALLOWED_KINDS = new Set(['pending', 'stuck', 'problem']);
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -24,20 +23,17 @@ export async function GET(request: NextRequest) {
     if (denied) return denied;
 
     const branch = request.nextUrl.searchParams.get('branch')?.trim();
-    const bucket = request.nextUrl.searchParams.get('bucket')?.trim();
+    const kind = request.nextUrl.searchParams.get('kind')?.trim();
     const limitRaw = request.nextUrl.searchParams.get('limit');
     const dateFrom = request.nextUrl.searchParams.get('date_from')?.trim();
     const dateTo = request.nextUrl.searchParams.get('date_to')?.trim();
 
-    if (!branch || !bucket) {
-        return NextResponse.json(
-            { error: 'ต้องระบุ branch และ bucket' },
-            { status: 400 },
-        );
+    if (!branch || !kind) {
+        return NextResponse.json({ error: 'ต้องระบุ branch และ kind' }, { status: 400 });
     }
-    if (!ALLOWED_BUCKETS.has(bucket)) {
+    if (!ALLOWED_KINDS.has(kind)) {
         return NextResponse.json(
-            { error: `bucket ต้องเป็นหนึ่งใน: ${Array.from(ALLOWED_BUCKETS).join(', ')}` },
+            { error: `kind ต้องเป็นหนึ่งใน: ${Array.from(ALLOWED_KINDS).join(', ')}` },
             { status: 400 },
         );
     }
@@ -55,13 +51,13 @@ export async function GET(request: NextRequest) {
 
     const rpcParams: Record<string, unknown> = {
         p_delivery_branch_code: branch,
-        p_bucket: bucket,
+        p_kind: kind,
         p_limit: limit,
     };
     if (dateFrom) rpcParams.p_date_from = dateFrom;
     if (dateTo) rpcParams.p_date_to = dateTo;
 
-    const { data, error } = await supabaseAdmin.rpc('get_warehouse_jt_cod_bucket_list', rpcParams);
+    const { data, error } = await supabaseAdmin.rpc('get_warehouse_jt_alert_list', rpcParams);
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
