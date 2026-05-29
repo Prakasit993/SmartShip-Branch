@@ -31,12 +31,19 @@ type Performance = {
     date: string;
     target_pct: number;
     cutoff_hour: number;
-    intake_count: number;
+    // KPI (denominator + numerator)
+    workload_count: number;       // ★ ต้องเซ็นรับวันนี้
     closed_count: number;
     closed_pct: number;
     target_count: number;
     delta_count: number;
     delta_pct: number;
+    // Informational breakdown
+    arrived_count: number;        // ยอดเข้าวันนี้ (informational)
+    pending_with_staff: number;
+    in_warehouse_count: number;
+    // Backward compat
+    intake_count?: number;        // legacy — = arrived_count
     status: 'no_data' | 'achieved' | 'behind' | 'missed';
     minutes_until_cutoff: number;
     is_after_cutoff: boolean;
@@ -115,6 +122,10 @@ export function MiddayKpiCard({ branchCode }: Props) {
         Math.max(0, (perf.closed_pct / perf.target_pct) * 100),
     );
 
+    // Backward compat: ใช้ workload_count ถ้ามี ไม่งั้นใช้ intake_count เดิม
+    const denominator = perf.workload_count ?? perf.intake_count ?? 0;
+    const arrivedToday = perf.arrived_count ?? perf.intake_count ?? 0;
+
     const tone =
         perf.status === 'achieved'
             ? {
@@ -172,7 +183,7 @@ export function MiddayKpiCard({ branchCode }: Props) {
                             {formatNumber(perf.closed_count)}
                         </span>
                         <span className="text-slate-500">/</span>
-                        <span className="font-mono text-slate-300">{formatNumber(perf.intake_count)}</span>
+                        <span className="font-mono text-slate-300">{formatNumber(denominator)}</span>
                         <span className="text-slate-500">·</span>
                         <span className={tone.text}>{formatPct(perf.closed_pct)}</span>
                     </>
@@ -191,9 +202,11 @@ export function MiddayKpiCard({ branchCode }: Props) {
                     </button>
                     <div className="grid grid-cols-3 gap-3 text-xs">
                         <div>
-                            <p className="text-[10px] uppercase tracking-wider text-slate-500">ยอดเข้า</p>
+                            <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                                ต้องเซ็นรับวันนี้
+                            </p>
                             <p className="mt-0.5 font-mono text-lg font-black tabular-nums text-white">
-                                {formatNumber(perf.intake_count)}
+                                {formatNumber(denominator)}
                             </p>
                         </div>
                         <div>
@@ -219,6 +232,34 @@ export function MiddayKpiCard({ branchCode }: Props) {
                             </p>
                         </div>
                     </div>
+
+                    {/* Informational breakdown — ยอดเข้า + รอ assign */}
+                    {(arrivedToday > 0 || (perf.in_warehouse_count ?? 0) > 0) ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                            {arrivedToday > 0 ? (
+                                <span>
+                                    ยอดเข้าวันนี้:{' '}
+                                    <span className="font-mono text-slate-300">{formatNumber(arrivedToday)}</span>
+                                </span>
+                            ) : null}
+                            {(perf.in_warehouse_count ?? 0) > 0 ? (
+                                <span>
+                                    รอ assign:{' '}
+                                    <span className="font-mono text-amber-300">
+                                        {formatNumber(perf.in_warehouse_count ?? 0)}
+                                    </span>
+                                </span>
+                            ) : null}
+                            {(perf.pending_with_staff ?? 0) > 0 ? (
+                                <span>
+                                    ค้าง (มีพนักงาน):{' '}
+                                    <span className="font-mono text-amber-300">
+                                        {formatNumber(perf.pending_with_staff ?? 0)}
+                                    </span>
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : null}
 
                     {/* Progress bar — % ของเป้า */}
                     <div className="mt-3">
