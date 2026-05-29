@@ -483,7 +483,7 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
             >
                 <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/40 px-4 py-3">
                     <span className="text-xs text-slate-500">
-                        คลิกแถวเพื่อดูรายละเอียดรายคน
+                        คลิกการ์ดเพื่อดูรายละเอียดรายคน
                     </span>
                     <div className="relative w-full sm:w-72">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" aria-hidden />
@@ -497,107 +497,43 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
                     </div>
                 </header>
 
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-800/80 text-sm">
-                        <thead className="bg-slate-900/70 text-xs uppercase tracking-wider text-slate-500">
-                            <tr>
-                                <th className="px-4 py-2.5 text-left font-medium">พนักงาน</th>
-                                <th className="px-4 py-2.5 text-left font-medium hidden md:table-cell">รหัส / เบอร์</th>
-                                <th className="px-4 py-2.5 text-right font-medium">
-                                    <span className="inline-flex items-center gap-1">
-                                        <Package className="h-3 w-3" aria-hidden />
-                                        พัสดุ
-                                    </span>
-                                </th>
-                                <th className="px-4 py-2.5 text-right font-medium">
-                                    <span className="inline-flex items-center gap-1 text-emerald-400">
-                                        <CheckCircle2 className="h-3 w-3" aria-hidden />
-                                        สำเร็จ
-                                    </span>
-                                </th>
-                                <th className="px-4 py-2.5 text-right font-medium">
-                                    <span className="inline-flex items-center gap-1 text-amber-400">
-                                        <Clock className="h-3 w-3" aria-hidden />
-                                        ค้าง
-                                    </span>
-                                </th>
-                                <th className="px-4 py-2.5 text-right font-medium hidden sm:table-cell">
-                                    <span className="inline-flex items-center gap-1 text-red-400">
-                                        <AlertTriangle className="h-3 w-3" aria-hidden />
-                                        ตกค้าง
-                                    </span>
-                                </th>
-                                <th className="px-4 py-2.5 text-right font-medium hidden lg:table-cell">COD รวม</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60">
-                            {filteredStaff.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
-                                        {query ? '🔍 ไม่พบพนักงานตามคำค้นหา' : '— ยังไม่มีข้อมูลพนักงาน —'}
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredStaff.map((s) => (
-                                    <tr
-                                        key={`${s.delivery_branch_code}-${s.delivery_staff_id}`}
-                                        className="cursor-pointer transition hover:bg-slate-900/60"
-                                        onClick={() => setSelectedStaff({
+                {filteredStaff.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-slate-500">
+                        {query ? '🔍 ไม่พบพนักงานตามคำค้นหา' : '— ยังไม่มีข้อมูลพนักงาน —'}
+                    </p>
+                ) : (
+                    <div className="grid grid-cols-2 gap-2.5 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                        {filteredStaff.map((s) => {
+                            const closedPct =
+                                s.parcel_count > 0 ? (s.delivered_count / s.parcel_count) * 100 : 0;
+                            const hasStuck = s.stuck_count > 0;
+                            const initial =
+                                (s.delivery_staff_name?.trim().charAt(0) || '?').toUpperCase();
+                            return (
+                                <StaffCard
+                                    key={`${s.delivery_branch_code}-${s.delivery_staff_id}`}
+                                    initial={initial}
+                                    name={s.delivery_staff_name || '—'}
+                                    position={s.delivery_staff_position}
+                                    parcelCount={s.parcel_count}
+                                    deliveredCount={s.delivered_count}
+                                    pendingCount={s.pending_count}
+                                    stuckCount={s.stuck_count}
+                                    codTotal={s.cod_total}
+                                    closedPct={closedPct}
+                                    hasStuck={hasStuck}
+                                    onClick={() =>
+                                        setSelectedStaff({
                                             branchCode: s.delivery_branch_code,
                                             staffId: s.delivery_staff_id,
                                             staffName: s.delivery_staff_name,
-                                        })}
-                                        tabIndex={0}
-                                        role="button"
-                                        aria-label={`ดูรายละเอียดพนักงาน ${s.delivery_staff_name || s.delivery_staff_id}`}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                e.preventDefault();
-                                                setSelectedStaff({
-                                                    branchCode: s.delivery_branch_code,
-                                                    staffId: s.delivery_staff_id,
-                                                    staffName: s.delivery_staff_name,
-                                                });
-                                            }
-                                        }}
-                                    >
-                                        <td className="px-4 py-2.5">
-                                            <div className="font-medium text-slate-100">
-                                                {s.delivery_staff_name || '—'}
-                                            </div>
-                                            {s.delivery_staff_position ? (
-                                                <div className="mt-0.5 text-xs text-slate-500">
-                                                    {s.delivery_staff_position}
-                                                </div>
-                                            ) : null}
-                                        </td>
-                                        <td className="px-4 py-2.5 hidden md:table-cell">
-                                            <div className="font-mono text-xs text-slate-400">{s.delivery_staff_id}</div>
-                                            {s.delivery_staff_phone ? (
-                                                <div className="mt-0.5 text-xs text-slate-500">{s.delivery_staff_phone}</div>
-                                            ) : null}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-white">
-                                            {formatNumber(s.parcel_count)}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-emerald-300">
-                                            {formatNumber(s.delivered_count)}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-amber-300">
-                                            {formatNumber(s.pending_count)}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-red-300 hidden sm:table-cell">
-                                            {s.stuck_count > 0 ? formatNumber(s.stuck_count) : '—'}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-300 hidden lg:table-cell">
-                                            {s.cod_total > 0 ? `฿${formatCurrency(s.cod_total)}` : '—'}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                        })
+                                    }
+                                />
+                            );
+                        })}
+                    </div>
+                )}
             </CollapsibleSection>
 
             {selectedStaff ? (
@@ -715,6 +651,120 @@ function CodBucketTile({
                 <p className="font-mono text-[11px] text-slate-500">฿{formatCurrency(sum)}</p>
             ) : (
                 <p className="text-[11px] text-slate-600">—</p>
+            )}
+        </button>
+    );
+}
+
+function StaffCard({
+    initial,
+    name,
+    position,
+    parcelCount,
+    deliveredCount,
+    pendingCount,
+    stuckCount,
+    codTotal,
+    closedPct,
+    hasStuck,
+    onClick,
+}: {
+    initial: string;
+    name: string;
+    position: string | null;
+    parcelCount: number;
+    deliveredCount: number;
+    pendingCount: number;
+    stuckCount: number;
+    codTotal: number;
+    closedPct: number;
+    hasStuck: boolean;
+    onClick: () => void;
+}) {
+    // Border สีตามสถานะ
+    const borderClass = hasStuck
+        ? 'border-red-500/40 ring-1 ring-red-500/15'
+        : closedPct >= 90
+        ? 'border-emerald-500/30'
+        : pendingCount > 100
+        ? 'border-amber-500/30'
+        : 'border-slate-800/70';
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={`ดูรายละเอียดพนักงาน ${name}`}
+            className={`group flex flex-col gap-2 rounded-xl border bg-slate-900/40 p-2.5 text-left transition hover:bg-slate-900/80 hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ${borderClass}`}
+        >
+            {/* Header: avatar + name */}
+            <div className="flex items-center gap-2 min-w-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-200 ring-1 ring-slate-700">
+                    {initial}
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-slate-100" title={name}>
+                        {name}
+                    </p>
+                    {position ? (
+                        <p className="truncate text-[10px] text-slate-500">{position}</p>
+                    ) : null}
+                </div>
+                {hasStuck ? (
+                    <AlertTriangle className="h-3 w-3 shrink-0 text-red-400" aria-hidden />
+                ) : null}
+            </div>
+
+            {/* Big number: total */}
+            <div className="flex items-baseline gap-1.5">
+                <p className="font-mono text-xl font-black tabular-nums text-white">
+                    {formatNumber(parcelCount)}
+                </p>
+                <p className="text-[10px] text-slate-500">พัสดุ</p>
+                <p className="ml-auto font-mono text-[10px] text-slate-400">
+                    {closedPct.toFixed(0)}%
+                </p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
+                <div
+                    className={`h-full rounded-full transition-all ${
+                        closedPct >= 90
+                            ? 'bg-emerald-400'
+                            : closedPct >= 50
+                            ? 'bg-amber-400'
+                            : 'bg-slate-500'
+                    }`}
+                    style={{ width: `${Math.min(100, closedPct)}%` }}
+                />
+            </div>
+
+            {/* Stats inline */}
+            <div className="flex items-center justify-between text-[10px]">
+                <span className="inline-flex items-center gap-0.5 text-emerald-300" title="สำเร็จ">
+                    <CheckCircle2 className="h-2.5 w-2.5" aria-hidden />
+                    <span className="font-mono">{formatNumber(deliveredCount)}</span>
+                </span>
+                <span className="inline-flex items-center gap-0.5 text-amber-300" title="ค้าง">
+                    <Clock className="h-2.5 w-2.5" aria-hidden />
+                    <span className="font-mono">{formatNumber(pendingCount)}</span>
+                </span>
+                {stuckCount > 0 ? (
+                    <span className="inline-flex items-center gap-0.5 text-red-300" title="ตกค้าง">
+                        <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
+                        <span className="font-mono">{formatNumber(stuckCount)}</span>
+                    </span>
+                ) : null}
+            </div>
+
+            {/* COD */}
+            {codTotal > 0 ? (
+                <p className="font-mono text-[10px] text-slate-400 truncate" title={`COD ฿${formatCurrency(codTotal)}`}>
+                    COD <span className="text-emerald-300 font-semibold">฿{formatCurrency(codTotal)}</span>
+                </p>
+            ) : (
+                <p className="text-[10px] text-slate-600">— ไม่มี COD —</p>
             )}
         </button>
     );
