@@ -11,6 +11,9 @@ import {
     Cloud,
     Trash2,
     FileSpreadsheet,
+    Clock,
+    RotateCw,
+    Hourglass,
 } from 'lucide-react';
 import { useUploadJobs, type UploadJob } from '@app/admin/context/UploadJobsContext';
 import { JOB_KIND_LABEL, JOB_KIND_ICON, type JobKind } from '@/lib/uploadJobs';
@@ -18,8 +21,10 @@ import { JOB_KIND_LABEL, JOB_KIND_ICON, type JobKind } from '@/lib/uploadJobs';
 /**
  * UploadJobsTray — floating tray มุมขวาล่างของ admin layout
  *
- * Phase 3.7 polish — gradient header, icon tiles, smooth animations,
- * pill status badges, progress indicator for processing jobs
+ * Phase 3.7+ Smart Queue
+ *   • รองรับ status 'queued' (รอคิว + รอ retry)
+ *   • แสดง queue position + retry countdown
+ *   • Manual retry button สำหรับ final error
  */
 
 function formatDuration(ms: number): string {
@@ -30,46 +35,62 @@ function formatDuration(ms: number): string {
     return `${min}:${s.toString().padStart(2, '0')}`;
 }
 
-// สีตาม kind สำหรับ icon container
 function kindAccent(kind: JobKind): { bg: string; ring: string; text: string } {
     switch (kind) {
         case 'jt_parcel':
-            return {
-                bg: 'bg-orange-500/15',
-                ring: 'ring-orange-500/30',
-                text: 'text-orange-300',
-            };
+            return { bg: 'bg-orange-500/15', ring: 'ring-orange-500/30', text: 'text-orange-300' };
         case 'jt_shipment':
-            return {
-                bg: 'bg-sky-500/15',
-                ring: 'ring-sky-500/30',
-                text: 'text-sky-300',
-            };
+            return { bg: 'bg-sky-500/15', ring: 'ring-sky-500/30', text: 'text-sky-300' };
         case 'tiktok':
-            return {
-                bg: 'bg-emerald-500/15',
-                ring: 'ring-emerald-500/30',
-                text: 'text-emerald-300',
-            };
+            return { bg: 'bg-emerald-500/15', ring: 'ring-emerald-500/30', text: 'text-emerald-300' };
     }
 }
 
 type StatusVisual = {
     icon: React.ReactNode;
     label: string;
-    badgeClass: string;        // pill background + text
-    leftStripClass: string;    // colored vertical strip ที่ขอบซ้ายของ tile
+    badgeClass: string;
+    leftStripClass: string;
     showProgress: boolean;
 };
 
-function statusVisual(status: UploadJob['status']): StatusVisual {
-    switch (status) {
+function statusVisual(
+    job: UploadJob,
+    queuePosition: number | null,
+    now: number,
+): StatusVisual {
+    switch (job.status) {
+        case 'queued': {
+            const isRetry = job.retryAt !== undefined && job.retryCount > 0;
+            const secsToRetry =
+                isRetry && job.retryAt ? Math.max(0, Math.ceil((job.retryAt - now) / 1000)) : 0;
+
+            if (isRetry) {
+                return {
+                    icon: <RotateCw className="h-3 w-3 animate-spin" aria-hidden />,
+                    label:
+                        secsToRetry > 0
+                            ? `ลองใหม่ใน ${secsToRetry}s (${job.retryCount}/2)`
+                            : `กำลังลองใหม่ (${job.retryCount}/2)`,
+                    badgeClass: 'bg-amber-500/20 text-amber-200 ring-amber-500/40',
+                    leftStripClass: 'bg-amber-400',
+                    showProgress: false,
+                };
+            }
+            return {
+                icon: <Hourglass className="h-3 w-3" aria-hidden />,
+                label: queuePosition !== null ? `รอคิว #${queuePosition}` : 'รอคิว',
+                badgeClass: 'bg-slate-700/80 text-slate-200 ring-slate-600/50',
+                leftStripClass: 'bg-slate-500',
+                showProgress: false,
+            };
+        }
         case 'uploading':
             return {
                 icon: <Loader2 className="h-3 w-3 animate-spin" aria-hidden />,
                 label: 'กำลังส่ง',
                 badgeClass: 'bg-slate-700/80 text-slate-200 ring-slate-600/50',
-                leftStripClass: 'bg-slate-500',
+                leftStripClass: 'bg-slate-400',
                 showProgress: true,
             };
         case 'processing':
@@ -98,7 +119,7 @@ function statusVisual(status: UploadJob['status']): StatusVisual {
             };
         case 'timeout':
             return {
-                icon: <AlertCircle className="h-3 w-3" aria-hidden />,
+                icon: <Clock className="h-3 w-3" aria-hidden />,
                 label: 'หมดเวลา',
                 badgeClass: 'bg-red-500/20 text-red-200 ring-red-500/40',
                 leftStripClass: 'bg-red-400',
@@ -108,23 +129,34 @@ function statusVisual(status: UploadJob['status']): StatusVisual {
 }
 
 export default function UploadJobsTray() {
-    const { jobs, activeCount, dismissJob, clearFinished } = useUploadJobs();
+    const { jobs, activeCount, queuedCount, dismissJob, retryJob, clearFinished } =
+        useUploadJobs();
     const [expanded, setExpanded] = useState(true);
     const [now, setNow] = useState(() => Date.now());
 
-    // Live timer (1s) — update duration ตอนมี job active
+    // Live timer — update queued countdowns + duration counters
     useEffect(() => {
         if (jobs.length === 0) return;
         const id = setInterval(() => setNow(Date.now()), 1_000);
         return () => clearInterval(id);
     }, [jobs.length]);
 
-    // Auto-expand เมื่อมี job ใหม่เริ่ม
     useEffect(() => {
-        if (activeCount > 0) setExpanded(true);
-    }, [activeCount]);
+        if (activeCount + queuedCount > 0) setExpanded(true);
+    }, [activeCount, queuedCount]);
 
     if (jobs.length === 0) return null;
+
+    // คำนวณ queue position สำหรับ jobs ที่ status='queued' (ไม่มี retryAt)
+    // → จัดลำดับ FIFO ตาม index
+    const queuePositions = new Map<string, number>();
+    let pos = 1;
+    for (const j of jobs) {
+        if (j.status === 'queued' && !j.retryAt) {
+            queuePositions.set(j.requestId, pos);
+            pos += 1;
+        }
+    }
 
     const finishedCount = jobs.filter(
         (j) => j.status === 'success' || j.status === 'error' || j.status === 'timeout',
@@ -137,7 +169,7 @@ export default function UploadJobsTray() {
             aria-label="สถานะการอัปโหลด"
         >
             <div className="pointer-events-auto overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/95 shadow-2xl shadow-black/60 ring-1 ring-white/[0.05] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-300">
-                {/* Header — gradient + larger */}
+                {/* Header */}
                 <button
                     type="button"
                     onClick={() => setExpanded((v) => !v)}
@@ -157,12 +189,16 @@ export default function UploadJobsTray() {
                             <p className="text-sm font-bold text-white">งานอัปโหลด</p>
                             <p className="text-[11px] text-slate-400">
                                 {activeCount > 0 ? (
-                                    <span className="text-amber-300">
-                                        {activeCount} กำลังทำงาน
-                                    </span>
+                                    <span className="text-amber-300">{activeCount} กำลังทำงาน</span>
                                 ) : (
                                     <span>เสร็จแล้ว {finishedCount}</span>
                                 )}
+                                {queuedCount > 0 ? (
+                                    <>
+                                        <span className="mx-1 text-slate-600">·</span>
+                                        <span className="text-slate-300">{queuedCount} รอคิว</span>
+                                    </>
+                                ) : null}
                                 <span className="mx-1 text-slate-600">·</span>
                                 <span className="text-slate-500">รวม {jobs.length}</span>
                             </p>
@@ -181,7 +217,8 @@ export default function UploadJobsTray() {
                     <>
                         <ul className="max-h-[60vh] divide-y divide-slate-800/40 overflow-y-auto">
                             {jobs.map((job) => {
-                                const v = statusVisual(job.status);
+                                const queuePos = queuePositions.get(job.requestId) ?? null;
+                                const v = statusVisual(job, queuePos, now);
                                 const accent = kindAccent(job.kind);
                                 const elapsedMs = (job.finishedAt ?? now) - job.startedAt;
                                 const affected =
@@ -192,19 +229,21 @@ export default function UploadJobsTray() {
                                     job.status === 'success' ||
                                     job.status === 'error' ||
                                     job.status === 'timeout';
+                                const canRetry =
+                                    (job.status === 'error' || job.status === 'timeout') &&
+                                    job.file !== undefined;
+
                                 return (
                                     <li
                                         key={job.requestId}
                                         className="group relative animate-in fade-in slide-in-from-right-2 duration-200"
                                     >
-                                        {/* Left vertical strip ตามสถานะ */}
                                         <div
                                             className={`absolute left-0 top-0 h-full w-0.5 ${v.leftStripClass}`}
                                             aria-hidden
                                         />
 
                                         <div className="flex gap-3 px-4 py-3 pl-5">
-                                            {/* Icon container */}
                                             <div
                                                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base ring-1 ${accent.bg} ${accent.ring}`}
                                                 aria-hidden
@@ -212,7 +251,6 @@ export default function UploadJobsTray() {
                                                 {JOB_KIND_ICON[job.kind]}
                                             </div>
 
-                                            {/* Body */}
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <p
@@ -255,7 +293,6 @@ export default function UploadJobsTray() {
                                                     ) : null}
                                                 </div>
 
-                                                {/* Error message */}
                                                 {(job.status === 'error' || job.status === 'timeout') &&
                                                 job.error ? (
                                                     <p className="mt-1.5 line-clamp-2 rounded-md bg-red-950/40 px-2 py-1 text-[10.5px] leading-relaxed text-red-200/90">
@@ -263,7 +300,6 @@ export default function UploadJobsTray() {
                                                     </p>
                                                 ) : null}
 
-                                                {/* Progress bar (uploading / processing) */}
                                                 {v.showProgress ? (
                                                     <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-800/80">
                                                         <div
@@ -275,9 +311,20 @@ export default function UploadJobsTray() {
                                                         />
                                                     </div>
                                                 ) : null}
+
+                                                {/* Action row: manual retry */}
+                                                {canRetry ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => retryJob(job.requestId)}
+                                                        className="mt-2 inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-200 transition hover:bg-amber-500/20"
+                                                    >
+                                                        <RotateCw className="h-3 w-3" aria-hidden />
+                                                        ลองใหม่
+                                                    </button>
+                                                ) : null}
                                             </div>
 
-                                            {/* Dismiss button */}
                                             {canDismiss ? (
                                                 <button
                                                     type="button"
