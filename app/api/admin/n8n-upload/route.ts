@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdminApiAuth } from '@/lib/adminApiAuth';
+import { requireAdminApiAuth, getAdminApiAccess } from '@/lib/adminApiAuth';
+import { createUploadJob, markUploadJobError } from '@/lib/uploadJobs';
 
 /**
- * โพรซี multipart ไปยัง n8n Webhook — เก็บ URL ใน NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL
- * Query: ?filename=... (แนบชื่อไฟล์ให้ n8n ใช้ตั้งชื่อเมื่อบันทึก)
- * Body: multipart/form-data ฟิลด์ `file`
- * ขีดจำกัดขนาดคำขอขึ้นกับโฮสต์ (เช่น Vercel Serverless ~4.5 MB) — ให้ตั้ง NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB ใน client ให้ตรงกับขีดจำกัดจริงเพื่อข้อความแจ้งเตือนที่ถูกต้อง
+ * โพรซี multipart ไปยัง n8n Webhook สำหรับนำเข้า J&T Shipments
  *
- * หมายเหตุ timeout: route นี้รอ n8n ประมวลผลแบบ sync — ถ้า n8n ตั้ง webhook เป็น
- * "respond when last node finishes" และไฟล์ใหญ่ อาจใช้เวลานาน. ตั้ง maxDuration ให้
- * Vercel function รันได้สูงสุด (300s บน Pro) และ abort ก่อนเล็กน้อยเพื่อคืน error ที่
- * อ่านง่ายแทนถูกฆ่ากลางทาง. ทางแก้ที่ถาวรกว่าคือตั้ง n8n เป็น "Respond Immediately".
+ * Phase 3.7 — Async job tracking (uploadJobs.ts)
+ * Webhook URL: NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL
+ *
+ * n8n workflow ต้อง:
+ *   1. รับ query param request_id
+ *   2. หลังประมวลผลเสร็จ ยิง POST callback ไป
+ *      /api/admin/jt-warehouse/upload-callback พร้อม Bearer N8N_UPLOAD_CALLBACK_SECRET
  */
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
     const denied = await requireAdminApiAuth('admin-or-staff', request);
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (!webhookBase) {
         return NextResponse.json(
             { error: 'ยังไม่ได้ตั้งค่า NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL บนเซิร์ฟเวอร์' },
-            { status: 500 }
+            { status: 500 },
         );
     }
 
@@ -33,11 +34,7 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) {
         return NextResponse.json({ error: 'ไม่พบไฟล์ในแบบฟอร์ม (ต้องใช้ฟิลด์ชื่อ file)' }, { status: 400 });
     }
-
-    if (!filename) {
-        filename = file.name || 'upload.bin';
-    }
-
+    if (!filename) filename = file.name || 'upload.bin';
     if (file.size === 0) {
         return NextResponse.json({ error: 'ไฟล์ว่างเปล่า' }, { status: 400 });
     }
@@ -49,7 +46,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL ไม่ถูกต้อง' }, { status: 500 });
     }
 
+    const access = await getAdminApiAccess(request);
+
+    let job: { requestId: string; jobId: string };
+    try {
+        job = await createUploadJob({
+            kind: 'jt_shipment',
+            fileName: filename,
+            triggeredBy: { email: access.email, role: access.role },
+        });
+    } catch (e) {
+        return NextResponse.json(
+            { error: e instanceof Error ? e.message : 'สร้าง job ไม่สำเร็จ' },
+            { status: 500 },
+        );
+    }
+
     target.searchParams.set('filename', filename);
+    target.searchParams.set('request_id', job.requestId);
 
     const outbound = new FormData();
     outbound.append('file', file, file.name);
@@ -58,22 +72,32 @@ export async function POST(request: NextRequest) {
         const upstream = await fetch(target.toString(), {
             method: 'POST',
             body: outbound,
-            // abort ก่อน maxDuration (300s) เล็กน้อย เพื่อคืน error ที่อ่านง่ายแทนถูก Vercel ฆ่า
-            signal: AbortSignal.timeout(290_000),
+            signal: AbortSignal.timeout(30_000),
         });
 
-        const bodyText = await upstream.text();
-        const contentType = upstream.headers.get('Content-Type') || 'application/json';
+        if (!upstream.ok) {
+            const errBody = await upstream.text();
+            const msg = `n8n ตอบ ${upstream.status}: ${errBody.slice(0, 500)}`;
+            await markUploadJobError(job.requestId, msg);
+            return NextResponse.json(
+                { request_id: job.requestId, job_id: job.jobId, status: 'error', error: msg },
+                { status: 502 },
+            );
+        }
 
-        return new NextResponse(bodyText, {
-            status: upstream.status,
-            headers: {
-                'Content-Type': contentType.startsWith('text/') ? 'text/plain; charset=utf-8' : contentType,
-            },
+        return NextResponse.json({
+            request_id: job.requestId,
+            job_id: job.jobId,
+            status: 'processing',
+            message: 'รับไฟล์เรียบร้อย ระบบกำลังประมวลผล',
         });
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Upstream error';
         console.error('[n8n-upload]', msg);
-        return NextResponse.json({ error: `ส่งไป n8n ไม่สำเร็จ: ${msg}` }, { status: 502 });
+        await markUploadJobError(job.requestId, `ส่งไป n8n ไม่สำเร็จ: ${msg}`);
+        return NextResponse.json(
+            { request_id: job.requestId, job_id: job.jobId, status: 'error', error: msg },
+            { status: 502 },
+        );
     }
 }
