@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         .from('jt_upload_jobs')
         .update(updatePayload)
         .eq('request_id', requestId)
-        .select('id, request_id, status')
+        .select('id, request_id, status, kind, started_at')
         .maybeSingle();
 
     if (error) {
@@ -110,6 +110,45 @@ export async function POST(request: NextRequest) {
 
     if (!data) {
         return NextResponse.json({ error: 'request_id ไม่พบในระบบ' }, { status: 404 });
+    }
+
+    // 5. อัปเดต auto_sync_health — track สถานะ sync ต่อ portal
+    //    (best-effort, ถ้าพังก็ไม่ block callback)
+    try {
+        const affectedRows =
+            typeof body.affected_rows === 'number' ? body.affected_rows : null;
+        const healthPatch: Record<string, unknown> = {
+            kind: data.kind,
+            last_started_at: data.started_at,
+            last_finished_at: new Date().toISOString(),
+            last_status: status,
+            last_request_id: requestId,
+        };
+        if (affectedRows !== null) healthPatch.last_affected_rows = affectedRows;
+        if (status === 'error' && typeof body.error === 'string') {
+            healthPatch.last_error = body.error.slice(0, 2000);
+        } else if (status === 'success') {
+            healthPatch.last_error = null;
+        }
+
+        await supabaseAdmin
+            .from('auto_sync_health')
+            .upsert(healthPatch, { onConflict: 'kind' });
+
+        // Increment counters (separate RPC — atomic)
+        const counterField =
+            status === 'success' ? 'success_count_today' : 'error_count_today';
+        try {
+            await supabaseAdmin.rpc('increment_auto_sync_counter', {
+                p_kind: data.kind,
+                p_field: counterField,
+            });
+        } catch {
+            /* ignore — RPC อาจยังไม่ได้ apply */
+        }
+    } catch (e) {
+        // Health update ไม่ critical — log แล้วผ่าน
+        console.error('[upload-callback] health update error:', e);
     }
 
     return NextResponse.json({ ok: true, job_id: data.id, status: data.status });
