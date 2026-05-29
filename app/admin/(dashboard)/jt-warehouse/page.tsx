@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@app/lib/supabaseAdmin';
 import { AdminPageHeader } from '@app/admin/components/AdminPageHeader';
 import ToastListener from '@app/admin/components/ToastListener';
+import { AutoSyncHealthCard } from '@app/admin/components/AutoSyncHealthCard';
 import { JtParcelN8nUpload } from './JtParcelN8nUpload';
 import { BranchStaffView } from './BranchStaffView';
 
@@ -138,6 +139,8 @@ export default async function JtWarehousePage({ searchParams }: Props) {
                     โหลดข้อมูลล้มเหลว: {anyError.message}
                 </div>
             ) : null}
+
+            <AutoSyncHealthCard kind="jt_parcel" />
 
             <BranchStaffView
                 branches={branches}

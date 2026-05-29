@@ -19,14 +19,23 @@ import {
 } from '@/lib/uploadJobs';
 
 /**
- * UploadJobsProvider — global tracking ของ upload jobs ทั้งระบบ
+ * UploadJobsProvider — global tracking + smart queue + auto-retry
  *
- * Lifecycle ของ job ใน UI:
- *   1. submitUpload({kind, file}) — POST → กำลัง upload
- *   2. หลัง POST สำเร็จ — ได้ request_id → status='processing'
- *   3. Polling /api/admin/jt-warehouse/upload-jobs?request_id=... ทุก 2 วินาที
- *   4. n8n callback → DB row update → poll เห็น status เปลี่ยน → broadcast toast
- *   5. หลัง finished — เหลือไว้ใน tray 10 วินาที (admin เห็นผล) → auto-dismiss
+ * Phase 3.7+ — Concurrency + Retry rules:
+ *   • MAX_CONCURRENT = 2     — รัน upload พร้อมกันสูงสุด 2 (test แล้วว่าไม่ทำให้ server พัง)
+ *   • MAX_RETRIES = 2        — retry อัตโนมัติ 2 ครั้งเมื่อ error
+ *   • RETRY_DELAY_MS = 30s   — รอ 30 วินาทีก่อน retry (ให้ server cool down)
+ *
+ * State machine:
+ *   queued (in queue หรือ waiting for retry)
+ *     ↓ slot available
+ *   uploading (POST in progress)
+ *     ↓ POST OK
+ *   processing (รอ n8n callback)
+ *     ↓
+ *   success / error / timeout
+ *
+ *   หาก error/timeout + retries left → กลับเป็น queued (with retryAt)
  */
 
 const UPLOAD_ENDPOINTS: Record<JobKind, string> = {
@@ -35,19 +44,24 @@ const UPLOAD_ENDPOINTS: Record<JobKind, string> = {
     tiktok: '/api/admin/tiktok-n8n-upload',
 };
 
+const MAX_CONCURRENT = 2;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 30_000;
 const POLL_INTERVAL_MS = 2_000;
+const QUEUE_TICK_MS = 1_000;
 const AUTO_DISMISS_MS = 10_000;
-const JOB_TIMEOUT_MS = 5 * 60_000; // 5 นาที — ถ้า n8n ไม่ callback = ถือว่า timeout
+const JOB_TIMEOUT_MS = 5 * 60_000;
 
 export type UiJobStatus =
-    | 'uploading'   // ระหว่าง POST upload route
-    | 'processing'  // หลัง POST OK รอ n8n callback
+    | 'queued'      // รอคิว หรือ รอ retry (ดู retryAt)
+    | 'uploading'   // POST upload route in progress
+    | 'processing'  // POST OK รอ n8n callback
     | 'success'
     | 'error'
     | 'timeout';
 
 export type UploadJob = {
-    requestId: string;       // เป็น 'temp-<uuid>' จนกว่าจะได้ id จริงจาก server
+    requestId: string;
     kind: JobKind;
     fileName: string;
     status: UiJobStatus;
@@ -55,7 +69,11 @@ export type UploadJob = {
     finishedAt?: number;
     stats?: Record<string, unknown> | null;
     error?: string | null;
-    autoDismissAt?: number;  // Date.now() ที่จะ auto-dismiss
+    autoDismissAt?: number;
+    // Queue + retry
+    file?: File;             // เก็บไว้สำหรับ retry — clear หลัง success/exhausted
+    retryCount: number;      // 0..MAX_RETRIES
+    retryAt?: number;        // ถ้า status='queued' + retryAt set → รอเวลา retry
 };
 
 type SubmitResult = { requestId: string } | { error: string };
@@ -63,8 +81,10 @@ type SubmitResult = { requestId: string } | { error: string };
 type ContextValue = {
     jobs: UploadJob[];
     activeCount: number;
+    queuedCount: number;
     submitUpload: (args: { kind: JobKind; file: File }) => Promise<SubmitResult>;
     dismissJob: (requestId: string) => void;
+    retryJob: (requestId: string) => void;
     clearFinished: () => void;
 };
 
@@ -80,13 +100,27 @@ export function useUploadJobs(): ContextValue {
 
 export function UploadJobsProvider({ children }: { children: ReactNode }) {
     const router = useRouter();
-    const { showSuccess, showError } = useToast();
+    const { showSuccess, showError, showInfo } = useToast();
 
     const [jobs, setJobs] = useState<UploadJob[]>([]);
     const jobsRef = useRef<UploadJob[]>([]);
     jobsRef.current = jobs;
 
-    // Helper: mutate single job
+    // ทำให้ใช้ใน async callbacks ได้ (กัน stale closure)
+    const showSuccessRef = useRef(showSuccess);
+    const showErrorRef = useRef(showError);
+    const showInfoRef = useRef(showInfo);
+    showSuccessRef.current = showSuccess;
+    showErrorRef.current = showError;
+    showInfoRef.current = showInfo;
+
+    const routerRef = useRef(router);
+    routerRef.current = router;
+
+    // ─────────────────────────────────────────────────────────────
+    // Mutations
+    // ─────────────────────────────────────────────────────────────
+
     const updateJob = useCallback(
         (requestId: string, patch: Partial<UploadJob>) => {
             setJobs((prev) =>
@@ -101,136 +135,235 @@ export function UploadJobsProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const clearFinished = useCallback(() => {
-        setJobs((prev) => prev.filter((j) => j.status === 'uploading' || j.status === 'processing'));
+        setJobs((prev) =>
+            prev.filter(
+                (j) =>
+                    j.status === 'uploading' ||
+                    j.status === 'processing' ||
+                    j.status === 'queued',
+            ),
+        );
     }, []);
 
-    // --- submitUpload ----------------------------------------------
+    /**
+     * Manual retry — admin กดปุ่ม retry บน job ที่ final error
+     * Reset retryCount = 0 → ใส่ queue ใหม่
+     */
+    const retryJob = useCallback((requestId: string) => {
+        setJobs((prev) =>
+            prev.map((j) => {
+                if (j.requestId !== requestId) return j;
+                if (!j.file) return j; // ไม่มี file แล้ว — ไม่ retry
+                return {
+                    ...j,
+                    status: 'queued',
+                    retryCount: 0,
+                    retryAt: undefined,
+                    error: null,
+                    finishedAt: undefined,
+                    autoDismissAt: undefined,
+                };
+            }),
+        );
+    }, []);
+
+    // ─────────────────────────────────────────────────────────────
+    // Upload trigger (called by queue drainer)
+    // ─────────────────────────────────────────────────────────────
+
+    const triggerUploadJob = useCallback(async (job: UploadJob) => {
+        if (!job.file) {
+            // ไม่มี file (อาจถูก clear) — mark final error
+            setJobs((prev) =>
+                prev.map((j) =>
+                    j.requestId === job.requestId
+                        ? {
+                              ...j,
+                              status: 'error',
+                              error: 'ไฟล์ถูกล้างไป — กดอัปโหลดใหม่',
+                              finishedAt: Date.now(),
+                              autoDismissAt: Date.now() + AUTO_DISMISS_MS,
+                          }
+                        : j,
+                ),
+            );
+            return;
+        }
+
+        const file = job.file;
+
+        // Update status → uploading + reset startedAt (สำหรับ timeout)
+        setJobs((prev) =>
+            prev.map((j) =>
+                j.requestId === job.requestId
+                    ? { ...j, status: 'uploading', startedAt: Date.now(), retryAt: undefined }
+                    : j,
+            ),
+        );
+
+        const endpoint = UPLOAD_ENDPOINTS[job.kind];
+        const fd = new FormData();
+        fd.append('file', file);
+        const url = `${endpoint}?filename=${encodeURIComponent(file.name)}`;
+
+        try {
+            const res = await fetch(url, { method: 'POST', body: fd, credentials: 'include' });
+            const text = await res.text();
+            let parsed: unknown;
+            try { parsed = JSON.parse(text); } catch { parsed = text; }
+
+            if (!res.ok) {
+                const errMsg =
+                    typeof parsed === 'object' && parsed !== null && 'error' in parsed
+                        ? String((parsed as { error: string }).error)
+                        : text.slice(0, 500);
+                handleJobError(job.requestId, errMsg);
+                return;
+            }
+
+            const payload =
+                typeof parsed === 'object' && parsed !== null
+                    ? (parsed as Record<string, unknown>)
+                    : {};
+            const realRequestId =
+                typeof payload.request_id === 'string' ? payload.request_id : null;
+
+            if (!realRequestId) {
+                handleJobError(job.requestId, 'server ไม่ส่ง request_id');
+                return;
+            }
+
+            // Swap to real request_id + processing
+            setJobs((prev) =>
+                prev.map((j) =>
+                    j.requestId === job.requestId
+                        ? { ...j, requestId: realRequestId, status: 'processing' }
+                        : j,
+                ),
+            );
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            handleJobError(job.requestId, msg);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    /**
+     * Handle error during upload or processing.
+     * ถ้า retries left → schedule retry (status=queued + retryAt)
+     * ถ้าเต็ม retry → final error + showError toast + clear file
+     */
+    const handleJobError = useCallback((requestId: string, errorMsg: string) => {
+        setJobs((prev) =>
+            prev.map((j) => {
+                if (j.requestId !== requestId) return j;
+                if (j.retryCount < MAX_RETRIES && j.file) {
+                    // Schedule retry
+                    showInfoRef.current(
+                        `${JOB_KIND_LABEL[j.kind]}: จะลองใหม่ใน 30 วินาที (${j.retryCount + 1}/${MAX_RETRIES})`,
+                    );
+                    return {
+                        ...j,
+                        status: 'queued',
+                        retryAt: Date.now() + RETRY_DELAY_MS,
+                        retryCount: j.retryCount + 1,
+                        error: errorMsg,
+                    };
+                }
+                // Final error
+                showErrorRef.current(
+                    `${JOB_KIND_LABEL[j.kind]}: ${errorMsg.slice(0, 100)}`,
+                );
+                return {
+                    ...j,
+                    status: 'error',
+                    file: undefined,
+                    finishedAt: Date.now(),
+                    error: errorMsg,
+                    autoDismissAt: Date.now() + AUTO_DISMISS_MS,
+                };
+            }),
+        );
+    }, []);
+
+    // ─────────────────────────────────────────────────────────────
+    // submitUpload — entry point
+    // ─────────────────────────────────────────────────────────────
+
     const submitUpload = useCallback(
         async ({ kind, file }: { kind: JobKind; file: File }): Promise<SubmitResult> => {
-            // 1. สร้าง local job ก่อน (UI feedback ทันที)
             const tempId = `temp-${crypto.randomUUID()}`;
-            const startedAt = Date.now();
-            setJobs((prev) => [
-                ...prev,
-                {
-                    requestId: tempId,
-                    kind,
-                    fileName: file.name,
-                    status: 'uploading',
-                    startedAt,
-                },
-            ]);
+            const now = Date.now();
 
-            // 2. ส่ง POST
-            const endpoint = UPLOAD_ENDPOINTS[kind];
-            const fd = new FormData();
-            fd.append('file', file);
-            const url = `${endpoint}?filename=${encodeURIComponent(file.name)}`;
+            const activeCount = jobsRef.current.filter(
+                (j) => j.status === 'uploading' || j.status === 'processing',
+            ).length;
 
-            try {
-                const res = await fetch(url, { method: 'POST', body: fd, credentials: 'include' });
-                const text = await res.text();
-                let parsed: unknown;
-                try { parsed = JSON.parse(text); } catch { parsed = text; }
+            const initialStatus: UiJobStatus = activeCount < MAX_CONCURRENT ? 'queued' : 'queued';
 
-                if (!res.ok) {
-                    const errMsg =
-                        typeof parsed === 'object' && parsed !== null && 'error' in parsed
-                            ? String((parsed as { error: string }).error)
-                            : text.slice(0, 500);
-                    // mark error
-                    setJobs((prev) =>
-                        prev.map((j) =>
-                            j.requestId === tempId
-                                ? {
-                                      ...j,
-                                      status: 'error',
-                                      finishedAt: Date.now(),
-                                      error: errMsg,
-                                      autoDismissAt: Date.now() + AUTO_DISMISS_MS,
-                                  }
-                                : j,
-                        ),
-                    );
-                    showError(`อัปโหลด ${JOB_KIND_LABEL[kind]} ไม่สำเร็จ: ${errMsg}`);
-                    return { error: errMsg };
-                }
+            const newJob: UploadJob = {
+                requestId: tempId,
+                kind,
+                fileName: file.name,
+                status: initialStatus,
+                startedAt: now,
+                file,
+                retryCount: 0,
+            };
 
-                // 3. รับ request_id → swap tempId → realId, set processing
-                const payload = (typeof parsed === 'object' && parsed !== null
-                    ? (parsed as Record<string, unknown>)
-                    : {}) as Record<string, unknown>;
-                const realRequestId =
-                    typeof payload.request_id === 'string' ? payload.request_id : null;
+            setJobs((prev) => [...prev, newJob]);
 
-                if (!realRequestId) {
-                    const msg = 'server ไม่ส่ง request_id กลับมา';
-                    setJobs((prev) =>
-                        prev.map((j) =>
-                            j.requestId === tempId
-                                ? {
-                                      ...j,
-                                      status: 'error',
-                                      finishedAt: Date.now(),
-                                      error: msg,
-                                      autoDismissAt: Date.now() + AUTO_DISMISS_MS,
-                                  }
-                                : j,
-                        ),
-                    );
-                    showError(`อัปโหลด ${JOB_KIND_LABEL[kind]} ไม่สำเร็จ: ${msg}`);
-                    return { error: msg };
-                }
-
-                setJobs((prev) =>
-                    prev.map((j) =>
-                        j.requestId === tempId
-                            ? { ...j, requestId: realRequestId, status: 'processing' }
-                            : j,
-                    ),
-                );
-
-                return { requestId: realRequestId };
-            } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e);
-                setJobs((prev) =>
-                    prev.map((j) =>
-                        j.requestId === tempId
-                            ? {
-                                  ...j,
-                                  status: 'error',
-                                  finishedAt: Date.now(),
-                                  error: msg,
-                                  autoDismissAt: Date.now() + AUTO_DISMISS_MS,
-                              }
-                            : j,
-                    ),
-                );
-                showError(`อัปโหลด ${JOB_KIND_LABEL[kind]} ไม่สำเร็จ: ${msg}`);
-                return { error: msg };
-            }
+            // Queue drainer (useEffect) จะ pick up ภายใน 1 วินาที
+            return { requestId: tempId };
         },
-        [showError],
+        [],
     );
 
-    // --- Polling loop -----------------------------------------------
+    // ─────────────────────────────────────────────────────────────
+    // Queue drainer — ทุก 1 วินาที check ว่ามี slot ไหม + queued job พร้อมเริ่มไหม
+    // ─────────────────────────────────────────────────────────────
+
+    useEffect(() => {
+        const id = setInterval(() => {
+            const currentJobs = jobsRef.current;
+            const activeCount = currentJobs.filter(
+                (j) => j.status === 'uploading' || j.status === 'processing',
+            ).length;
+
+            const slots = MAX_CONCURRENT - activeCount;
+            if (slots <= 0) return;
+
+            const now = Date.now();
+            const readyToStart = currentJobs
+                .filter((j) => j.status === 'queued' && (!j.retryAt || j.retryAt <= now))
+                .slice(0, slots);
+
+            readyToStart.forEach((job) => {
+                triggerUploadJob(job);
+            });
+        }, QUEUE_TICK_MS);
+
+        return () => clearInterval(id);
+    }, [triggerUploadJob]);
+
+    // ─────────────────────────────────────────────────────────────
+    // Polling loop — เช็คสถานะของ processing jobs
+    // ─────────────────────────────────────────────────────────────
+
     useEffect(() => {
         const id = setInterval(async () => {
             const processingJobs = jobsRef.current.filter((j) => j.status === 'processing');
             if (processingJobs.length === 0) return;
 
-            // Poll พร้อมกันทุก job
             await Promise.all(
                 processingJobs.map(async (job) => {
                     // Timeout check
                     if (Date.now() - job.startedAt > JOB_TIMEOUT_MS) {
-                        updateJob(job.requestId, {
-                            status: 'timeout',
-                            finishedAt: Date.now(),
-                            error: 'ไม่ได้รับการตอบกลับจากระบบใน 5 นาที',
-                            autoDismissAt: Date.now() + AUTO_DISMISS_MS,
-                        });
-                        showError(`${JOB_KIND_LABEL[job.kind]}: timeout`);
+                        // Use handleJobError ให้ retry logic ทำงาน
+                        handleJobError(
+                            job.requestId,
+                            'ไม่ได้รับการตอบกลับจากระบบใน 5 นาที',
+                        );
                         return;
                     }
 
@@ -252,68 +385,83 @@ export function UploadJobsProvider({ children }: { children: ReactNode }) {
                         if (!remote) return;
 
                         if (remote.status === 'success') {
-                            updateJob(job.requestId, {
-                                status: 'success',
-                                finishedAt: remote.finished_at
-                                    ? new Date(remote.finished_at).getTime()
-                                    : Date.now(),
-                                stats: remote.stats,
-                                autoDismissAt: Date.now() + AUTO_DISMISS_MS,
-                            });
                             const affected =
                                 remote.stats && typeof remote.stats.affected_rows === 'number'
                                     ? (remote.stats.affected_rows as number)
                                     : null;
-                            showSuccess(
-                                affected !== null
-                                    ? `${JOB_KIND_LABEL[job.kind]}: นำเข้า ${affected.toLocaleString('th-TH')} รายการ`
-                                    : `${JOB_KIND_LABEL[job.kind]}: เสร็จสิ้น`,
-                            );
-                            router.refresh();
-                        } else if (remote.status === 'error' || remote.status === 'timeout') {
                             updateJob(job.requestId, {
-                                status: remote.status === 'timeout' ? 'timeout' : 'error',
+                                status: 'success',
+                                file: undefined,
                                 finishedAt: remote.finished_at
                                     ? new Date(remote.finished_at).getTime()
                                     : Date.now(),
                                 stats: remote.stats,
-                                error: remote.error,
                                 autoDismissAt: Date.now() + AUTO_DISMISS_MS,
                             });
-                            showError(
-                                `${JOB_KIND_LABEL[job.kind]}: ${remote.error || 'ผิดพลาด'}`,
+                            showSuccessRef.current(
+                                affected !== null
+                                    ? `${JOB_KIND_LABEL[job.kind]}: นำเข้า ${affected.toLocaleString('th-TH')} รายการ`
+                                    : `${JOB_KIND_LABEL[job.kind]}: เสร็จสิ้น`,
+                            );
+                            routerRef.current.refresh();
+                        } else if (remote.status === 'error' || remote.status === 'timeout') {
+                            handleJobError(
+                                job.requestId,
+                                remote.error || 'ระบบแจ้งข้อผิดพลาด',
                             );
                         }
                     } catch {
-                        // network error — retry รอบหน้า
+                        // network error — retry รอบหน้า (พึ่ง polling tick ใหม่)
                     }
                 }),
             );
         }, POLL_INTERVAL_MS);
 
         return () => clearInterval(id);
-    }, [updateJob, showError, showSuccess, router]);
+    }, [updateJob, handleJobError]);
 
-    // --- Auto-dismiss finished jobs ----------------------------------
+    // ─────────────────────────────────────────────────────────────
+    // Auto-dismiss finished jobs
+    // ─────────────────────────────────────────────────────────────
+
     useEffect(() => {
         const id = setInterval(() => {
             setJobs((prev) => {
                 const now = Date.now();
-                const filtered = prev.filter((j) => !(j.autoDismissAt && j.autoDismissAt <= now));
+                const filtered = prev.filter(
+                    (j) => !(j.autoDismissAt && j.autoDismissAt <= now),
+                );
                 return filtered.length === prev.length ? prev : filtered;
             });
         }, 1_000);
         return () => clearInterval(id);
     }, []);
 
+    // ─────────────────────────────────────────────────────────────
+    // Derived state + context value
+    // ─────────────────────────────────────────────────────────────
+
     const activeCount = useMemo(
-        () => jobs.filter((j) => j.status === 'uploading' || j.status === 'processing').length,
+        () =>
+            jobs.filter((j) => j.status === 'uploading' || j.status === 'processing').length,
+        [jobs],
+    );
+    const queuedCount = useMemo(
+        () => jobs.filter((j) => j.status === 'queued').length,
         [jobs],
     );
 
     const value = useMemo<ContextValue>(
-        () => ({ jobs, activeCount, submitUpload, dismissJob, clearFinished }),
-        [jobs, activeCount, submitUpload, dismissJob, clearFinished],
+        () => ({
+            jobs,
+            activeCount,
+            queuedCount,
+            submitUpload,
+            dismissJob,
+            retryJob,
+            clearFinished,
+        }),
+        [jobs, activeCount, queuedCount, submitUpload, dismissJob, retryJob, clearFinished],
     );
 
     return <UploadJobsContext.Provider value={value}>{children}</UploadJobsContext.Provider>;

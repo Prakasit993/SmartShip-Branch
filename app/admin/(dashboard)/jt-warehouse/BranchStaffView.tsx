@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { StaffDetailModal } from './StaffDetailModal';
 import { CodBucketDrawer, type CodBucketKey } from './CodBucketDrawer';
 import { AlertDrawer, type AlertKind } from './AlertDrawer';
+import { MiddayKpiCard } from './MiddayKpiCard';
 import type { CodSummary, AlertSummary, DateRange } from './page';
 
 type BranchSummary = {
@@ -324,6 +325,9 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
                     );
                 })}
             </div>
+
+            {/* Phase 4: Mid-day KPI gate */}
+            {activeBranch ? <MiddayKpiCard branchCode={activeBranch} /> : null}
 
             {/* Alert summary card — pending / stuck / problem */}
             {activeAlertSummary ? (
