@@ -12,6 +12,7 @@ import {
     X,
     Save,
 } from 'lucide-react';
+import { CollapsibleSection } from '@app/admin/components/CollapsibleSection';
 
 /**
  * MiddayKpiCard — Phase 4
@@ -153,38 +154,41 @@ export function MiddayKpiCard({ branchCode }: Props) {
 
     return (
         <>
-            <section
-                className={`overflow-hidden rounded-2xl border bg-slate-950/40 ring-1 ${tone.border} ${tone.ring}`}
-                aria-label="Mid-day KPI gate"
+            <CollapsibleSection
+                id="midday-kpi"
+                defaultCollapsed={false}
+                icon={<Target className={`h-4 w-4 ${tone.text}`} aria-hidden />}
+                title={`KPI ก่อน ${perf.cutoff_hour}:00`}
+                subtitle={`เป้า ≥ ${formatPct(perf.target_pct)} ของยอดเข้าวันนี้`}
+                badge={
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${tone.badge}`}>
+                        {tone.icon}
+                        {tone.label}
+                    </span>
+                }
+                summary={
+                    <>
+                        <span className={`font-mono font-bold ${tone.textBold}`}>
+                            {formatNumber(perf.closed_count)}
+                        </span>
+                        <span className="text-slate-500">/</span>
+                        <span className="font-mono text-slate-300">{formatNumber(perf.intake_count)}</span>
+                        <span className="text-slate-500">·</span>
+                        <span className={tone.text}>{formatPct(perf.closed_pct)}</span>
+                    </>
+                }
+                accentBorderClass={tone.border}
             >
-                <header className={`flex items-center justify-between gap-2 border-b border-slate-800/40 px-4 py-2.5 ${tone.bg}`}>
-                    <div className="flex items-center gap-2">
-                        <Target className={`h-4 w-4 ${tone.text}`} aria-hidden />
-                        <h2 className="text-sm font-semibold text-white">
-                            KPI ก่อน {perf.cutoff_hour}:00
-                        </h2>
-                        <span className="text-xs text-slate-500">
-                            เป้า ≥ {formatPct(perf.target_pct)} ของยอดเข้าวันนี้
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${tone.badge}`}>
-                            {tone.icon}
-                            {tone.label}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setSettingsOpen(true)}
-                            aria-label="ตั้งค่า KPI"
-                            title="ตั้งค่า KPI"
-                            className="rounded-lg p-1 text-slate-500 transition hover:bg-slate-800 hover:text-white"
-                        >
-                            <Settings className="h-3.5 w-3.5" aria-hidden />
-                        </button>
-                    </div>
-                </header>
-
-                <div className="px-4 py-3">
+                <div className="relative px-4 py-3">
+                    <button
+                        type="button"
+                        onClick={() => setSettingsOpen(true)}
+                        aria-label="ตั้งค่า KPI"
+                        title="ตั้งค่า KPI"
+                        className="absolute right-3 top-3 rounded-lg p-1 text-slate-500 transition hover:bg-slate-800 hover:text-white"
+                    >
+                        <Settings className="h-3.5 w-3.5" aria-hidden />
+                    </button>
                     <div className="grid grid-cols-3 gap-3 text-xs">
                         <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-500">ยอดเข้า</p>
@@ -237,7 +241,7 @@ export function MiddayKpiCard({ branchCode }: Props) {
                         </div>
                     </div>
                 </div>
-            </section>
+            </CollapsibleSection>
 
             {settingsOpen ? (
                 <SettingsModal

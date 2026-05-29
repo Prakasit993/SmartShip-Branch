@@ -1,21 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     Bot,
     CheckCircle2,
     AlertCircle,
     Clock,
-    RefreshCw,
     Loader2,
 } from 'lucide-react';
 import { JOB_KIND_ICON, JOB_KIND_LABEL, type JobKind } from '@/lib/uploadJobs';
+import { CollapsibleSection } from './CollapsibleSection';
 
 /**
- * AutoSyncHealthCard — แสดงสถานะ auto-sync 1 portal (kind ที่กำหนด)
+ * AutoSyncHealthCard — Phase A3 + collapsible
  *
- * Phase A3 — Fetch /api/admin/auto-sync/health ทุก 30 วินาที
- * Filter เฉพาะ kind ที่ระบุใน props
+ * Fetch /api/admin/auto-sync/health ทุก 30s
+ * แสดงสถานะของ kind ที่ระบุ
+ * Default collapsed = true เมื่อ status='success' (ทำงานปกติ)
+ *                    false เมื่อ stale/error
  */
 
 type HealthItem = {
@@ -61,41 +63,41 @@ export function AutoSyncHealthCard({ kind }: Props) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const fetchHealth = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/auto-sync/health', {
+                credentials: 'include',
+                cache: 'no-store',
+            });
+            if (!res.ok) {
+                setError(`HTTP ${res.status}`);
+                setLoading(false);
+                return;
+            }
+            const json = (await res.json()) as { items: HealthItem[] };
+            const found = json.items.find((i) => i.kind === kind) ?? null;
+            setItem(found);
+            setError(null);
+            setLoading(false);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+            setLoading(false);
+        }
+    }, [kind]);
+
     useEffect(() => {
         let cancelled = false;
-
-        const fetchHealth = async () => {
-            try {
-                const res = await fetch('/api/admin/auto-sync/health', {
-                    credentials: 'include',
-                    cache: 'no-store',
-                });
-                if (cancelled) return;
-                if (!res.ok) {
-                    setError(`HTTP ${res.status}`);
-                    setLoading(false);
-                    return;
-                }
-                const json = (await res.json()) as { items: HealthItem[] };
-                if (cancelled) return;
-                const found = json.items.find((i) => i.kind === kind) ?? null;
-                setItem(found);
-                setError(null);
-                setLoading(false);
-            } catch (e) {
-                if (cancelled) return;
-                setError(e instanceof Error ? e.message : String(e));
-                setLoading(false);
-            }
+        const tick = async () => {
+            if (cancelled) return;
+            await fetchHealth();
         };
-
-        fetchHealth();
-        const id = setInterval(fetchHealth, POLL_INTERVAL_MS);
+        tick();
+        const id = setInterval(tick, POLL_INTERVAL_MS);
         return () => {
             cancelled = true;
             clearInterval(id);
         };
-    }, [kind]);
+    }, [fetchHealth]);
 
     if (loading) {
         return (
@@ -107,82 +109,67 @@ export function AutoSyncHealthCard({ kind }: Props) {
     }
 
     if (error || !item) {
-        return (
-            <div className="flex items-start gap-2 rounded-2xl border border-slate-800/70 bg-slate-900/40 px-4 py-3 text-xs text-slate-500">
-                <Bot className="h-4 w-4 shrink-0 text-slate-600" aria-hidden />
-                <div>
-                    <p className="font-medium text-slate-400">Auto-sync ยังไม่ตั้งค่า</p>
-                    <p className="mt-0.5 text-[11px] text-slate-600">
-                        ใช้ปุ่ม "อัปโหลด" ด้านบนเพื่อนำเข้าด้วยตนเอง
-                    </p>
-                </div>
-            </div>
-        );
+        return null; // ไม่แสดงถ้าไม่มีข้อมูล (auto-sync ยังไม่ตั้งค่า)
     }
 
     const showStale = item.is_stale && item.in_working_hours;
     const showError = item.last_status === 'error' && !showStale;
+    const isOk =
+        !showStale && !showError && item.last_status === 'success';
 
-    const statusBadge: { icon: React.ReactNode; label: string; tone: 'ok' | 'warn' | 'error' } = showStale
-        ? {
-              icon: <Clock className="h-3.5 w-3.5" aria-hidden />,
-              label: 'ข้อมูลค้าง',
-              tone: 'warn',
-          }
+    const status = showStale
+        ? { label: 'ข้อมูลค้าง', badgeClass: 'bg-amber-500/20 text-amber-200 ring-amber-500/40', borderClass: 'border-amber-500/40' }
         : showError
-        ? {
-              icon: <AlertCircle className="h-3.5 w-3.5" aria-hidden />,
-              label: 'รอบล่าสุดผิดพลาด',
-              tone: 'error',
-          }
-        : item.last_status === 'success'
-        ? {
-              icon: <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />,
-              label: 'ทำงานปกติ',
-              tone: 'ok',
-          }
-        : {
-              icon: <Clock className="h-3.5 w-3.5" aria-hidden />,
-              label: 'รอรอบแรก',
-              tone: 'warn',
-          };
+        ? { label: 'รอบล่าสุดผิดพลาด', badgeClass: 'bg-red-500/20 text-red-200 ring-red-500/40', borderClass: 'border-red-500/40' }
+        : isOk
+        ? { label: 'ทำงานปกติ', badgeClass: 'bg-emerald-500/20 text-emerald-200 ring-emerald-500/40', borderClass: 'border-slate-800/70' }
+        : { label: 'รอรอบแรก', badgeClass: 'bg-amber-500/20 text-amber-200 ring-amber-500/40', borderClass: 'border-slate-800/70' };
 
-    const toneClass =
-        statusBadge.tone === 'ok'
-            ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30'
-            : statusBadge.tone === 'warn'
-            ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
-            : 'bg-red-500/15 text-red-300 ring-red-500/30';
-
-    const cardBorderClass = showStale
-        ? 'border-amber-500/40 ring-1 ring-amber-500/20'
-        : showError
-        ? 'border-red-500/40 ring-1 ring-red-500/20'
-        : 'border-slate-800/70';
+    const statusIcon = showStale ? (
+        <Clock className="h-3 w-3" aria-hidden />
+    ) : showError ? (
+        <AlertCircle className="h-3 w-3" aria-hidden />
+    ) : isOk ? (
+        <CheckCircle2 className="h-3 w-3" aria-hidden />
+    ) : (
+        <Clock className="h-3 w-3" aria-hidden />
+    );
 
     return (
-        <section
-            className={`overflow-hidden rounded-2xl border bg-slate-950/40 ${cardBorderClass}`}
-            aria-label={`Auto-sync ${JOB_KIND_LABEL[kind]}`}
+        <CollapsibleSection
+            id={`auto-sync-${kind}`}
+            defaultCollapsed={isOk}
+            icon={<Bot className="h-4 w-4 text-amber-400" aria-hidden />}
+            title={`Auto-Sync ${JOB_KIND_LABEL[kind]}`}
+            badge={
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${status.badgeClass}`}>
+                    {statusIcon}
+                    {status.label}
+                </span>
+            }
+            summary={
+                <>
+                    <span className={isOk ? 'text-emerald-300' : 'text-amber-300'}>
+                        {formatMinutesAgo(item.minutes_since_last)}
+                    </span>
+                    {item.last_affected_rows !== null && isOk ? (
+                        <>
+                            <span className="mx-1 text-slate-600">·</span>
+                            <span className="font-mono text-slate-300">
+                                {formatNumber(item.last_affected_rows)} รายการ
+                            </span>
+                        </>
+                    ) : null}
+                </>
+            }
+            accentBorderClass={status.borderClass}
         >
             <div className="flex items-start gap-3 px-4 py-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900/80 text-lg ring-1 ring-slate-700/60">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900/80 text-lg ring-1 ring-slate-700/60" aria-hidden>
                     {JOB_KIND_ICON[kind]}
                 </div>
-                <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                            <Bot className="mr-1 inline h-3 w-3" aria-hidden />
-                            Auto-Sync
-                        </p>
-                        <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${toneClass}`}
-                        >
-                            {statusBadge.icon}
-                            {statusBadge.label}
-                        </span>
-                    </div>
-                    <p className="mt-1 text-sm text-slate-100">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="text-sm text-slate-100">
                         ล่าสุด:{' '}
                         <span className={`font-medium ${item.is_stale ? 'text-amber-300' : 'text-emerald-300'}`}>
                             {formatMinutesAgo(item.minutes_since_last)}
@@ -197,19 +184,18 @@ export function AutoSyncHealthCard({ kind }: Props) {
                             </span>
                         ) : null}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
+                    <p className="text-[11px] text-slate-500">
                         {item.schedule_label ?? '—'}
                         <span className="mx-1.5">·</span>
                         วันนี้: {item.success_count_today} success / {item.error_count_today} error
                     </p>
                     {item.last_error && (showStale || showError) ? (
-                        <p className="mt-1.5 line-clamp-2 rounded-md bg-red-950/40 px-2 py-1 text-[10.5px] text-red-200/90">
+                        <p className="line-clamp-2 rounded-md bg-red-950/40 px-2 py-1 text-[10.5px] text-red-200/90">
                             {item.last_error}
                         </p>
                     ) : null}
                 </div>
-                <RefreshCw className="h-3 w-3 shrink-0 text-slate-700" aria-hidden />
             </div>
-        </section>
+        </CollapsibleSection>
     );
 }
