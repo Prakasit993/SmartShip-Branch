@@ -174,6 +174,40 @@ export function BranchStaffView({ branches, staff, meta, codSummaryByBranch, ale
     };
 
     if (branches.length === 0) {
+        // ถ้า filter วันนี้ + ไม่เจอข้อมูล → แนะนำให้ดู "ทั้งหมด"
+        if (range === 'today') {
+            return (
+                <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-slate-900/40 to-slate-900/40 px-6 py-8 text-center ring-1 ring-amber-500/10">
+                    <Calendar className="mx-auto h-10 w-10 text-amber-400" aria-hidden />
+                    <p className="mt-3 text-base font-semibold text-amber-200">
+                        ยังไม่มีข้อมูลของวันนี้
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                        อาจยังไม่ได้อัปโหลดไฟล์ของวันนี้ — ลองดูข้อมูลทั้งหมด หรือ
+                        <span className="mx-1 text-amber-300">อัปโหลดไฟล์</span>
+                        จากปุ่มมุมขวาบน
+                    </p>
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                        <Link
+                            href="?range=all"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-amber-950/40 transition hover:bg-amber-500"
+                        >
+                            <Calendar className="h-3 w-3" aria-hidden />
+                            ดูทั้งหมด
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-600 hover:text-white disabled:opacity-50"
+                        >
+                            <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
+                            รีเฟรช
+                        </button>
+                    </div>
+                </div>
+            );
+        }
         return (
             <div className="rounded-2xl border border-slate-800/70 bg-slate-900/40 px-6 py-10 text-center">
                 <Package className="mx-auto h-10 w-10 text-slate-600" aria-hidden />
