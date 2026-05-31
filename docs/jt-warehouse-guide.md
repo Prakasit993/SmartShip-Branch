@@ -1,103 +1,173 @@
 # SmartShip — J&T Warehouse Module
 
-> อัปเดต: 2026-05-28 | สถานะ: Phase 1 + Phase 2 เสร็จแล้ว (ตัว code), รอ n8n auto-sync (Phase 1 task #1 + #2)
+> อัปเดต: 2026-05-30 | สถานะ: Phase 1-4 + Phase A เสร็จสมบูรณ์ + 8 commits merged เข้า main
 
-หน้า `/admin/jt-warehouse` สำหรับ admin/staff ตรวจสอบพัสดุ J&T ที่ค้างจ่ายและพนักงานนำส่งของสาขา — ข้อมูลซิงค์อัตโนมัติทุก 15 นาทีในเวลาทำงาน
-
----
-
-## 📍 สถานะปัจจุบัน
-
-| Feature | สถานะ |
-|---|---|
-| ✅ Manual Upload (ปุ่มมุมขวา) | Live — Vercel: `box.mybabymeal.com/admin/jt-warehouse` |
-| ✅ Branch + Staff summary cards | Live |
-| ✅ Banner "ยังอยู่ในคลัง" (พัสดุยังไม่ assign พนักงาน) | Live |
-| ✅ "ปิดงาน" definition: 6 ฟิลด์ครบ (2026-05-28) | Live |
-| ✅ Health badge (ข้อมูลค้าง > 30 นาทีในเวลาทำงาน) | Live |
-| ✅ Lazy-load detail รายพนักงาน (drawer + COD breakdown + top 20 pending) | Live |
-| ⏳ Auto-sync ทุก 15 นาที (n8n cron + Playwright) | รอตั้งค่า — ดู `docs/jt-warehouse-n8n-setup.md` |
-| ⏳ COD bucket card หน้าหลัก (Phase 3) | Plan |
-| ⏳ Mid-day KPI gate (Phase 4) | Plan |
-| ⏳ AI Tools + LINE OA alert (Phase 5) | Plan |
+หน้า `/admin/jt-warehouse` สำหรับ admin/staff ตรวจสอบพัสดุ J&T ที่ค้างจ่ายและพนักงานนำส่งของสาขา — ระบบ async upload tracking + smart queue + KPI gate ครบวงจร
 
 ---
 
-## 🏗️ Architecture
+## 📍 สถานะ Feature Matrix
+
+| Phase | Feature | สถานะ |
+|---|---|:---:|
+| **1** | Health badge (data > 30 min stale) | ✅ |
+| **1** | Manual upload modal | ✅ |
+| **2** | "ปิดงาน" rule = 6 fields complete | ✅ |
+| **2** | Lazy-load staff detail drawer | ✅ |
+| **3** | COD bucket card + drill-down | ✅ |
+| **3.5** | Daily filter (วันนี้/ทั้งหมด toggle) | ✅ |
+| **3.5** | Alert summary card (pending/stuck/problem) | ✅ |
+| **3.6** | Async upload tracking + polling | ✅ |
+| **3.7** | Unified UploadJobsTray + Provider (3 modules) | ✅ |
+| **3.8** | Smart queue (Max 2 concurrent) + auto-retry 2× | ✅ |
+| **4** | Mid-day KPI gate (workload-based) | ✅ |
+| **A** | Auto-sync infrastructure (DB + endpoints + UI card) | ✅ |
+| **UX** | Collapsible sections (localStorage persist) | ✅ |
+| **UX** | Staff grid cards (5 per row) | ✅ |
+| **UX** | Empty state context-aware | ✅ |
+| **B** | n8n auto-sync workflows (3 portals) | ⏳ pending |
+| **5** | AI Tools + LINE OA cron | ⏳ pending |
+
+---
+
+## 🗄️ Database Migrations (apply ตามลำดับ)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ ผู้ใช้ Admin/Staff                                            │
-│   ↓                                                          │
-│ /admin/jt-warehouse (Next.js page.tsx)                       │
-│   ├─ ปุ่ม "อัปโหลด" — manual                                  │
-│   ├─ Card สาขา + ตารางพนักงาน — RPC                          │
-│   ├─ Banner "ยังอยู่ในคลัง" — row ที่ staff_id ว่าง            │
-│   ├─ คลิกพนักงาน → drawer (lazy-load)                        │
-│   └─ Health badge — เตือนถ้าค้าง > 30 นาที                    │
-│                                                              │
-│ ┌──────────────────┐                                         │
-│ │ Server Component │ ← supabaseAdmin (service_role)          │
-│ └─────┬────────────┘                                         │
-│       ↓                                                      │
-│ Postgres / Supabase                                          │
-│   ├─ warehouse_jt_parcels (62 columns, ทุก col text)         │
-│   ├─ View warehouse_jt_last_upload (live aggregate)          │
-│   ├─ RPC get_warehouse_jt_branch_summary                     │
-│   ├─ RPC get_warehouse_jt_branch_staff_summary               │
-│   ├─ RPC get_warehouse_jt_staff_detail (lazy-load)           │
-│   └─ Helper jt_parcel_is_closed / jt_text_is_filled          │
-│                                                              │
-│       ↑                                                      │
-│ ┌──────────────────────────────────────┐                     │
-│ │ n8n (n8n.mybabymeal.com)             │                     │
-│ │   Manual:  Webhook upload_stock      │                     │
-│ │            → Extract → TRUNCATE+INSERT│                     │
-│ │   Auto:    Schedule + Playwright     │                     │
-│ │            (ดู n8n-setup.md)         │                     │
-│ └──────────────────────────────────────┘                     │
-│       ↑                                                      │
-│ J&T portal (Playwright scrape)                               │
-└─────────────────────────────────────────────────────────────┘
+✅ 20260528_warehouse_jt_parcels.sql              — schema หลัก 62 cols
+✅ 20260528_warehouse_jt_summary_rpc.sql          — initial RPCs + last_upload view
+✅ 20260528_warehouse_jt_closed_predicate.sql     — 6-field "ปิดงาน" rule
+✅ 20260528_warehouse_jt_staff_detail.sql         — drawer RPC
+✅ 20260528_warehouse_jt_cod_summary.sql          — COD bucket RPCs
+✅ 20260528_warehouse_jt_arrived_date_helper.sql  — Excel serial parser
+✅ 20260528_warehouse_jt_daily_filter.sql         — date filter on all RPCs
+✅ 20260528_warehouse_jt_alert_summary.sql        — alert RPCs
+✅ 20260528_jt_upload_jobs.sql                    — async job tracking
+✅ 20260529_auto_sync_infrastructure.sql          — Phase A foundation
+✅ 20260529_warehouse_jt_midday_kpi.sql           — Phase 4 KPI
+✅ 20260529_warehouse_jt_midday_kpi_workload.sql  — KPI workload fix
+```
+
+**Verify**: 
+```sql
+-- ตรวจ functions
+SELECT proname FROM pg_proc WHERE proname IN (
+    'jt_text_is_filled',
+    'jt_parcel_is_closed',
+    'jt_parse_arrived_date',
+    'get_warehouse_jt_branch_summary',
+    'get_warehouse_jt_branch_staff_summary',
+    'get_warehouse_jt_staff_detail',
+    'get_warehouse_jt_cod_summary',
+    'get_warehouse_jt_cod_bucket_list',
+    'get_warehouse_jt_alert_summary',
+    'get_warehouse_jt_alert_list',
+    'get_warehouse_jt_midday_performance',
+    'get_jt_warehouse_config',
+    'set_jt_warehouse_config',
+    'get_auto_sync_health',
+    'increment_auto_sync_counter',
+    'jt_upload_jobs_set_updated_at',
+    'auto_sync_health_set_updated_at',
+    'jt_warehouse_config_set_updated_at'
+);
+-- ควรเห็น 18 rows
+
+-- ตรวจ tables
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name IN (
+    'warehouse_jt_parcels',
+    'jt_upload_jobs',
+    'n8n_playwright_state',
+    'auto_sync_health',
+    'jt_warehouse_config'
+);
+-- ควรเห็น 5 tables
+
+-- ตรวจ view
+SELECT table_name FROM information_schema.views 
+WHERE table_schema = 'public' AND table_name = 'warehouse_jt_last_upload';
+-- ควรเห็น 1 row
 ```
 
 ---
 
-## 🗄️ ตาราง `warehouse_jt_parcels`
+## 🛣️ API Routes
 
-- **PK**: `awb_number` (เลขพัสดุ)
-- **62 columns** — ทุก column เป็น `text` (รับ Excel serial, `"-"`, `""` ปนกันได้)
-- **Index หลัก**:
-  - `(delivery_branch_code, delivery_staff_id)` — aggregate per staff
-  - `warehouse_jt_parcels_closed_idx` — partial index เร่ง count ปิดงาน
-- **Migrations**:
-  - [20260528_warehouse_jt_parcels.sql](../database/db/migrations/20260528_warehouse_jt_parcels.sql) — schema หลัก
-  - [20260528_warehouse_jt_summary_rpc.sql](../database/db/migrations/20260528_warehouse_jt_summary_rpc.sql) — RPC + view
-  - [20260528_warehouse_jt_closed_predicate.sql](../database/db/migrations/20260528_warehouse_jt_closed_predicate.sql) — closed rule + index
-  - [20260528_warehouse_jt_staff_detail.sql](../database/db/migrations/20260528_warehouse_jt_staff_detail.sql) — detail RPC
+### Upload pipeline (Phase 3.6-3.8)
+| Path | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/admin/jt-parcel-n8n-upload` | POST | admin-or-staff | Stock (warehouse) upload — create job + proxy |
+| `/api/admin/n8n-upload` | POST | admin-or-staff | JT Shipments upload |
+| `/api/admin/tiktok-n8n-upload` | POST | admin-or-staff | TikTok upload |
+| `/api/admin/jt-warehouse/upload-callback` | POST | Bearer secret | n8n ยิงผลลัพธ์กลับ |
+| `/api/admin/jt-warehouse/upload-jobs` | GET | admin-or-staff | Polling status |
 
-### Field groups
+### Data queries (Phase 2-4)
+| Path | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/admin/jt-warehouse/staff-detail` | GET | admin-or-staff | Drawer detail |
+| `/api/admin/jt-warehouse/cod-bucket` | GET | admin-or-staff | COD drill-down |
+| `/api/admin/jt-warehouse/alert-list` | GET | admin-or-staff | Alert drill-down |
+| `/api/admin/jt-warehouse/midday-performance` | GET | admin-or-staff | KPI data |
+| `/api/admin/jt-warehouse/midday-config` | GET / PATCH | GET=staff, PATCH=admin | KPI config |
 
-| Group | ตัวอย่าง column | ใช้งาน |
-|---|---|---|
-| **เขต/แฟรนไชส์** | `region_name`, `region_code`, `franchise_name`, `franchise_code` | ตาราง / filter |
-| **เวลา scan** | `gateway_dispatch_time`, `earliest_scan_time`, `latest_scan_time`, `arrived_branch_time` | Phase 4 รอบเข้า |
-| **สาขานำจ่าย** ★ | `delivery_branch_code`, `delivery_branch_name`, `delivery_staff_id`, `delivery_staff_name`, `delivery_staff_position`, `delivery_staff_phone` | Index หลัก + tab |
-| **ตกค้าง** | `stuck_time`, `stuck_reason`, `stuck_scan_branch`, `stuck_flag` (Y/N) | Card "ตกค้าง" |
-| **ปัญหา** | `problem_time`, `problem_reason`, `problem_scan_branch` | Card "ปัญหา" |
-| **เซ็นรับ** ★ | `signed_time`, `sign_branch_name`, `signed_record_time`, `signed_by_staff`, `signer_name`, `sign_time_status`, `signed_flag` | "ปิดงาน" rule (6 ฟิลด์) |
-| **ปิดงาน** | `closed_branch`, `closed_time` | (Phase 4 ใช้) |
-| **เงิน** | `cod_amount`, `total_shipping_fee`, `billed_weight`, `payment_method` | COD breakdown |
-| **ผู้ส่ง/รับ** | `sender_name`, `receiver_name`, `receiver_phone`, `receiver_address` | Drawer detail |
+### Auto-sync foundation (Phase A)
+| Path | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/admin/auto-sync/state/[portal]` | GET / POST | Bearer secret | Playwright storage state |
+| `/api/admin/auto-sync/health` | GET | admin-or-staff | Sync health card |
 
 ---
 
-## 📊 Business Rules
+## 🎨 UI Components
 
-> Source of truth: memory `project-jt-warehouse-business-rules`
+### Page-level (Server Components)
+- `app/admin/(dashboard)/jt-warehouse/page.tsx` — main page, SSR fetch RPCs
 
-### 1. "ปิดงาน" — 6 ฟิลด์ครบ (2026-05-28)
+### Client Components
+- `BranchStaffView.tsx` — main view (Meta strip + Branch tabs + KPI + Alert + COD + Banner + Staff grid)
+- `MiddayKpiCard.tsx` — Phase 4 KPI gate + settings modal
+- `StaffDetailModal.tsx` — Phase 2 drawer
+- `CodBucketDrawer.tsx` — Phase 3 drill-down
+- `AlertDrawer.tsx` — Phase 3.5 drill-down
+- `JtParcelN8nUpload.tsx` — Phase 3.7 (1-line wrapper)
 
+### Shared (in `app/admin/components/`)
+- `CollapsibleSection.tsx` — reusable collapse wrapper
+- `SimpleUploadModal.tsx` — reusable upload modal
+- `UploadJobsTray.tsx` — floating tray (rendered in AdminClientWrapper)
+- `AutoSyncHealthCard.tsx` — Phase A status card
+
+### Provider
+- `UploadJobsContext.tsx` — global job tracking + smart queue + retry
+
+---
+
+## 🔐 Environment Variables
+
+```bash
+# n8n webhooks (3 portals)
+JT_PARCEL_N8N_UPLOAD_WEBHOOK_URL=https://n8n.mybabymeal.com/webhook/upload_stock
+NEXT_PUBLIC_N8N_UPLOAD_WEBHOOK_URL=...  # JT Shipments
+TIKTOK_N8N_UPLOAD_WEBHOOK_URL=...
+
+# n8n callback security
+N8N_UPLOAD_CALLBACK_SECRET=<bearer secret>
+
+# Upload limits
+NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB=4.5
+
+# AI tools (Phase 5 — pending)
+N8N_AI_TOOLS_SECRET=...
+```
+
+---
+
+## 📊 Business Rules (อ้างอิง memory)
+
+> See [[project-jt-warehouse-business-rules]] memory file
+
+### 1. "ปิดงาน" — 6 fields ครบ
 ```sql
 public.jt_parcel_is_closed(
     signed_time, sign_branch_name, signed_record_time,
@@ -105,172 +175,138 @@ public.jt_parcel_is_closed(
 )
 ```
 
-จะเป็น `true` เมื่อทั้ง 6 ฟิลด์ filled — ไม่ใช่ NULL/`""`/`"-"`
-
-**ก่อนหน้านี้** ใช้ `signed_flag = 'Y'` — เปลี่ยนใหม่เพราะแม่นยำกว่า (มีเคสที่ flag='Y' แต่ฟิลด์ไม่ครบ)
-
-ใช้ predicate นี้ทุกที่ที่ต้อง count `delivered_count` / `pending_count`
-
-### 2. "พัสดุยังอยู่ในคลัง"
-
-Row ที่ `delivery_staff_id` ว่าง = ยังไม่ assign พนักงาน → แสดงเป็น **banner แยก** เหนือตารางพนักงาน (ห้ามรวมเป็นแถวในตาราง)
-
-### 3. รอบรับเข้า (Phase 4 — ยังไม่ implement)
-
-ใช้ `arrived_branch_time` เป็นเกณฑ์:
+### 2. รอบรับเข้า
 - รอบเช้า: 06:00–10:00
 - รอบบ่าย: 13:00–16:00
-- นอกรอบ: เวลาอื่น
 
-### 4. COD buckets (Phase 3 — ยังไม่ implement หน้าหลัก, มีใน drawer แล้ว)
+### 3. COD buckets
+- < ฿1,000 / 1k–2k / 2k–5k / **> ฿5,000 ⚠️**
 
-| Bucket | ช่วง |
-|---|---|
-| ต่ำ | < ฿1,000 |
-| กลาง | ฿1,000–2,000 |
-| สูง | ฿2,000–5,000 |
-| สูงมาก ⚠️ | > ฿5,000 |
+### 4. Mid-day KPI Gate
+- เป้า: ≥ 20% ของ **workload** ก่อน 12:00
+- Workload = `closed_today + pending_with_staff`
+- Match J&T portal's "ต้องเซ็นรับวันนี้"
 
-Alert priority: **สูงมาก ที่ยังไม่ปิดงาน → เร่งให้พนักงานออกจ่ายก่อน**
+### 5. Smart Queue
+- Max 2 concurrent uploads
+- Auto-retry 2× × 30s delay
+- Manual retry button on final fail
 
-### 5. Mid-day KPI Gate (Phase 4)
-
-- เป้าก่อนเที่ยง: ≥ **20%** ของยอดรับเข้าวันนั้น
-- Cutoff: **12:00 Asia/Bangkok**
-- ปรับเป้าได้ผ่าน config
+### 6. UX
+- **Collapsible defaults**:
+  - Auto-sync OK → auto-collapse
+  - Alert/COD → default collapsed
+  - KPI/Banner/Staff → default expanded
+- **Persist** ใน localStorage: `jt-warehouse-section:{id}`
+- **Staff grid**: responsive 2/3/4/5 cols
+- **Empty state**: "วันนี้" → suggest "ทั้งหมด" + "อัปโหลด"
 
 ---
 
-## 🔌 RPC Reference
+## 🧪 Verification Queries
 
-### `get_warehouse_jt_branch_summary()`
+```sql
+-- 1. KPI ตอนนี้
+SELECT public.get_warehouse_jt_midday_performance('604320');
+-- ดู: workload_count, closed_count, closed_pct, status
 
-สรุปต่อสาขา — ใช้ใน card สาขา
+-- 2. Alert summary
+SELECT public.get_warehouse_jt_alert_summary('604320', CURRENT_DATE, CURRENT_DATE);
+-- ดู: pending, stuck, problem
 
-**Returns**: rows ของ `(delivery_branch_code, delivery_branch_name, parcel_count, staff_count, delivered_count, pending_count, stuck_count)`
+-- 3. COD breakdown
+SELECT public.get_warehouse_jt_cod_summary('604320');
+-- ดู: buckets {low, mid, high, very_high}
 
-### `get_warehouse_jt_branch_staff_summary()`
+-- 4. Auto-sync health
+SELECT * FROM public.get_auto_sync_health();
+-- ดู: 3 rows (jt_parcel/jt_shipment/tiktok) + status
 
-สรุปต่อพนักงาน — ใช้ในตารางและ banner
-
-**Returns**: rows ของ `(branch_*, staff_*, parcel_count, delivered_count, pending_count, stuck_count, cod_total)`
-
-### `get_warehouse_jt_staff_detail(p_delivery_branch_code, p_delivery_staff_id)` ★ ใหม่
-
-Lazy-load รายละเอียดพนักงาน 1 คน — ใช้ใน drawer
-
-**Returns**: jsonb 1 object โครงสร้าง:
-```json
-{
-  "staff": { "delivery_staff_id", "delivery_staff_name", "delivery_staff_position", "delivery_staff_phone", "delivery_branch_code", "delivery_branch_name" },
-  "counts": { "total", "delivered", "pending", "stuck", "problem" },
-  "cod": { "total", "pending_total", "low_count", "mid_count", "high_count", "very_high_count" },
-  "pending_parcels": [ { "awb_number", "cod_amount", "cod_num", "receiver_name", "receiver_phone", "receiver_address", "stuck_flag", "stuck_reason", "problem_reason", "arrived_branch_time" }, ... ] // top 20 เรียงตาม COD
-}
+-- 5. Config
+SELECT * FROM public.jt_warehouse_config;
+-- ดู: midday_target_pct, midday_cutoff_hour
 ```
 
-### View `warehouse_jt_last_upload`
+---
 
-Aggregate live — ใช้แสดง "อัปเดตล่าสุด: X นาทีที่แล้ว"
+## 🎯 Manual Test Checklist
 
-**Returns** (1 row):
-- `last_uploaded_at` = `MAX(updated_at)` จาก parcels
-- `total_parcels`, `branch_count`, `staff_count`
+### UI Tests
+- [ ] เปิด `/admin/jt-warehouse` แล้วโหลดสำเร็จ (no errors)
+- [ ] Meta strip แสดง "อัปเดตล่าสุด" + รวม + สาขา + พนักงาน + toggle วันนี้/ทั้งหมด
+- [ ] Branch card 604320 แสดงตัวเลขถูกต้อง
+- [ ] **🤖 Auto-Sync card** — ย่อ/ขยายได้, แสดง stale/ok ตาม last_finished_at
+- [ ] **🎯 KPI card** — แสดง workload + closed + %, ปุ่ม ⚙️ เปิด settings ได้
+- [ ] **🚨 Alert card** — default collapsed, คลิก ▼ ขยาย, คลิก tile → drawer
+- [ ] **💰 COD card** — default collapsed, คลิก ▼ ขยาย, คลิก tile → drawer
+- [ ] **📦 Banner คลัง** — แสดงถ้ามี unassigned > 0
+- [ ] **👥 Staff grid** — 5 cols (desktop), avatar + progress + COD, คลิก → modal
+- [ ] Toggle วันนี้/ทั้งหมด → ตัวเลขเปลี่ยน
+- [ ] Empty state วันนี้ → แสดงปุ่ม "ดูทั้งหมด" + "รีเฟรช"
+- [ ] localStorage persist หลัง refresh
 
-⚠️ เป็น **VIEW** ไม่ใช่ table — ห้าม TRUNCATE/INSERT, อัปเดตเอง
+### Upload Tests
+- [ ] กดปุ่ม 📋 upload → modal เปิด → เลือกไฟล์ → ส่ง
+- [ ] Modal ปิดทันที, tray ขวาล่างแสดง "ประมวลผล"
+- [ ] อัปโหลด 3 ไฟล์ติด → 2 active + 1 "รอคิว #1"
+- [ ] อัปโหลดจากคนละหน้า (warehouse + tiktok) — เห็น 2 jobs ใน tray
+- [ ] n8n เสร็จ → tray แสดง "สำเร็จ N รายการ" + toast เด้ง
+- [ ] router.refresh() ทำงาน (ตัวเลขใหม่)
+- [ ] Force fail (ตัด n8n) → "ลองใหม่ใน 30s (1/2)" → retry
+- [ ] Retry exhausted → final error + ปุ่ม "ลองใหม่" manual
+
+### KPI Tests
+- [ ] Workload count ≈ J&T portal's "ต้องเซ็นรับวันนี้" (ส่วนต่าง < 5%)
+- [ ] กดเฟือง → ปรับเป้า 20% → 25% → progress bar update
+- [ ] ตอนเช้า (ก่อนอัปโหลด): status='behind' หรือ 'no_data'
+- [ ] เลย 12:00: status='missed' (ถ้าไม่ผ่านเป้า) หรือ 'achieved'
 
 ---
 
-## 🛣️ API Routes
+## 🚧 Pending Tasks
 
-| Path | Method | Auth | Purpose |
-|---|---|---|---|
-| `/api/admin/jt-parcel-n8n-upload` | POST | admin-or-staff | Proxy multipart → n8n webhook (manual upload) |
-| `/api/admin/jt-warehouse/staff-detail` ★ | GET | admin-or-staff | Lazy-load detail รายพนักงาน |
+### Phase 1 — User actions (n8n)
+- [ ] ลบ "Insert rows in a table" node เก่าที่ error
+- [ ] Activate manual upload workflows ทั้ง 3 ✅ (น่าจะทำแล้ว เพราะ upload ใช้ได้)
 
-ทั้งหมดใช้ `requireAdminApiAuth('admin-or-staff', request)` — แค่ admin หรือ staff role เข้าได้
+### Phase 3.6/3.7 — n8n callback updates
+- [ ] JT Shipments workflow callback ✅ (ทำแล้วตอนแก้)
+- [ ] Stock workflow callback ✅ (ทำแล้ว — affected_rows = 5640)
+- [ ] TikTok workflow callback ✅ (ทำแล้ว — verified)
 
----
+### Phase B — Auto-sync workflows (n8n + Playwright)
+- [ ] ติดตั้ง n8n-nodes-playwright
+- [ ] Credentials × 3 portals + LINE OA token
+- [ ] Stock workflow (cron */15 6-20 + 0 21)
+- [ ] TikTok workflow (cron 5 6-21)
+- [ ] JT Shipments workflow (cron 10 6-21/3)
+- [ ] Error trigger → LINE OA alert
 
-## 🖥️ Frontend Components
-
-| File | Purpose |
-|---|---|
-| [page.tsx](../app/admin/(dashboard)/jt-warehouse/page.tsx) | Server component — fetch RPC ขนานกัน 3 ตัว, ส่งเข้า BranchStaffView |
-| [BranchStaffView.tsx](../app/admin/(dashboard)/jt-warehouse/BranchStaffView.tsx) | Client — tab สาขา + ตารางพนักงาน + ค้นหา + banner + health badge + click handler |
-| [StaffDetailModal.tsx](../app/admin/(dashboard)/jt-warehouse/StaffDetailModal.tsx) ★ | Drawer ขวา — fetch staff-detail API, แสดง counts/COD/pending list |
-| [JtParcelN8nUpload.tsx](../app/admin/(dashboard)/jt-warehouse/JtParcelN8nUpload.tsx) | Modal upload สีส้ม |
-
-### Health Badge
-
-- คำนวณใน client ด้วย `useState(nowMs)` + `setInterval(60s)`
-- Stale = อยู่ใน 06:00–20:59 TZ Bangkok **AND** `last_uploaded_at` ค้าง > 30 นาที
-- แสดง badge แดง pulse + tooltip
-- ใช้ `bangkokHour()` อ่าน TZ Bangkok โดยไม่พึ่ง browser TZ
-
-### Hydration safety
-
-`nowMs` เริ่มเป็น `null` → set ใน `useEffect` — ไม่มี SSR/client mismatch
+### Phase 5 — AI Tools + LINE OA
+- [ ] Endpoints: GET /api/ai-tools/jt-today-summary, etc. (gated by N8N_AI_TOOLS_SECRET)
+- [ ] n8n AI Agent + LINE OA cron schedules
+- [ ] Daily summary 21:30, mid-day check 11:30, COD alert event-based
 
 ---
 
-## 🔐 Environment Variables
+## 📚 Related Files
 
-```bash
-# n8n webhook ปลายทาง (manual upload)
-JT_PARCEL_N8N_UPLOAD_WEBHOOK_URL=https://n8n.mybabymeal.com/webhook/upload_stock
+- [docs/auto-sync-plan.md](auto-sync-plan.md) — Phase B detailed plan
+- [docs/jt-warehouse-n8n-setup.md](jt-warehouse-n8n-setup.md) — manual upload setup
+- Memory: `project-jt-warehouse-business-rules`
+- Memory: `project-jt-warehouse`
+- Memory: `project-ai-chat-architecture` (Phase 5 reference)
 
-# จำกัดขนาดไฟล์ upload (default 4.5 MB)
-NEXT_PUBLIC_N8N_UPLOAD_MAX_FILE_MB=4.5
+---
 
-# AI tools secret (Phase 5)
-N8N_AI_TOOLS_SECRET=...
+## 🎉 Production State (2026-05-30)
+
+```
+PR #57 merged → main → Vercel deployed
+Total commits ahead of original: 25+
+Total migrations: 12 (all applied)
+Total new files (src): 11 components + 3 utilities + 11 routes
+Total lines added: ~5,500
 ```
 
-ตั้งทั้งใน Vercel (Production + Preview) และ `.env.local` (dev)
-
----
-
-## 🎨 UX Rules
-
-- **Section B รายพนักงาน**: ตารางแสดงข้อมูลพื้นฐาน → คลิกแถว → drawer lazy-load (ไม่โหลด detail ทุกคนพร้อม initial render)
-- **"อยู่ในคลัง"**: banner แยก (ห้ามรวมในตาราง)
-- **Drawer**: เลื่อนจากขวา, ปิดด้วย Esc, lock body scroll, focus trap (ทำง่าย ๆ ด้วย `aria-modal`)
-- **Phone masking**: เลขผู้รับใน drawer แสดง `******XXXX` 4 ตัวท้าย (ปัจจุบันแสดงเต็ม — TODO ทำ mask)
-- **Alert channel**: LINE OA (ไม่ใช้ LINE Notify — กำลัง deprecate)
-
----
-
-## 🔄 Snapshot Mode (Upload Strategy)
-
-- **Manual + Auto upload** ทั้งคู่ใช้ `TRUNCATE warehouse_jt_parcels` ก่อน `INSERT`
-- DB ตรงกับไฟล์ล่าสุดเสมอ — **ไม่สะสมประวัติ**
-- Trade-off: 5-30s window ที่ table ว่าง → ผู้ใช้เห็น empty state ชั่วคราว
-- **ห้ามลบ TRUNCATE step** — ไม่งั้น stale records จะสะสม
-
-### View `warehouse_jt_last_upload` รับมือ snapshot ยังไง?
-
-อ่านจาก parcels โดยตรง (live aggregate) → ไม่ต้องเขียน meta แยก → ไม่ break ตอน TRUNCATE
-
----
-
-## 📚 Related Docs / Memory
-
-- [docs/jt-warehouse-n8n-setup.md](jt-warehouse-n8n-setup.md) — ขั้นตอน setup n8n workflow (manual + auto-sync)
-- Memory: `project_jt_warehouse` — technical architecture (file paths + env)
-- Memory: `project_jt_warehouse_business_rules` — business rules (closed def, COD buckets, KPI gate)
-- Memory: `project_ai_chat_architecture` — pattern AI tools (Phase 5)
-
----
-
-## 🧭 Phase Roadmap
-
-| Phase | งาน | สถานะ |
-|---|---|---|
-| **1** | Auto-sync (n8n) + Health badge + Foundation | 1/3 (badge เสร็จ, n8n ค้าง) |
-| **2** | Refactor "ปิดงาน" + Lazy-load detail | ✅ Done |
-| **3** | COD bucket card หน้าหลัก + drill-down | Plan |
-| **4** | Mid-day KPI gate + config table | Plan |
-| **5** | AI Tools (GET endpoints) + LINE OA alerts | Plan |
-
-ดูรายละเอียดแต่ละ phase ในไฟล์ memory `project_jt_warehouse_business_rules.md`
+ระบบใช้งานจริงทุกวันใน production — admin team ใช้ตามรอบ
