@@ -11,6 +11,12 @@ import { parseJtMoneyText } from '@/lib/jtMoneyText';
 import { applyBookingDateRangeFilters } from '@/lib/jtShipmentsBookingDateFilter';
 import { requireAiToolAuth } from '@/lib/adminApiAuth';
 import { JT_RETURN_ACKNOWLEDGEMENTS_TABLE } from '@/lib/jtReturnAcknowledgements';
+import {
+    JT_RETURN_EXCLUSION_SETTINGS_KEY,
+    parseJtReturnExclusionFromSettingsValue,
+    isExcludedSignedReturn,
+    type JtReturnExclusionConfig,
+} from '@/lib/jtReturnExclusion';
 import { applyRateLimit, RATE_LIMIT_DEFAULT } from '@/lib/rateLimit';
 
 /**
@@ -215,25 +221,11 @@ function hasMeaningfulReturnType(raw: unknown): boolean {
     return upper !== 'EMPTY' && upper !== 'NULL' && upper !== '-';
 }
 
-const EXCLUDED_RETURN_SIGN_BRANCH_NAME = '04Lam Luk Ka067';
-const EXCLUDED_RETURN_DELIVERY_STAFF_IDS = new Set(['604911501', '604911502', '604911503']);
-
-function isExcludedSignedReturn(row: {
-    sign_branch_name: string | null;
-    delivery_staff_id: string | null;
-}): boolean {
-    const signBranchName = String(row.sign_branch_name ?? '').trim();
-    const deliveryStaffId = String(row.delivery_staff_id ?? '').trim();
-    return (
-        signBranchName === EXCLUDED_RETURN_SIGN_BRANCH_NAME ||
-        EXCLUDED_RETURN_DELIVERY_STAFF_IDS.has(deliveryStaffId)
-    );
-}
-
 async function aggregateReturnTypeCount(
     dateFrom: string,
     dateTo: string,
     acknowledgedAwbs: Set<string>,
+    exclusion: JtReturnExclusionConfig,
 ): Promise<number> {
     let offset = 0;
     let returnCount = 0;
@@ -261,7 +253,7 @@ async function aggregateReturnTypeCount(
         for (const row of rows) {
             const awb = String(row.awb_number ?? '').trim();
             if (awb && acknowledgedAwbs.has(awb)) continue;
-            if (isExcludedSignedReturn(row)) continue;
+            if (isExcludedSignedReturn(row, exclusion)) continue;
             if (hasMeaningfulReturnType(row.return_type)) returnCount += 1;
         }
         if (rows.length < AGG_PAGE) break;
@@ -275,6 +267,7 @@ async function aggregateReturnTypeCases(
     dateFrom: string,
     dateTo: string,
     acknowledgedAwbs: Set<string>,
+    exclusion: JtReturnExclusionConfig,
     topN = 10,
 ): Promise<{
     returnTypeCaseCount: number;
@@ -332,7 +325,7 @@ async function aggregateReturnTypeCases(
         for (const row of rows) {
             const awb = String(row.awb_number ?? '').trim();
             if (awb && acknowledgedAwbs.has(awb)) continue;
-            if (isExcludedSignedReturn(row)) continue;
+            if (isExcludedSignedReturn(row, exclusion)) continue;
             if (!hasMeaningfulReturnType(row.return_type)) continue;
             returnTypeCaseCount += 1;
             if (topReturnTypeCases.length < topN) {
@@ -490,11 +483,16 @@ export async function GET(req: Request) {
             ? fetchJmsCountViaRpc(prevRange.from, prevRange.to)
             : Promise.resolve(0);
 
-        const [customMetricSettingsRes, returnAcknowledgementsRes] = await Promise.all([
+        const [customMetricSettingsRes, returnExclusionSettingsRes, returnAcknowledgementsRes] = await Promise.all([
             supabaseAdmin
                 .from('settings')
                 .select('value')
                 .eq('key', JT_CUSTOM_METRIC_SETTINGS_KEY)
+                .maybeSingle(),
+            supabaseAdmin
+                .from('settings')
+                .select('value')
+                .eq('key', JT_RETURN_EXCLUSION_SETTINGS_KEY)
                 .maybeSingle(),
             supabaseAdmin
                 .from(JT_RETURN_ACKNOWLEDGEMENTS_TABLE)
@@ -505,11 +503,16 @@ export async function GET(req: Request) {
             console.error('[jt-shipments/dashboard] custom metric settings', customMetricSettingsRes.error);
             return NextResponse.json({ error: customMetricSettingsRes.error.message }, { status: 500 });
         }
+        if (returnExclusionSettingsRes.error) {
+            console.error('[jt-shipments/dashboard] return exclusion settings', returnExclusionSettingsRes.error);
+            return NextResponse.json({ error: returnExclusionSettingsRes.error.message }, { status: 500 });
+        }
         if (returnAcknowledgementsRes.error) {
             console.error('[jt-shipments/dashboard] return acknowledgements', returnAcknowledgementsRes.error);
             return NextResponse.json({ error: returnAcknowledgementsRes.error.message }, { status: 500 });
         }
         const customDefs = parseJtCustomMetricCardsFromSettingsValue(customMetricSettingsRes.data?.value);
+        const returnExclusion = parseJtReturnExclusionFromSettingsValue(returnExclusionSettingsRes.data?.value);
         const ackRows = (returnAcknowledgementsRes.data || []) as Array<{
             awb_number: string | null;
             reason: string | null;
@@ -557,10 +560,10 @@ export async function GET(req: Request) {
             prevRange
                 ? aggregateExceptionReasonStats(prevRange.from, prevRange.to, 5, 0)
                 : Promise.resolve({ exceptionCount: 0, topExceptionReasons: [], topExceptionCases: [] }),
-            aggregateReturnTypeCases(dateFrom, dateTo, acknowledgedReturnAwbs, 100),
-            aggregateReturnTypeCount(dateFrom, dateTo, acknowledgedReturnAwbs),
+            aggregateReturnTypeCases(dateFrom, dateTo, acknowledgedReturnAwbs, returnExclusion, 100),
+            aggregateReturnTypeCount(dateFrom, dateTo, acknowledgedReturnAwbs, returnExclusion),
             prevRange
-                ? aggregateReturnTypeCount(prevRange.from, prevRange.to, acknowledgedReturnAwbs)
+                ? aggregateReturnTypeCount(prevRange.from, prevRange.to, acknowledgedReturnAwbs, returnExclusion)
                 : Promise.resolve(0),
             aggregateCodPendingCases(dateFrom, dateTo, 20),
         ]);

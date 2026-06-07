@@ -12,6 +12,7 @@ import type {
     JtDashboardPreviousMetrics,
 } from './jtDashboardTypes';
 import { JtDashboardCustomMetrics } from './JtDashboardCustomMetrics';
+import { JtReturnExclusionEditor } from './JtReturnExclusionEditor';
 import { JtDashboardDailyCharts } from './JtDashboardDailyCharts';
 import { CostAreaInspectionSection } from './JtCostAreaInspection';
 import {
@@ -51,6 +52,8 @@ export type JtDashboardViewProps = {
     availableDetailFields: string[];
     onSaveCustomMetricCards: (cards: JtCustomMetricCardDefinition[]) => Promise<void>;
     onSaveDetailFields: (fields: string[]) => Promise<void>;
+    /** หลังบันทึกรายการยกเว้น "พัสดุถูกตีกลับ" → reload เพื่ออัปเดตการ์ด */
+    onReturnExclusionSaved?: () => void;
     onAcknowledgeReturn: (
         awbNumber: string,
         reason: string,
@@ -349,6 +352,7 @@ export function JtDashboardView({
     availableDetailFields,
     onSaveCustomMetricCards,
     onSaveDetailFields,
+    onReturnExclusionSaved,
     onAcknowledgeReturn,
     onRestoreReturn,
     onAcknowledgeStagnant,
@@ -964,6 +968,10 @@ export function JtDashboardView({
                                     disabled={loading}
                                     onSave={onSaveCustomMetricCards}
                                 />
+                            ) : null}
+
+                            {!mockMode ? (
+                                <JtReturnExclusionEditor onSaved={onReturnExclusionSaved} />
                             ) : null}
                         </>
                     ) : null}

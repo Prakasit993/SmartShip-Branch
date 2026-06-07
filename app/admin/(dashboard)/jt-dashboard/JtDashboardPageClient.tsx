@@ -86,8 +86,9 @@ function addLocalDays(date: Date, days: number): Date {
 
 function getDefaultParcelDateRange(): { from: string; to: string } {
     const today = new Date();
+    // default 30 วัน — พัสดุตีกลับมัก booking มานานก่อนจะตีกลับ ช่วงแคบเกินจะทำให้หลุด
     return {
-        from: toLocalYmd(addLocalDays(today, -6)),
+        from: toLocalYmd(addLocalDays(today, -29)),
         to: toLocalYmd(today),
     };
 }
@@ -781,6 +782,7 @@ export function JtDashboardPageClient() {
             availableDetailFields={success ? state.availableDetailFields : DEFAULT_JT_SHIPMENT_DETAIL_FIELDS}
             onSaveCustomMetricCards={saveCustomMetricCards}
             onSaveDetailFields={saveDetailFields}
+            onReturnExclusionSaved={() => void load(parcelDateFrom, parcelDateTo)}
             onAcknowledgeReturn={acknowledgeReturn}
             onRestoreReturn={restoreReturn}
             onAcknowledgeStagnant={acknowledgeStagnant}
