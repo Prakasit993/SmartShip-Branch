@@ -96,7 +96,8 @@ async function aggregateCodPendingCases(
         let q = supabaseAdmin
             .from('jt_shipments')
             .select('awb_number,receiver_name,receiver_phone,cod_amount,cod_status,booking_date')
-            .order('booking_date', { ascending: false, nullsFirst: false });
+            .order('booking_date', { ascending: false, nullsFirst: false })
+            .order('awb_number', { ascending: true, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
         if (error) {
@@ -171,7 +172,8 @@ async function aggregateExceptionReasonStats(
             .from('jt_shipments')
             .select('awb_number,sender_name,receiver_name,receiver_phone,exception_reason,issue_registered_time,booking_date,sign_branch_code')
             .is('sign_branch_code', null)
-            .order('booking_date', { ascending: false, nullsFirst: false });
+            .order('booking_date', { ascending: false, nullsFirst: false })
+            .order('awb_number', { ascending: true, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
         if (error) {
@@ -237,7 +239,12 @@ async function aggregateReturnTypeCount(
             console.warn(`[jt-shipments/dashboard] aggregateReturnTypeCount capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
             break;
         }
-        let q = supabaseAdmin.from('jt_shipments').select('awb_number,return_type,sign_branch_name,delivery_staff_id');
+        // ต้อง .order() ด้วย unique key — มิฉะนั้น OFFSET/LIMIT pagination ข้ามหลายพันแถว
+        // จะหล่น/ซ้ำแถวแบบ non-deterministic (เคยบั๊ก: นับตีกลับได้ 0 ทั้งที่มีจริง)
+        let q = supabaseAdmin
+            .from('jt_shipments')
+            .select('awb_number,return_type,sign_branch_name,delivery_staff_id')
+            .order('awb_number', { ascending: true, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
         if (error) {
@@ -303,7 +310,9 @@ async function aggregateReturnTypeCases(
         let q = supabaseAdmin
             .from('jt_shipments')
             .select('awb_number,sender_name,receiver_name,receiver_phone,exception_reason,return_branch_name,issue_registered_time,booking_date,return_type,sign_branch_name,delivery_staff_id')
-            .order('booking_date', { ascending: false, nullsFirst: false });
+            .order('booking_date', { ascending: false, nullsFirst: false })
+            // tiebreaker: booking_date ซ้ำกันได้ → ใส่ awb_number กัน pagination หล่นแถวข้ามหน้า
+            .order('awb_number', { ascending: true, nullsFirst: false });
         q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
         const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
         if (error) {
@@ -616,7 +625,11 @@ export async function GET(req: Request) {
                     console.warn(`[jt-shipments/dashboard] main aggregation capped at ${MAX_AGG_ITERATIONS * AGG_PAGE} rows`);
                     break;
                 }
-                let q = supabaseAdmin.from('jt_shipments').select(selectCols);
+                // .order() unique key จำเป็นกับ OFFSET/LIMIT — กัน sum/custom-metric ผิดจากแถวหล่น/ซ้ำ
+                let q = supabaseAdmin
+                    .from('jt_shipments')
+                    .select(selectCols)
+                    .order('awb_number', { ascending: true, nullsFirst: false });
                 q = applyBookingDateRangeFilters(q, dateFrom, dateTo);
                 const { data, error } = await q.range(offset, offset + AGG_PAGE - 1);
                 if (error) {
